@@ -1,0 +1,46 @@
+{
+  "name": "@strapi-community/migrate-auth",
+  "version": "0.0.0",
+  "description": "Migration utilities for moving user data between Strapi auth providers",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "check-types": "tsc --noEmit",
+    "test:integration": "node --js-explicit-resource-management node_modules/vitest/vitest.mjs run",
+    "lint": "biome check --fix"
+  },
+  "peerDependencies": {
+    "@strapi/strapi": "catalog:strapi",
+    "@strapi/types": "catalog:strapi"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11",
+    "@strapi/typescript-utils": "catalog:strapi",
+    "@types/bcryptjs": "^2.4.6",
+    "better-auth": "catalog:better-auth",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Boaz Poolman",
+    "email": "boaz@pluginpal.io",
+    "url": "https://github.com/boazpoolman"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/strapi-community/auth.git",
+    "directory": "packages/migrate-auth"
+  }
+}

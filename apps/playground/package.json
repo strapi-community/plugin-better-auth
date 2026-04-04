@@ -19,6 +19,7 @@
   "dependencies": {
     "@strapi-community/plugin-api-permissions": "workspace:*",
     "@strapi-community/plugin-better-auth": "workspace:*",
+    "@strapi/plugin-users-permissions": "catalog:strapi",
     "@strapi/strapi": "catalog:strapi",
     "@strapi/types": "catalog:strapi",
     "better-auth": "catalog:better-auth",

@@ -10,6 +10,7 @@ catalogs:
     "@strapi/design-system": 2.2.0
     "@strapi/icons": 2.2.0
   strapi:
+    "@strapi/plugin-users-permissions": 0.0.0-experimental.593681493255d3a39231f63454a967a71fdd7d66
     "@strapi/strapi": 0.0.0-experimental.593681493255d3a39231f63454a967a71fdd7d66
     "@strapi/types": 0.0.0-experimental.593681493255d3a39231f63454a967a71fdd7d66
     "@strapi/typescript-utils": 0.0.0-experimental.593681493255d3a39231f63454a967a71fdd7d66
