@@ -36,6 +36,7 @@
     "lint": "biome check --fix"
   },
   "dependencies": {
+    "better-auth": "catalog:better-auth",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

@@ -21,7 +21,6 @@
     "@strapi-community/plugin-better-auth": "workspace:*",
     "@strapi/strapi": "catalog:strapi",
     "@strapi/types": "catalog:strapi",
-    "better-auth": "catalog:better-auth",
     "better-sqlite3": "12.4.1",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
