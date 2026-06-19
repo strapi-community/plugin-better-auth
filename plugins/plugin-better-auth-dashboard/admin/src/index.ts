@@ -44,10 +44,10 @@ export default {
       Component: async () => import("./pages/Root"),
     });
 
-    // app.router.addRoute({
-    //   path: `/plugins/${PLUGIN_ID}`,
-    //   Component: async () => import("./pages/Root"),
-    // });
+    app.router.addRoute({
+      path: `plugins/${PLUGIN_ID}/*`,
+      Component: async () => import("./pages/Root"),
+    });
   },
 
   bootstrap() {},
