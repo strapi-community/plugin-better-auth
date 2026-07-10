@@ -9,13 +9,14 @@ import {
   SearchForm,
 } from "@strapi/design-system";
 import { Pencil, Plus, Trash } from "@strapi/icons";
-import { useNotification } from "@strapi/strapi/admin";
+import { useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import styled, { keyframes } from "styled-components";
 import { client } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { PERMISSIONS } from "../../constants";
 import { withContext } from "../../utils/dashContext";
 import { CreateOrganizationDialog } from "./CreateOrganizationDialog";
 import { OrganizationDetail } from "./OrganizationDetail";
@@ -237,6 +238,7 @@ interface Props {
 }
 
 export function OrganizationsPage({ teamsEnabled }: Props) {
+  const rbac = useRBAC(PERMISSIONS.organization);
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
   const [page, setPage] = useState(1);
@@ -358,6 +360,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         </TitleBlock>
         <Button
           startIcon={<Plus />}
+          disabled={!rbac.allowedActions.canCreate}
           onClick={() => setShowCreate(true)}
           data-testid="create-org-btn"
         >
@@ -389,6 +392,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           <Button
             variant="danger-light"
             size="S"
+            disabled={!rbac.allowedActions.canDelete}
             onClick={() => setConfirmDeleteMany(true)}
             data-testid="delete-selected-orgs-btn"
           >
@@ -481,6 +485,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                       <Flex gap={1} justifyContent="flex-end">
                         <IconButton
                           label="Edit organization"
+                          disabled={!rbac.allowedActions.canUpdate}
                           onClick={() => setDetailOrgId(org.id)}
                           data-testid="edit-org-btn"
                         >
@@ -488,6 +493,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                         </IconButton>
                         <IconButton
                           label="Delete organization"
+                          disabled={!rbac.allowedActions.canDelete}
                           onClick={() => setConfirmDelete(org.id)}
                           data-testid="delete-org-btn"
                         >
@@ -526,14 +532,14 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         </Flex>
       )}
 
-      {showCreate && (
+      {rbac.allowedActions.canCreate && showCreate && (
         <CreateOrganizationDialog
           teamsEnabled={teamsEnabled}
           onClose={() => setShowCreate(false)}
         />
       )}
 
-      {detailOrgId && (
+      {rbac.allowedActions.canUpdate && detailOrgId && (
         <OrganizationDetail
           organizationId={detailOrgId}
           teamsEnabled={teamsEnabled}
@@ -541,7 +547,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         />
       )}
 
-      {confirmDelete && (
+      {rbac.allowedActions.canDelete && confirmDelete && (
         <ConfirmDialog
           title="Delete organization"
           message="Are you sure you want to delete this organization? All members and teams will be removed. This action cannot be undone."
@@ -552,7 +558,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         />
       )}
 
-      {confirmDeleteMany && (
+      {rbac.allowedActions.canDelete && confirmDeleteMany && (
         <ConfirmDialog
           title={`Delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}`}
           message={`Are you sure you want to delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}

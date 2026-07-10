@@ -6,10 +6,12 @@ import {
   Tabs,
   Typography,
 } from "@strapi/design-system";
+import { useRBAC } from "@strapi/strapi/admin";
 import { useQuery } from "react-query";
 import styled from "styled-components";
 import { client } from "../client";
 import { PluginIcon } from "../components/PluginIcon";
+import { PERMISSIONS } from "../constants";
 import { hasPlugin, useDashConfig } from "../hooks/useDashConfig";
 import { OrganizationsPage } from "./Organizations";
 import { OverviewPage } from "./Overview";
@@ -50,7 +52,19 @@ const PathTag = styled.code`
 export function App() {
   const { data: config, isLoading, isError, error } = useDashConfig();
 
+  const overviewRBAC = useRBAC(PERMISSIONS.overview);
+  const userRBAC = useRBAC(PERMISSIONS.user);
+  const organizationRBAC = useRBAC(PERMISSIONS.organization);
+
   const orgEnabled = hasPlugin(config, "organization");
+
+  const defaultTab = overviewRBAC.allowedActions.canRead
+    ? "overview"
+    : userRBAC.allowedActions.canRead
+      ? "users"
+      : orgEnabled && organizationRBAC.allowedActions.canRead
+        ? "organizations"
+        : undefined;
 
   const orgOptionsQuery = useQuery({
     queryKey: ["dash-org-options"],
@@ -92,7 +106,7 @@ export function App() {
 
   return (
     <Box background="neutral100" minHeight="100vh" data-testid="dashboard-root">
-      <Tabs.Root defaultValue="overview">
+      <Tabs.Root defaultValue={defaultTab}>
         <Box
           background="neutral0"
           borderColor="neutral150"
@@ -130,13 +144,17 @@ export function App() {
               <PathTag>{config.basePath}</PathTag>
             </Flex>
             <Tabs.List aria-label="Dashboard navigation" data-testid="main-nav">
-              <Tabs.Trigger value="overview" data-testid="nav-overview">
-                Overview
-              </Tabs.Trigger>
-              <Tabs.Trigger value="users" data-testid="nav-users">
-                Users
-              </Tabs.Trigger>
-              {orgEnabled && (
+              {overviewRBAC.allowedActions.canRead && (
+                <Tabs.Trigger value="overview" data-testid="nav-overview">
+                  Overview
+                </Tabs.Trigger>
+              )}
+              {userRBAC.allowedActions.canRead && (
+                <Tabs.Trigger value="users" data-testid="nav-users">
+                  Users
+                </Tabs.Trigger>
+              )}
+              {orgEnabled && organizationRBAC.allowedActions.canRead && (
                 <Tabs.Trigger
                   value="organizations"
                   data-testid="nav-organizations"
@@ -148,13 +166,17 @@ export function App() {
           </Box>
         </Box>
 
-        <Tabs.Content value="overview" data-testid="tab-overview">
-          <OverviewPage />
-        </Tabs.Content>
-        <Tabs.Content value="users" data-testid="tab-users">
-          <UsersPage config={config} />
-        </Tabs.Content>
-        {orgEnabled && (
+        {overviewRBAC.allowedActions.canRead && (
+          <Tabs.Content value="overview" data-testid="tab-overview">
+            <OverviewPage />
+          </Tabs.Content>
+        )}
+        {userRBAC.allowedActions.canRead && (
+          <Tabs.Content value="users" data-testid="tab-users">
+            <UsersPage config={config} />
+          </Tabs.Content>
+        )}
+        {orgEnabled && organizationRBAC.allowedActions.canRead && (
           <Tabs.Content value="organizations" data-testid="tab-organizations">
             <OrganizationsPage teamsEnabled={teamsEnabled} />
           </Tabs.Content>

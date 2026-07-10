@@ -8,7 +8,7 @@ import {
   SearchForm,
 } from "@strapi/design-system";
 import { Pencil, Plus, Trash } from "@strapi/icons";
-import { useNotification } from "@strapi/strapi/admin";
+import { useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
@@ -16,6 +16,7 @@ import styled, { keyframes } from "styled-components";
 import { client } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { PERMISSIONS } from "../../constants";
 import type { DashConfig } from "../../hooks/useDashConfig";
 import { hasPlugin } from "../../hooks/useDashConfig";
 import { useUsers } from "../../hooks/useUsers";
@@ -208,6 +209,7 @@ interface Props {
 }
 
 export function UsersPage({ config }: Props) {
+  const rbac = useRBAC(PERMISSIONS.user);
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
   const banEnabled = hasPlugin(config, "admin");
@@ -349,6 +351,7 @@ export function UsersPage({ config }: Props) {
         </TitleBlock>
         <Button
           startIcon={<Plus />}
+          disabled={!rbac.allowedActions.canCreate}
           onClick={() => setShowCreate(true)}
           data-testid="create-user-btn"
         >
@@ -382,6 +385,7 @@ export function UsersPage({ config }: Props) {
             <Button
               variant="danger-light"
               size="S"
+              disabled={!rbac.allowedActions.canDelete}
               onClick={() => setConfirmDeleteMany(true)}
               data-testid="delete-selected-btn"
             >
@@ -391,6 +395,7 @@ export function UsersPage({ config }: Props) {
               <Button
                 variant="secondary"
                 size="S"
+                disabled={!rbac.allowedActions.canUpdate}
                 onClick={() => setConfirmBanMany(true)}
               >
                 Ban {selected.size} selected
@@ -497,6 +502,7 @@ export function UsersPage({ config }: Props) {
                       <Flex gap={1} justifyContent="flex-end">
                         <IconButton
                           label="Edit user"
+                          disabled={!rbac.allowedActions.canUpdate}
                           onClick={() => setDetailUserId(user.id)}
                           data-testid="edit-user-btn"
                         >
@@ -504,6 +510,7 @@ export function UsersPage({ config }: Props) {
                         </IconButton>
                         <IconButton
                           label="Delete user"
+                          disabled={!rbac.allowedActions.canDelete}
                           onClick={() => setConfirmDelete(user.id)}
                           data-testid="delete-user-btn"
                         >
@@ -542,9 +549,11 @@ export function UsersPage({ config }: Props) {
         </Flex>
       )}
 
-      {showCreate && <CreateUserDialog onClose={() => setShowCreate(false)} />}
+      {rbac.allowedActions.canCreate && showCreate && (
+        <CreateUserDialog onClose={() => setShowCreate(false)} />
+      )}
 
-      {detailUserId && (
+      {rbac.allowedActions.canUpdate && detailUserId && (
         <UserDetailDrawer
           userId={detailUserId}
           banEnabled={banEnabled}
@@ -554,7 +563,7 @@ export function UsersPage({ config }: Props) {
         />
       )}
 
-      {confirmDelete && (
+      {rbac.allowedActions.canDelete && confirmDelete && (
         <ConfirmDialog
           title="Delete user"
           message="Are you sure you want to delete this user? This action cannot be undone."
@@ -565,7 +574,7 @@ export function UsersPage({ config }: Props) {
         />
       )}
 
-      {confirmDeleteMany && (
+      {rbac.allowedActions.canDelete && confirmDeleteMany && (
         <ConfirmDialog
           title={`Delete ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
           message={`Are you sure you want to delete ${selected.size} user${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
@@ -576,7 +585,7 @@ export function UsersPage({ config }: Props) {
         />
       )}
 
-      {confirmBanMany && (
+      {rbac.allowedActions.canBan && confirmBanMany && (
         <ConfirmDialog
           title={`Ban ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
           message={`Are you sure you want to ban ${selected.size} user${selected.size !== 1 ? "s" : ""}? They will be prevented from signing in.`}
