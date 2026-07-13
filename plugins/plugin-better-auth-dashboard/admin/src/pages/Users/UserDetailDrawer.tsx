@@ -311,9 +311,9 @@ export function UserDetailDrawer({
       const documentId = strapiUserQuery.data?.documentId as string | undefined;
       if (!documentId) throw new Error("Could not resolve documentId for user");
 
-      await put(
-        `/better-auth-dashboard/db/${documentId}?uid=plugin::better-auth.user`,
-        body,
+      await client.dash.updateUser(
+        { userId, ...body },
+        withContext({ userId }),
       );
     },
     onSuccess: async () => {
