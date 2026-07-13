@@ -388,11 +388,10 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           </Searchbar>
         </SearchForm>
 
-        {someSelected && (
+        {someSelected && rbac.allowedActions.canDelete && (
           <Button
             variant="danger-light"
             size="S"
-            disabled={!rbac.allowedActions.canDelete}
             onClick={() => setConfirmDeleteMany(true)}
             data-testid="delete-selected-orgs-btn"
           >
@@ -418,13 +417,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           <Table>
             <thead>
               <tr>
-                <THCheck>
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                  />
-                </THCheck>
+                {rbac.allowedActions.canDelete && (
+                  <THCheck>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </THCheck>
+                )}
                 <TH>Name</TH>
                 <TH>Slug</TH>
                 <TH>Members</TH>
@@ -457,13 +458,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                     $i={i}
                     data-testid="org-row"
                   >
-                    <TDCheck>
-                      <Checkbox
-                        checked={selected.has(org.id)}
-                        onCheckedChange={() => toggleSelect(org.id)}
-                        aria-label={`Select ${org.name}`}
-                      />
-                    </TDCheck>
+                    {rbac.allowedActions.canDelete && (
+                      <TDCheck>
+                        <Checkbox
+                          checked={selected.has(org.id)}
+                          onCheckedChange={() => toggleSelect(org.id)}
+                          aria-label={`Select ${org.name}`}
+                        />
+                      </TDCheck>
+                    )}
                     <TD>
                       <Flex alignItems="center" gap={2}>
                         <OrgAvatar name={org.name} logo={org.logo} />
@@ -483,22 +486,24 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                     </TD>
                     <TDActions>
                       <Flex gap={1} justifyContent="flex-end">
-                        <IconButton
-                          label="Edit organization"
-                          disabled={!rbac.allowedActions.canUpdate}
-                          onClick={() => setDetailOrgId(org.id)}
-                          data-testid="edit-org-btn"
-                        >
-                          <Pencil />
-                        </IconButton>
-                        <IconButton
-                          label="Delete organization"
-                          disabled={!rbac.allowedActions.canDelete}
-                          onClick={() => setConfirmDelete(org.id)}
-                          data-testid="delete-org-btn"
-                        >
-                          <Trash />
-                        </IconButton>
+                        {rbac.allowedActions.canUpdate && (
+                          <IconButton
+                            label="Edit organization"
+                            onClick={() => setDetailOrgId(org.id)}
+                            data-testid="edit-org-btn"
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
+                        {rbac.allowedActions.canDelete && (
+                          <IconButton
+                            label="Delete organization"
+                            onClick={() => setConfirmDelete(org.id)}
+                            data-testid="delete-org-btn"
+                          >
+                            <Trash />
+                          </IconButton>
+                        )}
                       </Flex>
                     </TDActions>
                   </TR>

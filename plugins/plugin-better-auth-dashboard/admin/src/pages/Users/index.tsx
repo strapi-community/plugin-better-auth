@@ -385,20 +385,20 @@ export function UsersPage({ config }: Props) {
 
         {someSelected && (
           <Flex gap={2}>
-            <Button
-              variant="danger-light"
-              size="S"
-              disabled={!rbac.allowedActions.canDelete}
-              onClick={() => setConfirmDeleteMany(true)}
-              data-testid="delete-selected-btn"
-            >
-              Delete {selected.size} selected
-            </Button>
-            {banEnabled && (
+            {rbac.allowedActions.canDelete && (
+              <Button
+                variant="danger-light"
+                size="S"
+                onClick={() => setConfirmDeleteMany(true)}
+                data-testid="delete-selected-btn"
+              >
+                Delete {selected.size} selected
+              </Button>
+            )}
+            {banEnabled && rbac.allowedActions.canUpdate && (
               <Button
                 variant="secondary"
                 size="S"
-                disabled={!rbac.allowedActions.canUpdate}
                 onClick={() => setConfirmBanMany(true)}
               >
                 Ban {selected.size} selected
@@ -423,13 +423,16 @@ export function UsersPage({ config }: Props) {
           <Table>
             <thead>
               <tr>
-                <THCheck>
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                  />
-                </THCheck>
+                {(rbac.allowedActions.canDelete ||
+                  rbac.allowedActions.canUpdate) && (
+                  <THCheck>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </THCheck>
+                )}
                 <TH>Name</TH>
                 <TH>Email</TH>
                 <TH>Status</TH>
@@ -462,13 +465,16 @@ export function UsersPage({ config }: Props) {
                     $i={i}
                     data-testid="user-row"
                   >
-                    <TDCheck>
-                      <Checkbox
-                        checked={selected.has(user.id)}
-                        onCheckedChange={() => toggleSelect(user.id)}
-                        aria-label={`Select ${user.name}`}
-                      />
-                    </TDCheck>
+                    {(rbac.allowedActions.canDelete ||
+                      rbac.allowedActions.canUpdate) && (
+                      <TDCheck>
+                        <Checkbox
+                          checked={selected.has(user.id)}
+                          onCheckedChange={() => toggleSelect(user.id)}
+                          aria-label={`Select ${user.name}`}
+                        />
+                      </TDCheck>
+                    )}
                     <TD>
                       <Flex alignItems="center" gap={2}>
                         <Avatar
@@ -503,22 +509,24 @@ export function UsersPage({ config }: Props) {
                     </TD>
                     <TDActions>
                       <Flex gap={1} justifyContent="flex-end">
-                        <IconButton
-                          label="Edit user"
-                          disabled={!rbac.allowedActions.canUpdate}
-                          onClick={() => setDetailUserId(user.id)}
-                          data-testid="edit-user-btn"
-                        >
-                          <Pencil />
-                        </IconButton>
-                        <IconButton
-                          label="Delete user"
-                          disabled={!rbac.allowedActions.canDelete}
-                          onClick={() => setConfirmDelete(user.id)}
-                          data-testid="delete-user-btn"
-                        >
-                          <Trash />
-                        </IconButton>
+                        {rbac.allowedActions.canUpdate && (
+                          <IconButton
+                            label="Edit user"
+                            onClick={() => setDetailUserId(user.id)}
+                            data-testid="edit-user-btn"
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
+                        {rbac.allowedActions.canDelete && (
+                          <IconButton
+                            label="Delete user"
+                            onClick={() => setConfirmDelete(user.id)}
+                            data-testid="delete-user-btn"
+                          >
+                            <Trash />
+                          </IconButton>
+                        )}
                       </Flex>
                     </TDActions>
                   </TR>
