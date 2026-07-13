@@ -596,7 +596,7 @@ export function UsersPage({ config }: Props) {
         />
       )}
 
-      {rbac.allowedActions.canBan && confirmBanMany && (
+      {rbac.allowedActions.canUpdate && confirmBanMany && (
         <ConfirmDialog
           title={`Ban ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
           message={`Are you sure you want to ban ${selected.size} user${selected.size !== 1 ? "s" : ""}? They will be prevented from signing in.`}
