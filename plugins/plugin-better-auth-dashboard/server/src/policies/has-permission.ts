@@ -94,7 +94,7 @@ export default async (
   }
 
   if (found.length <= 0) {
-    throw new PolicyError("You do not have permission t.", {
+    throw new PolicyError("You do not have permission to see this content.", {
       errCode: "CANNOT_MODIFY_FOREIGN_RESOURCES",
     });
   }
