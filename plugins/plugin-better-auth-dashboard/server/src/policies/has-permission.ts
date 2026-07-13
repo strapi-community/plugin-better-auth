@@ -14,6 +14,7 @@ type Route = {
   info: unknown;
 };
 
+// references to categories by path start
 const endpointsCategories = Object.freeze({
   "/auth/dash/config": ["overview", "user", "organization"],
   "/auth/dash/user-stats": ["overview"],
@@ -25,6 +26,7 @@ const endpointsCategories = Object.freeze({
   "/auth/dash/organization": ["organization"],
 });
 
+// references to actions by method
 const types = Object.freeze({
   POST: "read",
   PUT: "update",
@@ -32,6 +34,7 @@ const types = Object.freeze({
   DELETE: "delete",
 });
 
+// references to predictable actions
 const endpointsTypes = Object.freeze({
   "/auth/dash/user-stats": "read",
   "/auth/dash/user-graph-data": "read",
