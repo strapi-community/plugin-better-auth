@@ -8,7 +8,6 @@ export default () => ({
       config: {
         policies: [],
         prefix: "",
-        auth: false,
       },
     },
     {
@@ -17,7 +16,6 @@ export default () => ({
       handler: "auth-controller.handleAuthRequest",
       config: {
         policies: [],
-        auth: false,
         prefix: "",
       },
     },
@@ -27,7 +25,6 @@ export default () => ({
       handler: "auth-controller.handleAuthRequest",
       config: {
         policies: [],
-        auth: false,
         prefix: "",
       },
     },
@@ -37,7 +34,6 @@ export default () => ({
       handler: "auth-controller.handleAuthRequest",
       config: {
         policies: [],
-        auth: false,
         prefix: "",
       },
     },
@@ -47,7 +43,6 @@ export default () => ({
       handler: "auth-controller.handleAuthRequest",
       config: {
         policies: [],
-        auth: false,
         prefix: "",
       },
     },
