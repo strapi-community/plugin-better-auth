@@ -48,7 +48,7 @@ export interface DashContext {
  */
 export const withContext = (
   ctx: DashContext,
-  headers?: Record<string, any>,
+  headers?: Record<string, unknown>,
 ) => ({
   headers: {
     ...headers,
