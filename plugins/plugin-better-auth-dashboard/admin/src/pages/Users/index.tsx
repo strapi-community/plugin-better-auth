@@ -13,7 +13,7 @@ import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import styled, { keyframes } from "styled-components";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PERMISSIONS } from "../../constants";
@@ -240,7 +240,10 @@ export function UsersPage({ config }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const result = await client.dash.deleteUser({}, withContext({ userId }));
+      const result = await client.dash.deleteUser(
+        {},
+        withContext({ userId }, getAuthHeaders()),
+      );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
     },
@@ -262,7 +265,7 @@ export function UsersPage({ config }: Props) {
     mutationFn: async (userIds: string[]) => {
       const result = await client.dash.deleteManyUsers(
         {},
-        withContext({ userIds } as never),
+        withContext({ userIds } as never, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
@@ -290,7 +293,7 @@ export function UsersPage({ config }: Props) {
     mutationFn: async (userIds: string[]) => {
       const result = await client.dash.banManyUsers(
         {},
-        withContext({ userIds } as never),
+        withContext({ userIds } as never, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Ban failed");
       return result.data;

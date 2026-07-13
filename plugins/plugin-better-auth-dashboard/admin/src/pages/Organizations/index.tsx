@@ -14,7 +14,7 @@ import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import styled, { keyframes } from "styled-components";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PERMISSIONS } from "../../constants";
 import { withContext } from "../../utils/dashContext";
@@ -275,7 +275,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
     mutationFn: async (organizationId: string) => {
       const result = await client.dash.organization.delete(
         { organizationId },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
@@ -297,7 +297,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
     mutationFn: async (organizationIds: string[]) => {
       const result = await client.dash.organization.deleteMany(
         {},
-        withContext({ organizationIds } as never),
+        withContext({ organizationIds } as never, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
