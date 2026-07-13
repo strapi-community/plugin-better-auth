@@ -358,14 +358,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           <PageTitle>Organizations</PageTitle>
           <PageSubtitle>{total.toLocaleString()} total</PageSubtitle>
         </TitleBlock>
-        <Button
-          startIcon={<Plus />}
-          disabled={!rbac.allowedActions.canCreate}
-          onClick={() => setShowCreate(true)}
-          data-testid="create-org-btn"
-        >
-          Create organization
-        </Button>
+        {rbac.allowedActions.canCreate && (
+          <Button
+            startIcon={<Plus />}
+            onClick={() => setShowCreate(true)}
+            data-testid="create-org-btn"
+          >
+            Create organization
+          </Button>
+        )}
       </PageHeader>
 
       <Toolbar>

@@ -352,14 +352,15 @@ export function UsersPage({ config }: Props) {
             {data?.onlineUsers ? ` · ${data.onlineUsers} online` : ""}
           </PageSubtitle>
         </TitleBlock>
-        <Button
-          startIcon={<Plus />}
-          disabled={!rbac.allowedActions.canCreate}
-          onClick={() => setShowCreate(true)}
-          data-testid="create-user-btn"
-        >
-          Create user
-        </Button>
+        {rbac.allowedActions.canCreate && (
+          <Button
+            startIcon={<Plus />}
+            onClick={() => setShowCreate(true)}
+            data-testid="create-user-btn"
+          >
+            Create user
+          </Button>
+        )}
       </PageHeader>
 
       <Toolbar>
