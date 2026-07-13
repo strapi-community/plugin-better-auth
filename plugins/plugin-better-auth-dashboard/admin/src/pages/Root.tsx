@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { App } from "./App";
+import { ProtectedApp } from "./App";
 
 /**
  * Root component that provides the React Query client.
@@ -24,7 +24,7 @@ export function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ProtectedApp />
     </QueryClientProvider>
   );
 }

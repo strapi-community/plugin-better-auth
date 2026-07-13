@@ -6,7 +6,7 @@ import {
   Tabs,
   Typography,
 } from "@strapi/design-system";
-import { useRBAC } from "@strapi/strapi/admin";
+import { Page, useRBAC } from "@strapi/strapi/admin";
 import { useQuery } from "react-query";
 import styled from "styled-components";
 import { client } from "../client";
@@ -49,7 +49,7 @@ const PathTag = styled.code`
   font-weight: 500;
 `;
 
-export function App() {
+const App = () => {
   const { data: config, isLoading, isError, error } = useDashConfig();
 
   const overviewRBAC = useRBAC(PERMISSIONS.overview);
@@ -184,4 +184,20 @@ export function App() {
       </Tabs.Root>
     </Box>
   );
-}
+};
+
+const ProtectedApp = () => {
+  return (
+    <Page.Protect
+      permissions={[
+        ...PERMISSIONS.overview,
+        ...PERMISSIONS.user,
+        ...PERMISSIONS.organization,
+      ]}
+    >
+      <App />
+    </Page.Protect>
+  );
+};
+
+export { ProtectedApp };
