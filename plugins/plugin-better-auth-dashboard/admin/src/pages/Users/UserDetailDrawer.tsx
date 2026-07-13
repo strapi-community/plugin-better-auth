@@ -244,11 +244,6 @@ export function UserDetailDrawer({
       const { data } = await get<{ results: Record<string, unknown>[] }>(
         `/better-auth-dashboard/db?uid=plugin::better-auth.user&filters[id][$eq]=${userId}&pagination[pageSize]=1${populateParam}`,
       );
-      // console.log('strapi user data: ', data);
-
-      // const test = await client.dash.user({}, withContext({ userId }));
-      // console.log('TEST: ', test);
-
       return (
         (data as { results?: Record<string, unknown>[] }).results?.[0] ?? null
       );
