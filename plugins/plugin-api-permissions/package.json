@@ -1,6 +1,6 @@
 {
   "name": "@strapi-community/plugin-api-permissions",
-  "version": "1.0.0-alpha.3",
+  "version": "1.0.0-alpha.4",
   "description": "Content API RBAC for Strapi — auth-provider agnostic roles and permissions",
   "keywords": [
     "strapi",
