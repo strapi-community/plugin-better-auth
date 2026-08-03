@@ -1,10 +1,12 @@
 import { Flex, Loader } from "@strapi/design-system";
-import { useFetchClient } from "@strapi/strapi/admin";
+import { Page, useFetchClient } from "@strapi/strapi/admin";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import styled, { keyframes } from "styled-components";
 import { client } from "../../client";
 import { Avatar } from "../../components/Avatar";
+import { PERMISSIONS } from "../../constants";
+import { PLUGIN_ID } from "../../pluginId";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -1071,346 +1073,358 @@ export function OverviewPage() {
   );
 
   return (
-    <Wrap data-testid="overview-page">
-      {/* ── Header ── */}
-      <Flex justifyContent="space-between" alignItems="flex-end">
-        <div>
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: T.textPrimary,
-              letterSpacing: "-0.03em",
-            }}
+    <Page.Protect
+      permissions={PERMISSIONS.overview.filter(
+        (p) => p.action === `plugin::${PLUGIN_ID}.overview.read`,
+      )}
+    >
+      <Wrap data-testid="overview-page">
+        {/* ── Header ── */}
+        <Flex justifyContent="space-between" alignItems="flex-end">
+          <div>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: T.textPrimary,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Overview
+            </div>
+            <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>
+              {new Date().toLocaleDateString(undefined, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </div>
+          </div>
+          <PillGroup>
+            {(["daily", "weekly", "monthly"] as const).map((p) => (
+              <Pill key={p} $active={period === p} onClick={() => setPeriod(p)}>
+                {p[0].toUpperCase() + p.slice(1)}
+              </Pill>
+            ))}
+          </PillGroup>
+        </Flex>
+
+        {/* ── Metrics ── */}
+        <SectionDivider>
+          <DivLabel>Metrics</DivLabel>
+          <DivLine />
+        </SectionDivider>
+
+        <StatGrid>
+          <StatItem
+            id="total"
+            label="Total Users"
+            value={stats.total ?? 0}
+            sparkline={totalSpark}
+            color={T.accent}
+            delay={0}
+          />
+          <StatItem
+            id="d-sig"
+            label="Daily Sign-ups"
+            value={stats.daily.signUps ?? 0}
+            pct={stats.daily.percentage ?? undefined}
+            sparkline={newSpark}
+            color={T.green}
+            delay={1}
+          />
+          <StatItem
+            id="w-sig"
+            label="Weekly Sign-ups"
+            value={stats.weekly.signUps ?? 0}
+            pct={stats.weekly.percentage ?? undefined}
+            sparkline={newSpark}
+            color={T.green}
+            delay={2}
+          />
+          <StatItem
+            id="m-sig"
+            label="Monthly Sign-ups"
+            value={stats.monthly.signUps ?? 0}
+            pct={stats.monthly.percentage ?? undefined}
+            sparkline={newSpark}
+            color={T.green}
+            delay={3}
+          />
+          <StatItem
+            id="orgs"
+            label="Organizations"
+            value={orgCount}
+            color={T.purple}
+            delay={4}
+          />
+        </StatGrid>
+
+        {/* ── Growth ── */}
+        <SectionDivider>
+          <DivLabel>Growth</DivLabel>
+          <DivLine />
+        </SectionDivider>
+
+        <TwoPanel>
+          <ChartCard ref={chartRef} $delay={5}>
+            <ChartHeader>
+              <ChartTitle>User Growth</ChartTitle>
+              <SeriesRow>
+                {ALL_SERIES.map((s) => (
+                  <SeriesBtn
+                    key={s.key}
+                    $on={activeSeries.has(s.key)}
+                    $c={s.color}
+                    onClick={() => toggleSeries(s.key)}
+                  >
+                    <SDot $c={s.color} />
+                    {s.label}
+                  </SeriesBtn>
+                ))}
+              </SeriesRow>
+            </ChartHeader>
+            <HoverInfo>
+              {hovRow
+                ? `${hovRow.label}  ·  ${hovRow.totalUsers.toLocaleString()} total  ·  +${hovRow.newUsers.toLocaleString()} new  ·  ${hovRow.activeUsers.toLocaleString()} active`
+                : "Hover the chart to inspect a data point"}
+            </HoverInfo>
+            {graphQuery.isLoading ? (
+              <Flex
+                justifyContent="center"
+                alignItems="center"
+                style={{ flex: 1, minHeight: 170 }}
+              >
+                <Loader>Loading…</Loader>
+              </Flex>
+            ) : (
+              <GrowthChart
+                data={graphData}
+                hovered={hovIdx}
+                onHover={setHovIdx}
+                activeSeries={activeSeries}
+              />
+            )}
+          </ChartCard>
+
+          <FeedCard
+            $delay={6}
+            style={chartHeight > 0 ? { height: chartHeight } : undefined}
           >
-            Overview
-          </div>
-          <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>
-            {new Date().toLocaleDateString(undefined, {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
-        </div>
-        <PillGroup>
-          {(["daily", "weekly", "monthly"] as const).map((p) => (
-            <Pill key={p} $active={period === p} onClick={() => setPeriod(p)}>
-              {p[0].toUpperCase() + p.slice(1)}
-            </Pill>
-          ))}
-        </PillGroup>
-      </Flex>
-
-      {/* ── Metrics ── */}
-      <SectionDivider>
-        <DivLabel>Metrics</DivLabel>
-        <DivLine />
-      </SectionDivider>
-
-      <StatGrid>
-        <StatItem
-          id="total"
-          label="Total Users"
-          value={stats.total ?? 0}
-          sparkline={totalSpark}
-          color={T.accent}
-          delay={0}
-        />
-        <StatItem
-          id="d-sig"
-          label="Daily Sign-ups"
-          value={stats.daily.signUps ?? 0}
-          pct={stats.daily.percentage ?? undefined}
-          sparkline={newSpark}
-          color={T.green}
-          delay={1}
-        />
-        <StatItem
-          id="w-sig"
-          label="Weekly Sign-ups"
-          value={stats.weekly.signUps ?? 0}
-          pct={stats.weekly.percentage ?? undefined}
-          sparkline={newSpark}
-          color={T.green}
-          delay={2}
-        />
-        <StatItem
-          id="m-sig"
-          label="Monthly Sign-ups"
-          value={stats.monthly.signUps ?? 0}
-          pct={stats.monthly.percentage ?? undefined}
-          sparkline={newSpark}
-          color={T.green}
-          delay={3}
-        />
-        <StatItem
-          id="orgs"
-          label="Organizations"
-          value={orgCount}
-          color={T.purple}
-          delay={4}
-        />
-      </StatGrid>
-
-      {/* ── Growth ── */}
-      <SectionDivider>
-        <DivLabel>Growth</DivLabel>
-        <DivLine />
-      </SectionDivider>
-
-      <TwoPanel>
-        <ChartCard ref={chartRef} $delay={5}>
-          <ChartHeader>
-            <ChartTitle>User Growth</ChartTitle>
-            <SeriesRow>
-              {ALL_SERIES.map((s) => (
-                <SeriesBtn
-                  key={s.key}
-                  $on={activeSeries.has(s.key)}
-                  $c={s.color}
-                  onClick={() => toggleSeries(s.key)}
-                >
-                  <SDot $c={s.color} />
-                  {s.label}
-                </SeriesBtn>
-              ))}
-            </SeriesRow>
-          </ChartHeader>
-          <HoverInfo>
-            {hovRow
-              ? `${hovRow.label}  ·  ${hovRow.totalUsers.toLocaleString()} total  ·  +${hovRow.newUsers.toLocaleString()} new  ·  ${hovRow.activeUsers.toLocaleString()} active`
-              : "Hover the chart to inspect a data point"}
-          </HoverInfo>
-          {graphQuery.isLoading ? (
-            <Flex
-              justifyContent="center"
-              alignItems="center"
-              style={{ flex: 1, minHeight: 170 }}
-            >
-              <Loader>Loading…</Loader>
-            </Flex>
-          ) : (
-            <GrowthChart
-              data={graphData}
-              hovered={hovIdx}
-              onHover={setHovIdx}
-              activeSeries={activeSeries}
-            />
-          )}
-        </ChartCard>
-
-        <FeedCard
-          $delay={6}
-          style={chartHeight > 0 ? { height: chartHeight } : undefined}
-        >
-          <FeedHead>
-            <span>
-              {feedMode === "signups" ? "Recent Sign-ups" : "Recently Active"}
-            </span>
-            <FeedSelect
-              value={feedMode}
-              onChange={(e) =>
-                setFeedMode(e.target.value as "signups" | "active")
-              }
-            >
-              <option value="signups">Recent Sign-ups</option>
-              <option value="active">Recently Active</option>
-            </FeedSelect>
-          </FeedHead>
-          <FeedScroll>
-            {feedMode === "signups" ? (
-              usersQuery.isLoading ? (
+            <FeedHead>
+              <span>
+                {feedMode === "signups" ? "Recent Sign-ups" : "Recently Active"}
+              </span>
+              <FeedSelect
+                value={feedMode}
+                onChange={(e) =>
+                  setFeedMode(e.target.value as "signups" | "active")
+                }
+              >
+                <option value="signups">Recent Sign-ups</option>
+                <option value="active">Recently Active</option>
+              </FeedSelect>
+            </FeedHead>
+            <FeedScroll>
+              {feedMode === "signups" ? (
+                usersQuery.isLoading ? (
+                  <Flex justifyContent="center" padding={4}>
+                    <Loader>Loading…</Loader>
+                  </Flex>
+                ) : users.length === 0 ? (
+                  <Empty>No users yet</Empty>
+                ) : (
+                  users.map((u) => (
+                    <FeedItem key={u.id}>
+                      <FeedTop>
+                        <Flex
+                          alignItems="center"
+                          gap={1}
+                          style={{ minWidth: 0 }}
+                        >
+                          <Avatar name={u.name} src={u.image} size={20} />
+                          <FeedName title={u.name}>{u.name}</FeedName>
+                        </Flex>
+                        <FeedMeta>{relTime(u.createdAt)}</FeedMeta>
+                      </FeedTop>
+                      <FeedEmail title={u.email}>{u.email}</FeedEmail>
+                    </FeedItem>
+                  ))
+                )
+              ) : activeUsersQuery.isLoading || sessionsQuery.isLoading ? (
                 <Flex justifyContent="center" padding={4}>
                   <Loader>Loading…</Loader>
                 </Flex>
-              ) : users.length === 0 ? (
-                <Empty>No users yet</Empty>
+              ) : sortedActiveUsers.length === 0 ? (
+                <Empty>No recent activity</Empty>
               ) : (
-                users.map((u) => (
-                  <FeedItem key={u.id}>
+                sortedActiveUsers.map((u) => (
+                  <FeedItem key={u.documentId}>
                     <FeedTop>
                       <Flex alignItems="center" gap={1} style={{ minWidth: 0 }}>
-                        <Avatar name={u.name} src={u.image} size={20} />
+                        <Avatar
+                          name={u.name}
+                          src={u.image ?? undefined}
+                          size={20}
+                        />
                         <FeedName title={u.name}>{u.name}</FeedName>
                       </Flex>
-                      <FeedMeta>{relTime(u.createdAt)}</FeedMeta>
+                      <FeedMeta>
+                        {relTime(
+                          lastActiveByUserId.get(String(u.id)) ?? u.createdAt,
+                        )}
+                      </FeedMeta>
                     </FeedTop>
                     <FeedEmail title={u.email}>{u.email}</FeedEmail>
                   </FeedItem>
                 ))
-              )
-            ) : activeUsersQuery.isLoading || sessionsQuery.isLoading ? (
-              <Flex justifyContent="center" padding={4}>
+              )}
+            </FeedScroll>
+          </FeedCard>
+        </TwoPanel>
+
+        {/* ── Retention & Activity ── */}
+        <SectionDivider>
+          <DivLabel>Retention &amp; Activity</DivLabel>
+          <DivLine />
+        </SectionDivider>
+
+        <TwoPanel>
+          <RtnCard $delay={7}>
+            <ChartHeader>
+              <ChartTitle>Cohort Retention</ChartTitle>
+              <Flex alignItems="center" gap={2}>
+                {[
+                  { hue: 142, label: "≥70%" },
+                  { hue: 38, label: "40–70%" },
+                  { hue: 4, label: "<40%" },
+                ].map(({ hue, label }) => (
+                  <Flex
+                    key={hue}
+                    alignItems="center"
+                    gap={1}
+                    style={{ marginLeft: 8 }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: `hsl(${hue},60%,50%)`,
+                        display: "inline-block",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ fontSize: 9, color: T.textMuted }}>
+                      {label}
+                    </span>
+                  </Flex>
+                ))}
+              </Flex>
+            </ChartHeader>
+
+            <RtnTip>
+              {rtnHovRow
+                ? `Cohort ${rtnHovRow.label} · ${rtnHovRow.cohortSize.toLocaleString()} users · active ${rtnHovRow.activeStart} – ${rtnHovRow.activeEnd}`
+                : "Hover a row to see cohort details"}
+            </RtnTip>
+
+            {retentionQuery.isLoading ? (
+              <Flex
+                justifyContent="center"
+                alignItems="center"
+                style={{ minHeight: 80 }}
+              >
                 <Loader>Loading…</Loader>
               </Flex>
-            ) : sortedActiveUsers.length === 0 ? (
-              <Empty>No recent activity</Empty>
+            ) : rtnData.length === 0 ? (
+              <Empty>
+                <div style={{ fontSize: 22 }}>📉</div>
+                <div>No retention data for this period</div>
+              </Empty>
             ) : (
-              sortedActiveUsers.map((u) => (
-                <FeedItem key={u.documentId}>
-                  <FeedTop>
-                    <Flex alignItems="center" gap={1} style={{ minWidth: 0 }}>
-                      <Avatar
-                        name={u.name}
-                        src={u.image ?? undefined}
-                        size={20}
-                      />
-                      <FeedName title={u.name}>{u.name}</FeedName>
-                    </Flex>
-                    <FeedMeta>
-                      {relTime(
-                        lastActiveByUserId.get(String(u.id)) ?? u.createdAt,
-                      )}
-                    </FeedMeta>
-                  </FeedTop>
-                  <FeedEmail title={u.email}>{u.email}</FeedEmail>
-                </FeedItem>
-              ))
-            )}
-          </FeedScroll>
-        </FeedCard>
-      </TwoPanel>
-
-      {/* ── Retention & Activity ── */}
-      <SectionDivider>
-        <DivLabel>Retention &amp; Activity</DivLabel>
-        <DivLine />
-      </SectionDivider>
-
-      <TwoPanel>
-        <RtnCard $delay={7}>
-          <ChartHeader>
-            <ChartTitle>Cohort Retention</ChartTitle>
-            <Flex alignItems="center" gap={2}>
-              {[
-                { hue: 142, label: "≥70%" },
-                { hue: 38, label: "40–70%" },
-                { hue: 4, label: "<40%" },
-              ].map(({ hue, label }) => (
-                <Flex
-                  key={hue}
-                  alignItems="center"
-                  gap={1}
-                  style={{ marginLeft: 8 }}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: `hsl(${hue},60%,50%)`,
-                      display: "inline-block",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: 9, color: T.textMuted }}>
-                    {label}
-                  </span>
-                </Flex>
-              ))}
-            </Flex>
-          </ChartHeader>
-
-          <RtnTip>
-            {rtnHovRow
-              ? `Cohort ${rtnHovRow.label} · ${rtnHovRow.cohortSize.toLocaleString()} users · active ${rtnHovRow.activeStart} – ${rtnHovRow.activeEnd}`
-              : "Hover a row to see cohort details"}
-          </RtnTip>
-
-          {retentionQuery.isLoading ? (
-            <Flex
-              justifyContent="center"
-              alignItems="center"
-              style={{ minHeight: 80 }}
-            >
-              <Loader>Loading…</Loader>
-            </Flex>
-          ) : rtnData.length === 0 ? (
-            <Empty>
-              <div style={{ fontSize: 22 }}>📉</div>
-              <div>No retention data for this period</div>
-            </Empty>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {rtnData.map((row, i) => {
-                const hue = rateHue(row.retentionRate);
-                return (
-                  <RtnRow
-                    key={row.n}
-                    $hov={rtnHov === i}
-                    onMouseEnter={() => setRtnHov(i)}
-                    onMouseLeave={() => setRtnHov(null)}
-                  >
-                    <RtnLabel>{row.label}</RtnLabel>
-                    <RtnSize>{row.cohortSize.toLocaleString()}</RtnSize>
-                    <RtnTrack>
-                      <RtnBar $w={row.retentionRate} $hue={hue} />
-                    </RtnTrack>
-                    <RtnPct $hue={hue}>{row.retentionRate.toFixed(1)}%</RtnPct>
-                  </RtnRow>
-                );
-              })}
-            </div>
-          )}
-        </RtnCard>
-
-        <RingGrid>
-          {(
-            [
-              {
-                label: "Daily Active",
-                value: stats.activeUsers.daily.active,
-                pct: stats.activeUsers.daily.percentage,
-                color: T.amber,
-                sparkline: activeSpark,
-                delay: 8,
-              },
-              {
-                label: "Weekly Active",
-                value: stats.activeUsers.weekly.active,
-                pct: stats.activeUsers.weekly.percentage,
-                color: T.green,
-                sparkline: activeSpark,
-                delay: 9,
-              },
-              {
-                label: "Monthly Active",
-                value: stats.activeUsers.monthly.active,
-                pct: stats.activeUsers.monthly.percentage,
-                color: T.accent,
-                sparkline: activeSpark,
-                delay: 10,
-              },
-            ] as const
-          ).map(({ label, value, pct, color, delay }) => {
-            const isPos = pct == null || pct >= 0;
-            return (
-              <RingCard key={label} $delay={delay}>
-                <ProgressRing
-                  value={value ?? 0}
-                  max={activeMax}
-                  color={color}
-                  size={56}
-                />
-                <RingInfo>
-                  <RingLabel>{label}</RingLabel>
-                  <RingVal>{(value ?? 0).toLocaleString()}</RingVal>
-                  {pct != null && (
-                    <TrendBadge
-                      $pos={isPos}
-                      style={{ marginTop: 4, marginBottom: 0 }}
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {rtnData.map((row, i) => {
+                  const hue = rateHue(row.retentionRate);
+                  return (
+                    <RtnRow
+                      key={row.n}
+                      $hov={rtnHov === i}
+                      onMouseEnter={() => setRtnHov(i)}
+                      onMouseLeave={() => setRtnHov(null)}
                     >
-                      {isPos ? "↑" : "↓"} {Math.abs(pct).toFixed(1)}%
-                    </TrendBadge>
-                  )}
-                </RingInfo>
-              </RingCard>
-            );
-          })}
-        </RingGrid>
-      </TwoPanel>
-    </Wrap>
+                      <RtnLabel>{row.label}</RtnLabel>
+                      <RtnSize>{row.cohortSize.toLocaleString()}</RtnSize>
+                      <RtnTrack>
+                        <RtnBar $w={row.retentionRate} $hue={hue} />
+                      </RtnTrack>
+                      <RtnPct $hue={hue}>
+                        {row.retentionRate.toFixed(1)}%
+                      </RtnPct>
+                    </RtnRow>
+                  );
+                })}
+              </div>
+            )}
+          </RtnCard>
+
+          <RingGrid>
+            {(
+              [
+                {
+                  label: "Daily Active",
+                  value: stats.activeUsers.daily.active,
+                  pct: stats.activeUsers.daily.percentage,
+                  color: T.amber,
+                  sparkline: activeSpark,
+                  delay: 8,
+                },
+                {
+                  label: "Weekly Active",
+                  value: stats.activeUsers.weekly.active,
+                  pct: stats.activeUsers.weekly.percentage,
+                  color: T.green,
+                  sparkline: activeSpark,
+                  delay: 9,
+                },
+                {
+                  label: "Monthly Active",
+                  value: stats.activeUsers.monthly.active,
+                  pct: stats.activeUsers.monthly.percentage,
+                  color: T.accent,
+                  sparkline: activeSpark,
+                  delay: 10,
+                },
+              ] as const
+            ).map(({ label, value, pct, color, delay }) => {
+              const isPos = pct == null || pct >= 0;
+              return (
+                <RingCard key={label} $delay={delay}>
+                  <ProgressRing
+                    value={value ?? 0}
+                    max={activeMax}
+                    color={color}
+                    size={56}
+                  />
+                  <RingInfo>
+                    <RingLabel>{label}</RingLabel>
+                    <RingVal>{(value ?? 0).toLocaleString()}</RingVal>
+                    {pct != null && (
+                      <TrendBadge
+                        $pos={isPos}
+                        style={{ marginTop: 4, marginBottom: 0 }}
+                      >
+                        {isPos ? "↑" : "↓"} {Math.abs(pct).toFixed(1)}%
+                      </TrendBadge>
+                    )}
+                  </RingInfo>
+                </RingCard>
+              );
+            })}
+          </RingGrid>
+        </TwoPanel>
+      </Wrap>
+    </Page.Protect>
   );
 }

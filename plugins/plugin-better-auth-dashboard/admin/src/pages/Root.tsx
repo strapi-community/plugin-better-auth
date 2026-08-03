@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { Navigate, Route, Routes, useOutletContext } from "react-router-dom";
 import type { DashConfig } from "../hooks/useDashConfig";
-import { App } from "./App";
+import { ProtectedApp } from "./App";
 import { OrganizationsPage } from "./Organizations";
 import { OverviewPage } from "./Overview";
 import { UsersPage } from "./Users";
@@ -40,7 +40,7 @@ export function Root() {
   return (
     <QueryClientProvider client={queryClient}>
       <Routes>
-        <Route path="/" element={<App />}>
+        <Route path="/" element={<ProtectedApp />}>
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
           <Route path="users" element={<UsersRoute />} />

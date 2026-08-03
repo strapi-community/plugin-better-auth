@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { Outlet } from "react-router-dom";
 import { client } from "../client";
 import { Nav } from "../components/Nav";
+import { PERMISSIONS } from "../constants";
 import { hasPlugin, useDashConfig } from "../hooks/useDashConfig";
 
 const RESPONSIVE_DEFAULT_SPACING = {
@@ -12,7 +13,7 @@ const RESPONSIVE_DEFAULT_SPACING = {
   large: 10,
 };
 
-export function App() {
+const App = () => {
   const { data: config, isLoading, isError, error } = useDashConfig();
 
   const orgEnabled = hasPlugin(config, "organization");
@@ -74,4 +75,20 @@ export function App() {
       </Layouts.Root>
     </div>
   );
-}
+};
+
+const ProtectedApp = () => {
+  return (
+    <Page.Protect
+      permissions={[
+        ...PERMISSIONS.overview,
+        ...PERMISSIONS.user,
+        ...PERMISSIONS.organization,
+      ]}
+    >
+      <App />
+    </Page.Protect>
+  );
+};
+
+export { ProtectedApp };

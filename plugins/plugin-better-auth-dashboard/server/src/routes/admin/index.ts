@@ -6,9 +6,8 @@ export default () => ({
       path: "/auth/:path*",
       handler: "auth-controller.handleAuthRequest",
       config: {
-        policies: [],
+        policies: ["has-permission"],
         prefix: "",
-        auth: false,
       },
     },
     {
@@ -16,8 +15,7 @@ export default () => ({
       path: "/auth/:path*",
       handler: "auth-controller.handleAuthRequest",
       config: {
-        policies: [],
-        auth: false,
+        policies: ["has-permission"],
         prefix: "",
       },
     },
@@ -26,8 +24,7 @@ export default () => ({
       path: "/auth/:path*",
       handler: "auth-controller.handleAuthRequest",
       config: {
-        policies: [],
-        auth: false,
+        policies: ["has-permission"],
         prefix: "",
       },
     },
@@ -36,8 +33,7 @@ export default () => ({
       path: "/auth/:path*",
       handler: "auth-controller.handleAuthRequest",
       config: {
-        policies: [],
-        auth: false,
+        policies: ["has-permission"],
         prefix: "",
       },
     },
@@ -46,8 +42,7 @@ export default () => ({
       path: "/auth/:path*",
       handler: "auth-controller.handleAuthRequest",
       config: {
-        policies: [],
-        auth: false,
+        policies: ["has-permission"],
         prefix: "",
       },
     },
@@ -56,7 +51,7 @@ export default () => ({
       path: "/better-auth-dashboard/db",
       handler: "db-controller.list",
       config: {
-        policies: [],
+        policies: ["has-permission"],
         prefix: "",
       },
     },
@@ -65,7 +60,7 @@ export default () => ({
       path: "/better-auth-dashboard/db/:documentId",
       handler: "db-controller.update",
       config: {
-        policies: [],
+        policies: ["has-permission"],
         prefix: "",
       },
     },

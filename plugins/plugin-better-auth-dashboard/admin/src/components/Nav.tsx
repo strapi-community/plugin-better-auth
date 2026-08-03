@@ -1,5 +1,7 @@
 import { Divider } from "@strapi/design-system";
+import { useRBAC } from "@strapi/strapi/admin";
 import { useIntl } from "react-intl";
+import { PERMISSIONS } from "../constants";
 import { getTranslation } from "../utils/getTranslation";
 import { SubNav } from "./SubNav";
 
@@ -50,6 +52,10 @@ type NavProps = {
 const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
   const { formatMessage } = useIntl();
 
+  const overviewRBAC = useRBAC(PERMISSIONS.overview);
+  const userRBAC = useRBAC(PERMISSIONS.user);
+  const organizationRBAC = useRBAC(PERMISSIONS.organization);
+
   return (
     <SubNav.Main>
       {!isFullPage && (
@@ -73,6 +79,18 @@ const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
             >
               {section.links
                 .filter((link) => orgEnabled || link.id !== "organizations")
+                .filter((link) => {
+                  if (link.id === "overview") {
+                    return overviewRBAC.allowedActions.canRead;
+                  }
+                  if (link.id === "users") {
+                    return userRBAC.allowedActions.canRead;
+                  }
+                  if (link.id === "organizations") {
+                    return organizationRBAC.allowedActions.canRead;
+                  }
+                  return true;
+                })
                 .map((link) => {
                   return (
                     <SubNav.Link
