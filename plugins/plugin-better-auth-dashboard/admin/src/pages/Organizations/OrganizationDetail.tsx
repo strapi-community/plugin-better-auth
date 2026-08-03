@@ -18,7 +18,7 @@ import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import styled from "styled-components";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Drawer } from "../../components/Drawer";
 import { CustomFieldsSection } from "../../components/DynamicField";
@@ -105,7 +105,7 @@ export function OrganizationDetail({
     queryFn: async () => {
       const result = await client.dash.organization[organizationId as ":id"](
         {},
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Failed to load org");
@@ -118,7 +118,7 @@ export function OrganizationDetail({
     queryFn: async () => {
       const result = await client.dash.organization[
         organizationId as ":id"
-      ].members({}, withContext({ organizationId }));
+      ].members({}, withContext({ organizationId }, getAuthHeaders()));
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data ?? [];
     },
@@ -130,7 +130,7 @@ export function OrganizationDetail({
       if (!teamsEnabled) return [];
       const result = await client.dash.organization[
         organizationId as ":id"
-      ].teams({}, withContext({ organizationId }));
+      ].teams({}, withContext({ organizationId }, getAuthHeaders()));
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return (result.data ?? []) as Array<{
         id: string;
@@ -148,7 +148,7 @@ export function OrganizationDetail({
     queryFn: async () => {
       const result = await client.dash.organization[
         organizationId as ":id"
-      ].ssoProviders({}, withContext({ organizationId }));
+      ].ssoProviders({}, withContext({ organizationId }, getAuthHeaders()));
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data ?? [];
     },
@@ -159,7 +159,7 @@ export function OrganizationDetail({
     queryFn: async () => {
       const result = await client.dash.organization[
         organizationId as ":id"
-      ].invitations({}, withContext({ organizationId }));
+      ].invitations({}, withContext({ organizationId }, getAuthHeaders()));
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return (result.data ?? []) as Array<{
         id: string;
@@ -274,7 +274,7 @@ export function OrganizationDetail({
     mutationFn: async () => {
       const result = await client.dash.organization.addMember(
         { userId: addUserId, role: addRole },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Add member failed");
@@ -298,7 +298,7 @@ export function OrganizationDetail({
     mutationFn: async (memberId: string) => {
       const result = await client.dash.organization.removeMember(
         { memberId },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
     },
@@ -325,7 +325,7 @@ export function OrganizationDetail({
     }) => {
       const result = await client.dash.organization.updateMemberRole(
         { memberId, role },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data;
@@ -348,7 +348,7 @@ export function OrganizationDetail({
     mutationFn: async () => {
       const result = await client.dash.organization.createTeam(
         { name: newTeamName },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Create team failed");
@@ -371,7 +371,7 @@ export function OrganizationDetail({
     mutationFn: async (teamId: string) => {
       const result = await client.dash.organization.deleteTeam(
         { teamId },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
     },
@@ -392,7 +392,10 @@ export function OrganizationDetail({
     mutationFn: async (providerId: string) => {
       const result = await client.dash.organization[
         organizationId as ":id"
-      ].ssoProvider.delete({ providerId }, withContext({ organizationId }));
+      ].ssoProvider.delete(
+        { providerId },
+        withContext({ organizationId }, getAuthHeaders()),
+      );
       if (result.error) throw new Error(result.error.message ?? "Failed");
     },
     onSuccess: () => {
@@ -412,7 +415,7 @@ export function OrganizationDetail({
     mutationFn: async () => {
       const result = await client.dash.organization.inviteMember(
         { email: inviteEmail, role: inviteRole, invitedBy: "" } as never,
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data;
@@ -437,7 +440,7 @@ export function OrganizationDetail({
     mutationFn: async (invitationId: string) => {
       const result = await client.dash.organization.cancelInvitation(
         { invitationId } as never,
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
     },
@@ -460,7 +463,7 @@ export function OrganizationDetail({
     mutationFn: async (invitationId: string) => {
       const result = await client.dash.organization.resendInvitation(
         { invitationId } as never,
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
     },
@@ -1062,7 +1065,7 @@ function TeamRow({
         organizationId as ":orgId"
       ].teams[team.id as ":teamId"].members(
         { params: { orgId: organizationId, teamId: team.id } },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data ?? [];
@@ -1076,7 +1079,7 @@ function TeamRow({
     mutationFn: async () => {
       const result = await client.dash.organization.addTeamMember(
         { teamId: team.id, userId: addUserId },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data;
@@ -1093,7 +1096,7 @@ function TeamRow({
     mutationFn: async (userId: string) => {
       const result = await client.dash.organization.removeTeamMember(
         { teamId: team.id, userId },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
     },

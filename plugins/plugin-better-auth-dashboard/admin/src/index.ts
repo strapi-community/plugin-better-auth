@@ -1,31 +1,12 @@
+import type { StrapiApp } from "@strapi/strapi/admin";
 import { PluginIcon } from "./components/PluginIcon";
+import { PERMISSIONS } from "./constants";
 import { PLUGIN_ID } from "./pluginId";
 import { addEditViewSidePanel } from "./utils/editViewPanelRegistry";
 import { captureApp } from "./utils/strapiApp";
 
-export default {
-  register(app: {
-    addMenuLink: (config: {
-      to: string;
-      icon: React.ComponentType;
-      intlLabel: { id: string; defaultMessage: string };
-      Component: () => Promise<{ default: React.ComponentType }>;
-    }) => void;
-    router: {
-      addRoute: (config: {
-        path: string;
-        Component: () => Promise<{ default: React.ComponentType }>;
-      }) => void;
-    };
-    // biome-ignore lint/suspicious/noExplicitAny: Strapi app bridge type
-    library: any;
-    registerPlugin: (config: {
-      id: string;
-      name: string;
-      // biome-ignore lint/suspicious/noExplicitAny: plugin API shape is open-ended
-      apis: Record<string, any>;
-    }) => void;
-  }) {
+const plugin: StrapiApp["appPlugins"][string] = {
+  register(app) {
     captureApp(app);
 
     app.registerPlugin({
@@ -42,13 +23,15 @@ export default {
         defaultMessage: "Auth Dashboard",
       },
       Component: async () => import("./pages/Root"),
+      permissions: [
+        ...PERMISSIONS.overview,
+        ...PERMISSIONS.user,
+        ...PERMISSIONS.organization,
+      ],
     });
-
-    // app.router.addRoute({
-    //   path: `/plugins/${PLUGIN_ID}`,
-    //   Component: async () => import("./pages/Root"),
-    // });
   },
 
   bootstrap() {},
 };
+
+export default plugin;

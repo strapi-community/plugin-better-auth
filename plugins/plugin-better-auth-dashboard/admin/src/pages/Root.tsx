@@ -1,6 +1,21 @@
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { App } from "./App";
+import { Navigate, Route, Routes, useOutletContext } from "react-router-dom";
+import type { DashConfig } from "../hooks/useDashConfig";
+import { ProtectedApp } from "./App";
+import { OrganizationsPage } from "./Organizations";
+import { OverviewPage } from "./Overview";
+import { UsersPage } from "./Users";
+
+function UsersRoute() {
+  const { config } = useOutletContext<{ config: DashConfig }>();
+  return <UsersPage config={config} />;
+}
+
+function OrganizationsRoute() {
+  const { teamsEnabled } = useOutletContext<{ teamsEnabled: boolean }>();
+  return <OrganizationsPage teamsEnabled={teamsEnabled} />;
+}
 
 /**
  * Root component that provides the React Query client.
@@ -24,7 +39,14 @@ export function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <App />
+      <Routes>
+        <Route path="/" element={<ProtectedApp />}>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<OverviewPage />} />
+          <Route path="users" element={<UsersRoute />} />
+          <Route path="organizations" element={<OrganizationsRoute />} />
+        </Route>
+      </Routes>
     </QueryClientProvider>
   );
 }

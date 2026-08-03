@@ -1,6 +1,6 @@
 {
   "name": "@strapi-community/plugin-better-auth-dashboard",
-  "version": "1.0.0-alpha.8",
+  "version": "1.0.0-alpha.9",
   "description": "Better Auth dashboard for the Strapi admin panel",
   "keywords": [
     "strapi",
@@ -74,7 +74,8 @@
     "react-dom": "^18.0.0",
     "react-intl": "^6.0.0 || ^7.0.0",
     "react-query": "^3.0.0",
-    "styled-components": "^6.0.0"
+    "styled-components": "^6.0.0",
+    "react-router-dom": "^6.0.0"
   },
   "strapi": {
     "kind": "plugin",

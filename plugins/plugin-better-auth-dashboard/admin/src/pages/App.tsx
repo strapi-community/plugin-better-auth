@@ -1,53 +1,19 @@
-import {
-  Alert,
-  Box,
-  Flex,
-  Loader,
-  Tabs,
-  Typography,
-} from "@strapi/design-system";
+import { Alert, Box, Flex, Loader } from "@strapi/design-system";
+import { BackButton, Layouts, Page } from "@strapi/strapi/admin";
 import { useQuery } from "react-query";
-import styled from "styled-components";
+import { Outlet } from "react-router-dom";
 import { client } from "../client";
-import { PluginIcon } from "../components/PluginIcon";
+import { Nav } from "../components/Nav";
+import { PERMISSIONS } from "../constants";
 import { hasPlugin, useDashConfig } from "../hooks/useDashConfig";
-import { OrganizationsPage } from "./Organizations";
-import { OverviewPage } from "./Overview";
-import { UsersPage } from "./Users";
 
-const Accent = styled.div`
-  height: 3px;
-  background: linear-gradient(90deg, #4945ff 0%, #7b79ff 55%, #9593ff 100%);
-  flex-shrink: 0;
-`;
+const RESPONSIVE_DEFAULT_SPACING = {
+  initial: 4,
+  medium: 6,
+  large: 10,
+};
 
-const BrandIcon = styled.div`
-  width: 30px;
-  height: 30px;
-  background: black;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 12px;
-  font-weight: 900;
-  flex-shrink: 0;
-  letter-spacing: -0.06em;
-  user-select: none;
-`;
-
-const PathTag = styled.code`
-  padding: 2px 8px;
-  background: #f0f0ff;
-  border: 1px solid #d9d8ff;
-  border-radius: 4px;
-  font-size: 11px;
-  color: #4945ff;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-weight: 500;
-`;
-
-export function App() {
+const App = () => {
   const { data: config, isLoading, isError, error } = useDashConfig();
 
   const orgEnabled = hasPlugin(config, "organization");
@@ -91,75 +57,38 @@ export function App() {
   if (!config) return null;
 
   return (
-    <Box background="neutral100" minHeight="100vh" data-testid="dashboard-root">
-      <Tabs.Root defaultValue="overview">
+    <div
+      data-testid="dashboard-root"
+      style={{ display: "flex", flex: "1 1 auto", minHeight: "100vh" }}
+    >
+      <Layouts.Root sideNav={<Nav orgEnabled={orgEnabled} />}>
+        <Page.Title>Authentication</Page.Title>
         <Box
-          background="neutral0"
-          borderColor="neutral150"
-          borderStyle="solid"
-          borderWidth="1px"
-          style={{ overflow: "hidden" }}
+          display={{ initial: "block", medium: "none" }}
+          paddingLeft={RESPONSIVE_DEFAULT_SPACING}
+          paddingRight={RESPONSIVE_DEFAULT_SPACING}
+          paddingTop={RESPONSIVE_DEFAULT_SPACING}
         >
-          <Accent />
-          <Box
-            paddingLeft={6}
-            paddingRight={6}
-            paddingTop={4}
-            paddingBottom={0}
-          >
-            <Flex
-              justifyContent="space-between"
-              alignItems="center"
-              paddingBottom={4}
-            >
-              <Flex gap={2} alignItems="center">
-                <BrandIcon>
-                  <PluginIcon />
-                </BrandIcon>
-                <Box>
-                  <Typography variant="beta" textColor="neutral800">
-                    Better Auth
-                  </Typography>
-                  <Box paddingTop="2px">
-                    <Typography variant="pi" textColor="neutral500">
-                      Authentication Dashboard
-                    </Typography>
-                  </Box>
-                </Box>
-              </Flex>
-              <PathTag>{config.basePath}</PathTag>
-            </Flex>
-            <Tabs.List aria-label="Dashboard navigation" data-testid="main-nav">
-              <Tabs.Trigger value="overview" data-testid="nav-overview">
-                Overview
-              </Tabs.Trigger>
-              <Tabs.Trigger value="users" data-testid="nav-users">
-                Users
-              </Tabs.Trigger>
-              {orgEnabled && (
-                <Tabs.Trigger
-                  value="organizations"
-                  data-testid="nav-organizations"
-                >
-                  Organizations
-                </Tabs.Trigger>
-              )}
-            </Tabs.List>
-          </Box>
+          <BackButton fallback="/plugins/better-auth-dashboard" />
         </Box>
-
-        <Tabs.Content value="overview" data-testid="tab-overview">
-          <OverviewPage />
-        </Tabs.Content>
-        <Tabs.Content value="users" data-testid="tab-users">
-          <UsersPage config={config} />
-        </Tabs.Content>
-        {orgEnabled && (
-          <Tabs.Content value="organizations" data-testid="tab-organizations">
-            <OrganizationsPage teamsEnabled={teamsEnabled} />
-          </Tabs.Content>
-        )}
-      </Tabs.Root>
-    </Box>
+        <Outlet context={{ config, teamsEnabled }} />
+      </Layouts.Root>
+    </div>
   );
-}
+};
+
+const ProtectedApp = () => {
+  return (
+    <Page.Protect
+      permissions={[
+        ...PERMISSIONS.overview,
+        ...PERMISSIONS.user,
+        ...PERMISSIONS.organization,
+      ]}
+    >
+      <App />
+    </Page.Protect>
+  );
+};
+
+export { ProtectedApp };
