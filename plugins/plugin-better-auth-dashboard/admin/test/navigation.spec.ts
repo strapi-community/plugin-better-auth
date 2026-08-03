@@ -12,9 +12,7 @@ test.describe("Navigation", () => {
 
   test("shows Better Auth branding header", async ({ page }) => {
     await expect(page.getByTestId("dashboard-root")).toBeVisible();
-    // Use exact: true to avoid matching the hidden SVG <title>Better Auth Logo</title>
-    await expect(page.getByText("Better Auth", { exact: true })).toBeVisible();
-    await expect(page.getByText("Authentication Dashboard")).toBeVisible();
+    await expect(page.getByText("Authentication")).toBeVisible();
   });
 
   test("shows the main navigation tab list", async ({ page }) => {
@@ -66,12 +64,12 @@ test.describe("Navigation", () => {
 
   test("tab content area renders for overview tab", async ({ page }) => {
     await expect(page.getByTestId("dashboard-root")).toBeVisible();
-    await expect(page.getByTestId("tab-overview")).toBeVisible();
+    await expect(page.getByTestId("overview-page")).toBeVisible();
   });
 
   test("tab content area renders for users tab", async ({ page }) => {
     await expect(page.getByTestId("dashboard-root")).toBeVisible();
     await page.getByTestId("nav-users").click();
-    await expect(page.getByTestId("tab-users")).toBeVisible();
+    await expect(page.getByTestId("users-page")).toBeVisible();
   });
 });

@@ -29,11 +29,6 @@ const plugin: StrapiApp["appPlugins"][string] = {
         ...PERMISSIONS.organization,
       ],
     });
-
-    // app.router.addRoute({
-    //   path: `/plugins/${PLUGIN_ID}`,
-    //   Component: async () => import("./pages/Root"),
-    // });
   },
 
   bootstrap() {},
