@@ -9,13 +9,14 @@ import {
   SearchForm,
 } from "@strapi/design-system";
 import { Pencil, Plus, Trash } from "@strapi/icons";
-import { useNotification } from "@strapi/strapi/admin";
+import { useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import styled, { keyframes } from "styled-components";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { PERMISSIONS } from "../../constants";
 import { withContext } from "../../utils/dashContext";
 import { CreateOrganizationDialog } from "./CreateOrganizationDialog";
 import { OrganizationDetail } from "./OrganizationDetail";
@@ -237,6 +238,7 @@ interface Props {
 }
 
 export function OrganizationsPage({ teamsEnabled }: Props) {
+  const rbac = useRBAC(PERMISSIONS.organization);
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
   const [page, setPage] = useState(1);
@@ -273,7 +275,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
     mutationFn: async (organizationId: string) => {
       const result = await client.dash.organization.delete(
         { organizationId },
-        withContext({ organizationId }),
+        withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
@@ -295,7 +297,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
     mutationFn: async (organizationIds: string[]) => {
       const result = await client.dash.organization.deleteMany(
         {},
-        withContext({ organizationIds } as never),
+        withContext({ organizationIds } as never, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
@@ -356,13 +358,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           <PageTitle>Organizations</PageTitle>
           <PageSubtitle>{total.toLocaleString()} total</PageSubtitle>
         </TitleBlock>
-        <Button
-          startIcon={<Plus />}
-          onClick={() => setShowCreate(true)}
-          data-testid="create-org-btn"
-        >
-          Create organization
-        </Button>
+        {rbac.allowedActions.canCreate && (
+          <Button
+            startIcon={<Plus />}
+            onClick={() => setShowCreate(true)}
+            data-testid="create-org-btn"
+          >
+            Create organization
+          </Button>
+        )}
       </PageHeader>
 
       <Toolbar>
@@ -385,7 +389,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           </Searchbar>
         </SearchForm>
 
-        {someSelected && (
+        {someSelected && rbac.allowedActions.canDelete && (
           <Button
             variant="danger-light"
             size="S"
@@ -414,13 +418,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           <Table>
             <thead>
               <tr>
-                <THCheck>
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                  />
-                </THCheck>
+                {rbac.allowedActions.canDelete && (
+                  <THCheck>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </THCheck>
+                )}
                 <TH>Name</TH>
                 <TH>Slug</TH>
                 <TH>Members</TH>
@@ -453,13 +459,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                     $i={i}
                     data-testid="org-row"
                   >
-                    <TDCheck>
-                      <Checkbox
-                        checked={selected.has(org.id)}
-                        onCheckedChange={() => toggleSelect(org.id)}
-                        aria-label={`Select ${org.name}`}
-                      />
-                    </TDCheck>
+                    {rbac.allowedActions.canDelete && (
+                      <TDCheck>
+                        <Checkbox
+                          checked={selected.has(org.id)}
+                          onCheckedChange={() => toggleSelect(org.id)}
+                          aria-label={`Select ${org.name}`}
+                        />
+                      </TDCheck>
+                    )}
                     <TD>
                       <Flex alignItems="center" gap={2}>
                         <OrgAvatar name={org.name} logo={org.logo} />
@@ -479,20 +487,24 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                     </TD>
                     <TDActions>
                       <Flex gap={1} justifyContent="flex-end">
-                        <IconButton
-                          label="Edit organization"
-                          onClick={() => setDetailOrgId(org.id)}
-                          data-testid="edit-org-btn"
-                        >
-                          <Pencil />
-                        </IconButton>
-                        <IconButton
-                          label="Delete organization"
-                          onClick={() => setConfirmDelete(org.id)}
-                          data-testid="delete-org-btn"
-                        >
-                          <Trash />
-                        </IconButton>
+                        {rbac.allowedActions.canUpdate && (
+                          <IconButton
+                            label="Edit organization"
+                            onClick={() => setDetailOrgId(org.id)}
+                            data-testid="edit-org-btn"
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
+                        {rbac.allowedActions.canDelete && (
+                          <IconButton
+                            label="Delete organization"
+                            onClick={() => setConfirmDelete(org.id)}
+                            data-testid="delete-org-btn"
+                          >
+                            <Trash />
+                          </IconButton>
+                        )}
                       </Flex>
                     </TDActions>
                   </TR>
@@ -526,14 +538,14 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         </Flex>
       )}
 
-      {showCreate && (
+      {rbac.allowedActions.canCreate && showCreate && (
         <CreateOrganizationDialog
           teamsEnabled={teamsEnabled}
           onClose={() => setShowCreate(false)}
         />
       )}
 
-      {detailOrgId && (
+      {rbac.allowedActions.canUpdate && detailOrgId && (
         <OrganizationDetail
           organizationId={detailOrgId}
           teamsEnabled={teamsEnabled}
@@ -541,7 +553,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         />
       )}
 
-      {confirmDelete && (
+      {rbac.allowedActions.canDelete && confirmDelete && (
         <ConfirmDialog
           title="Delete organization"
           message="Are you sure you want to delete this organization? All members and teams will be removed. This action cannot be undone."
@@ -552,7 +564,7 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         />
       )}
 
-      {confirmDeleteMany && (
+      {rbac.allowedActions.canDelete && confirmDeleteMany && (
         <ConfirmDialog
           title={`Delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}`}
           message={`Are you sure you want to delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}

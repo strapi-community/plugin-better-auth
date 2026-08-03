@@ -11,7 +11,7 @@ import { useNotification } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { Drawer } from "../../components/Drawer";
 import { FormSection, SectionLabel } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
@@ -45,7 +45,7 @@ export function CreateOrganizationDialog({ teamsEnabled, onClose }: Props) {
             ? { defaultTeamName }
             : {}),
         },
-        withContext({ userId: ownerId, skipDefaultTeam }),
+        withContext({ userId: ownerId, skipDefaultTeam }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Create failed");

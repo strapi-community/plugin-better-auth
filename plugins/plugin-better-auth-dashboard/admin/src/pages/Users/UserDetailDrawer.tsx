@@ -20,7 +20,7 @@ import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import styled from "styled-components";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Drawer } from "../../components/Drawer";
@@ -186,7 +186,10 @@ export function UserDetailDrawer({
   const userQuery = useQuery({
     queryKey: ["dash-user", userId],
     queryFn: async () => {
-      const result = await client.dash.user({}, withContext({ userId }));
+      const result = await client.dash.user(
+        {},
+        withContext({ userId }, getAuthHeaders()),
+      );
       if (result.error)
         throw new Error(result.error.message ?? "Failed to load user");
       return result.data;
@@ -198,7 +201,7 @@ export function UserDetailDrawer({
     queryFn: async () => {
       const result = await client.dash.userOrganizations(
         {},
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data?.organizations ?? [];
@@ -301,7 +304,7 @@ export function UserDetailDrawer({
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const body: Record<string, unknown> = { ...editExtra };
+      const body: Record<string, unknown> = {};
       if (editName !== undefined) body.name = editName;
       if (editEmail !== undefined) body.email = editEmail;
       if (editEmailVerified !== undefined)
@@ -311,10 +314,19 @@ export function UserDetailDrawer({
       const documentId = strapiUserQuery.data?.documentId as string | undefined;
       if (!documentId) throw new Error("Could not resolve documentId for user");
 
-      await put(
-        `/better-auth-dashboard/db/${documentId}?uid=plugin::better-auth.user`,
-        body,
+      const updateUser = await client.dash.updateUser(
+        { userId, ...body },
+        withContext({ userId }, getAuthHeaders()),
       );
+
+      if (!updateUser.data) throw new Error("Update failed");
+
+      if (Object.keys(editExtra).length > 0) {
+        await put(
+          `/better-auth-dashboard/db/${documentId}?uid=plugin::better-auth.user`,
+          editExtra,
+        );
+      }
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["dash-strapi-user", userId] });
@@ -343,7 +355,7 @@ export function UserDetailDrawer({
     mutationFn: async (sessionId: string) => {
       const result = await client.dash.sessions.revoke(
         {},
-        withContext({ sessionId, userId }),
+        withContext({ sessionId, userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Revoke failed");
@@ -365,7 +377,7 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       const result = await client.dash.setPassword(
         { password: newPassword },
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Password update failed");
@@ -394,7 +406,10 @@ export function UserDetailDrawer({
         const days = parseInt(banExpiresDays, 10);
         if (!Number.isNaN(days)) body.banExpires = Date.now() + days * 86400000;
       }
-      const result = await client.dash.banUser(body, withContext({ userId }));
+      const result = await client.dash.banUser(
+        body,
+        withContext({ userId }, getAuthHeaders()),
+      );
       if (result.error) throw new Error(result.error.message ?? "Ban failed");
       return result.data;
     },
@@ -416,7 +431,10 @@ export function UserDetailDrawer({
 
   const unbanMutation = useMutation({
     mutationFn: async () => {
-      const result = await client.dash.unbanUser({}, withContext({ userId }));
+      const result = await client.dash.unbanUser(
+        {},
+        withContext({ userId }, getAuthHeaders()),
+      );
       if (result.error) throw new Error(result.error.message ?? "Unban failed");
       return result.data;
     },
@@ -438,7 +456,7 @@ export function UserDetailDrawer({
     mutationFn: async (providerId: string) => {
       const result = await client.dash.unlinkAccount(
         { providerId },
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Failed to unlink account");
@@ -460,7 +478,7 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       const result = await client.dash.sessions.revokeAll(
         { userId },
-        withContext({}),
+        withContext({}, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Revoke failed");
@@ -483,7 +501,7 @@ export function UserDetailDrawer({
       const callbackUrl = new URL(window.location.href, window.location.origin);
       const result = await client.dash.sendVerificationEmail(
         { callbackUrl: callbackUrl.toString() },
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data;
@@ -507,7 +525,7 @@ export function UserDetailDrawer({
       const callbackUrl = new URL(window.location.href, window.location.origin);
       const result = await client.dash.sendResetPasswordEmail(
         { callbackUrl: callbackUrl.toString() },
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
       return result.data;
@@ -530,7 +548,7 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       const result = await client.dash.enableTwoFactor(
         {},
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Failed to enable 2FA");
@@ -556,7 +574,7 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       const result = await client.dash.disableTwoFactor(
         {},
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Failed to disable 2FA");
@@ -586,7 +604,7 @@ export function UserDetailDrawer({
       // biome-ignore lint/suspicious/noExplicitAny: viewTwoFactorTotpUri is not typed in @better-auth/infra
       const result = await (client.dash as any).viewTwoFactorTotpUri(
         {},
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Failed to load TOTP URI");
@@ -610,7 +628,7 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       const result = await client.dash.viewBackupCodes(
         {},
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Failed to load backup codes");
@@ -634,7 +652,7 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       const result = await client.dash.generateBackupCodes(
         {},
-        withContext({ userId }),
+        withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(

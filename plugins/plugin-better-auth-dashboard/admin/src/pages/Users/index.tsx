@@ -8,14 +8,15 @@ import {
   SearchForm,
 } from "@strapi/design-system";
 import { Pencil, Plus, Trash } from "@strapi/icons";
-import { useNotification } from "@strapi/strapi/admin";
+import { useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import styled, { keyframes } from "styled-components";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { PERMISSIONS } from "../../constants";
 import type { DashConfig } from "../../hooks/useDashConfig";
 import { hasPlugin } from "../../hooks/useDashConfig";
 import { useUsers } from "../../hooks/useUsers";
@@ -208,6 +209,7 @@ interface Props {
 }
 
 export function UsersPage({ config }: Props) {
+  const rbac = useRBAC(PERMISSIONS.user);
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
   const banEnabled = hasPlugin(config, "admin");
@@ -238,7 +240,10 @@ export function UsersPage({ config }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const result = await client.dash.deleteUser({}, withContext({ userId }));
+      const result = await client.dash.deleteUser(
+        {},
+        withContext({ userId }, getAuthHeaders()),
+      );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
     },
@@ -260,7 +265,7 @@ export function UsersPage({ config }: Props) {
     mutationFn: async (userIds: string[]) => {
       const result = await client.dash.deleteManyUsers(
         {},
-        withContext({ userIds } as never),
+        withContext({ userIds } as never, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Delete failed");
@@ -288,7 +293,7 @@ export function UsersPage({ config }: Props) {
     mutationFn: async (userIds: string[]) => {
       const result = await client.dash.banManyUsers(
         {},
-        withContext({ userIds } as never),
+        withContext({ userIds } as never, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Ban failed");
       return result.data;
@@ -347,13 +352,15 @@ export function UsersPage({ config }: Props) {
             {data?.onlineUsers ? ` · ${data.onlineUsers} online` : ""}
           </PageSubtitle>
         </TitleBlock>
-        <Button
-          startIcon={<Plus />}
-          onClick={() => setShowCreate(true)}
-          data-testid="create-user-btn"
-        >
-          Create user
-        </Button>
+        {rbac.allowedActions.canCreate && (
+          <Button
+            startIcon={<Plus />}
+            onClick={() => setShowCreate(true)}
+            data-testid="create-user-btn"
+          >
+            Create user
+          </Button>
+        )}
       </PageHeader>
 
       <Toolbar>
@@ -379,15 +386,17 @@ export function UsersPage({ config }: Props) {
 
         {someSelected && (
           <Flex gap={2}>
-            <Button
-              variant="danger-light"
-              size="S"
-              onClick={() => setConfirmDeleteMany(true)}
-              data-testid="delete-selected-btn"
-            >
-              Delete {selected.size} selected
-            </Button>
-            {banEnabled && (
+            {rbac.allowedActions.canDelete && (
+              <Button
+                variant="danger-light"
+                size="S"
+                onClick={() => setConfirmDeleteMany(true)}
+                data-testid="delete-selected-btn"
+              >
+                Delete {selected.size} selected
+              </Button>
+            )}
+            {banEnabled && rbac.allowedActions.canUpdate && (
               <Button
                 variant="secondary"
                 size="S"
@@ -415,13 +424,16 @@ export function UsersPage({ config }: Props) {
           <Table>
             <thead>
               <tr>
-                <THCheck>
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                  />
-                </THCheck>
+                {(rbac.allowedActions.canDelete ||
+                  rbac.allowedActions.canUpdate) && (
+                  <THCheck>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </THCheck>
+                )}
                 <TH>Name</TH>
                 <TH>Email</TH>
                 <TH>Status</TH>
@@ -454,13 +466,16 @@ export function UsersPage({ config }: Props) {
                     $i={i}
                     data-testid="user-row"
                   >
-                    <TDCheck>
-                      <Checkbox
-                        checked={selected.has(user.id)}
-                        onCheckedChange={() => toggleSelect(user.id)}
-                        aria-label={`Select ${user.name}`}
-                      />
-                    </TDCheck>
+                    {(rbac.allowedActions.canDelete ||
+                      rbac.allowedActions.canUpdate) && (
+                      <TDCheck>
+                        <Checkbox
+                          checked={selected.has(user.id)}
+                          onCheckedChange={() => toggleSelect(user.id)}
+                          aria-label={`Select ${user.name}`}
+                        />
+                      </TDCheck>
+                    )}
                     <TD>
                       <Flex alignItems="center" gap={2}>
                         <Avatar
@@ -495,20 +510,24 @@ export function UsersPage({ config }: Props) {
                     </TD>
                     <TDActions>
                       <Flex gap={1} justifyContent="flex-end">
-                        <IconButton
-                          label="Edit user"
-                          onClick={() => setDetailUserId(user.id)}
-                          data-testid="edit-user-btn"
-                        >
-                          <Pencil />
-                        </IconButton>
-                        <IconButton
-                          label="Delete user"
-                          onClick={() => setConfirmDelete(user.id)}
-                          data-testid="delete-user-btn"
-                        >
-                          <Trash />
-                        </IconButton>
+                        {rbac.allowedActions.canUpdate && (
+                          <IconButton
+                            label="Edit user"
+                            onClick={() => setDetailUserId(user.id)}
+                            data-testid="edit-user-btn"
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
+                        {rbac.allowedActions.canDelete && (
+                          <IconButton
+                            label="Delete user"
+                            onClick={() => setConfirmDelete(user.id)}
+                            data-testid="delete-user-btn"
+                          >
+                            <Trash />
+                          </IconButton>
+                        )}
                       </Flex>
                     </TDActions>
                   </TR>
@@ -542,9 +561,11 @@ export function UsersPage({ config }: Props) {
         </Flex>
       )}
 
-      {showCreate && <CreateUserDialog onClose={() => setShowCreate(false)} />}
+      {rbac.allowedActions.canCreate && showCreate && (
+        <CreateUserDialog onClose={() => setShowCreate(false)} />
+      )}
 
-      {detailUserId && (
+      {rbac.allowedActions.canUpdate && detailUserId && (
         <UserDetailDrawer
           userId={detailUserId}
           banEnabled={banEnabled}
@@ -554,7 +575,7 @@ export function UsersPage({ config }: Props) {
         />
       )}
 
-      {confirmDelete && (
+      {rbac.allowedActions.canDelete && confirmDelete && (
         <ConfirmDialog
           title="Delete user"
           message="Are you sure you want to delete this user? This action cannot be undone."
@@ -565,7 +586,7 @@ export function UsersPage({ config }: Props) {
         />
       )}
 
-      {confirmDeleteMany && (
+      {rbac.allowedActions.canDelete && confirmDeleteMany && (
         <ConfirmDialog
           title={`Delete ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
           message={`Are you sure you want to delete ${selected.size} user${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
@@ -576,7 +597,7 @@ export function UsersPage({ config }: Props) {
         />
       )}
 
-      {confirmBanMany && (
+      {rbac.allowedActions.canUpdate && confirmBanMany && (
         <ConfirmDialog
           title={`Ban ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
           message={`Are you sure you want to ban ${selected.size} user${selected.size !== 1 ? "s" : ""}? They will be prevented from signing in.`}

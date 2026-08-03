@@ -46,8 +46,12 @@ export interface DashContext {
  * // Combine with URL params:
  * await client.dash.organization[":id"]({}, { ...withContext({ organizationId }), params: { id: organizationId } });
  */
-export const withContext = (ctx: DashContext) => ({
+export const withContext = (
+  ctx: DashContext,
+  headers?: Record<string, unknown>,
+) => ({
   headers: {
+    ...headers,
     [DASH_CONTEXT_HEADER]: btoa(JSON.stringify(ctx)),
   },
 });

@@ -9,7 +9,7 @@ import { Trash } from "@strapi/icons";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import styled, { keyframes } from "styled-components";
-import { client } from "../../client";
+import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { withContext } from "../../utils/dashContext";
@@ -244,7 +244,7 @@ export function SessionsPage() {
     mutationFn: async (sessionId: string) => {
       const result = await client.dash.sessions.revoke(
         {},
-        withContext({ sessionId }),
+        withContext({ sessionId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Revoke failed");
@@ -259,7 +259,7 @@ export function SessionsPage() {
     mutationFn: async (userIds: string[]) => {
       const result = await client.dash.sessions.revokeMany(
         {},
-        withContext({ userIds } as never),
+        withContext({ userIds } as never, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(result.error.message ?? "Revoke failed");
