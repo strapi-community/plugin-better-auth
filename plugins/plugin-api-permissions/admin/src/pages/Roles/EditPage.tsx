@@ -17,7 +17,7 @@ import {
   useNotification,
   useRBAC,
 } from "@strapi/strapi/admin";
-import type React from "react";
+import type { FormEvent } from "react";
 import { useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { useMutation, useQuery } from "react-query";
@@ -26,16 +26,17 @@ import { Permissions, type PermissionsRef } from "./components/Permissions";
 import { PERMISSIONS } from "./constants";
 import { PermissionsProvider } from "./contexts/PermissionsContext";
 import { ROLES_BASE } from "./paths";
-import { apiToFormState, type PermissionsLayout } from "./utils/transform";
+import {
+  apiToFormState,
+  type PermissionEntry,
+  type PermissionsLayout,
+} from "./utils/transform";
 
 type RoleData = {
   name?: string;
   description?: string;
   nb_users?: number;
-  permissions?: Record<
-    string,
-    { controllers: Record<string, Record<string, { enabled: boolean }>> }
-  >;
+  permissions?: PermissionEntry[];
 };
 
 export const RolesEditPage = ({ id }: { id: string }) => {
@@ -68,7 +69,10 @@ export const RolesEditPage = ({ id }: { id: string }) => {
 
   const { data: roleData, isLoading: isLoadingRole } = useQuery(
     ["api-permissions", "roles", id],
-    async () => get<GenericResponse<RoleData>>(`/api-permissions/roles/${id}`),
+    async () =>
+      get<GenericResponse<RoleData>>(
+        `/api-permissions/roles/${id}?populate=permissions`,
+      ),
     {
       enabled: !!id,
       onSuccess: (res) => {
@@ -87,7 +91,7 @@ export const RolesEditPage = ({ id }: { id: string }) => {
   const permissionsForm = useMemo(
     () =>
       layout && roleApiData
-        ? apiToFormState(roleApiData?.permissions ?? {}, layout)
+        ? apiToFormState(roleApiData?.permissions ?? [], layout)
         : null,
     [layout, roleApiData],
   );
@@ -120,7 +124,7 @@ export const RolesEditPage = ({ id }: { id: string }) => {
     },
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!name || name.length < 3) {
