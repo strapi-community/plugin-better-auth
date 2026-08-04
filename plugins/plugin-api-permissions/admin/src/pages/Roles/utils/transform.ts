@@ -45,6 +45,44 @@ export type ApiPermissionsFormat = Record<
   { controllers: Record<string, Record<string, { enabled: boolean }>> }
 >;
 
+export type PermissionEntry = {
+  id: number;
+  documentId: string;
+  action: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+};
+
+/**
+ * Transform array of permission entries to a matrix format for easier processing.
+ * @param permissions Array of permission entries from the API.
+ * @returns Matrix format of permissions.
+ */
+export function permissionsToMatrix(
+  permissions: PermissionEntry[],
+): ApiPermissionsFormat {
+  const matrix: ApiPermissionsFormat = {};
+
+  for (const entry of permissions) {
+    if (!entry?.action) continue;
+
+    // Splits "api::article.article.find" into ["api::article", "article", "find"]
+    const parts = entry.action.split(".");
+    if (parts.length < 3) continue;
+
+    const actionName = parts.pop()!;
+    const controllerName = parts.pop()!;
+    const apiKey = parts.join(".");
+
+    matrix[apiKey] ??= { controllers: {} };
+    matrix[apiKey].controllers[controllerName] ??= {};
+    matrix[apiKey].controllers[controllerName][actionName] = { enabled: true };
+  }
+
+  return matrix;
+}
+
 /**
  * Create empty form state from layout.
  */
@@ -115,23 +153,26 @@ export function createEmptyFormState(
  * Transform API format (from role.permissions) to form state.
  */
 export function apiToFormState(
-  api: ApiPermissionsFormat,
+  api: PermissionEntry[],
   layout: PermissionsLayout,
 ): PermissionsFormState {
   const form = createEmptyFormState(layout);
+  const matrix = permissionsToMatrix(api);
 
   const collectionUids = new Set(
     layout.collectionTypes.subjects.map((s) => s.uid),
   );
   const singleUids = new Set(layout.singleTypes.subjects.map((s) => s.uid));
 
-  for (const [typeKey, typeData] of Object.entries(api)) {
+  for (const [typeKey, typeData] of Object.entries(matrix)) {
     if (!typeData?.controllers) continue;
+
     for (const [controllerName, controllerData] of Object.entries(
       typeData.controllers,
     )) {
       for (const [actionName, actionData] of Object.entries(controllerData)) {
         if (!actionData?.enabled) continue;
+
         if (typeKey.startsWith("api::")) {
           const ctUid = `${typeKey}.${controllerName}`;
           if (
