@@ -889,7 +889,7 @@ export interface PluginBetterAuthOrganization
           managed: true;
         };
       }>;
-    name: Schema.Attribute.Text &
+    name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.SetPluginOptions<{
         'better-auth': {
@@ -1026,7 +1026,7 @@ export interface PluginBetterAuthTeam extends Struct.CollectionTypeSchema {
       'plugin::better-auth.team'
     > &
       Schema.Attribute.Private;
-    name: Schema.Attribute.Text &
+    name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.SetPluginOptions<{
         'better-auth': {
@@ -1229,7 +1229,7 @@ export interface PluginBetterAuthUser extends Struct.CollectionTypeSchema {
       'plugin::better-auth.user'
     > &
       Schema.Attribute.Private;
-    name: Schema.Attribute.Text &
+    name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.SetPluginOptions<{
         'better-auth': {
