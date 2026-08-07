@@ -126,7 +126,7 @@ describe("transformTable — collectionName", () => {
         collectionName: "ba_user",
         attributes: {
           name: {
-            type: "text",
+            type: "string",
             required: true,
             pluginOptions: { "better-auth": { managed: true } },
           },

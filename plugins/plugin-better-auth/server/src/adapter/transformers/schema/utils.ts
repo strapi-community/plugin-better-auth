@@ -66,6 +66,9 @@ export function createAttributeProperties(
 
   // Special field type overrides
   if (fieldName === "email") properties.type = "email";
+  // "text" (long text) fields can't be used as a Content Manager entry
+  // title (mainField), so identifying fields need to stay "string" (short text).
+  if (fieldName === "name") properties.type = "string";
 
   return properties;
 }
