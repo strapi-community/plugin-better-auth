@@ -64,5 +64,14 @@ export default () => ({
         prefix: "",
       },
     },
+    {
+      method: "GET",
+      path: "/better-auth-dashboard/settings",
+      handler: "settings-controller.get",
+      config: {
+        policies: ["has-permission"],
+        prefix: "",
+      },
+    },
   ],
 });
