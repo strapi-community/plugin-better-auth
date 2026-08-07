@@ -1,3 +1,4 @@
+import bootstrap from "./bootstrap";
 import controllers from "./controllers";
 import policies from "./policies";
 import { register } from "./register";
@@ -8,4 +9,5 @@ export default {
   routes,
   policies,
   register,
+  bootstrap,
 };
