@@ -59,6 +59,29 @@ export const auth = betterAuth({
 });
 ```
 
+To enable the "Send verification email" and "Send password reset" actions in the user detail drawer, configure the dashboard plugin itself in `config/plugins.js`/`.ts`:
+
+```typescript title="config/plugins.ts"
+export default {
+  "better-auth-dashboard": {
+    config: {
+      // Absolute URL of your public-facing client app. Used as the
+      // callback destination for email verification / password reset
+      // links sent from the dashboard. Unset by default — the two
+      // actions above stay disabled until this is configured, rather
+      // than guessing at a URL (e.g. the admin panel's own origin).
+      email_callback_url: process.env.BETTER_AUTH_DASHBOARD_CALLBACK_URL,
+    },
+  },
+};
+```
+
+#### Config reference
+
+| Property | Type | Required | Description |
+|---|---|---|---|
+| `email_callback_url` | `string` | — | Absolute URL of your public-facing client app. Used as the callback destination for email verification and password reset links sent from the user detail drawer. Not set by default, which keeps those two actions disabled rather than guessing at a URL. |
+
 ### Start Strapi
 
 ```bash

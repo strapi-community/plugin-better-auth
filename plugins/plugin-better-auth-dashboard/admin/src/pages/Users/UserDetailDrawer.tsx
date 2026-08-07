@@ -44,6 +44,7 @@ import {
 } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
 import { useModelSchema } from "../../hooks/useModelSchema";
+import { usePluginSettings } from "../../hooks/usePluginSettings";
 import { withContext } from "../../utils/dashContext";
 
 // ─── 2FA styled components ────────────────────────────────────────────────────
@@ -182,6 +183,14 @@ export function UserDetailDrawer({
   const { toggleNotification } = useNotification();
   const { get, put } = useFetchClient();
   const schemaQuery = useModelSchema("user");
+  const settingsQuery = usePluginSettings();
+
+  // Where email verification / password reset links should redirect back to
+  // once the user completes the flow. Only the configured
+  // `email_callback_url` server setting is used — deliberately no fallback
+  // to the current (admin panel) origin, since guessing a client URL is
+  // exactly what caused these links to point at the admin panel before.
+  const emailCallbackUrl = settingsQuery.data?.email_callback_url ?? null;
 
   const userQuery = useQuery({
     queryKey: ["dash-user", userId],
@@ -498,9 +507,13 @@ export function UserDetailDrawer({
 
   const sendVerificationMutation = useMutation({
     mutationFn: async () => {
-      const callbackUrl = new URL(window.location.href, window.location.origin);
+      if (!emailCallbackUrl) {
+        throw new Error(
+          "Set `email_callback_url` in the better-auth-dashboard plugin config to enable this action.",
+        );
+      }
       const result = await client.dash.sendVerificationEmail(
-        { callbackUrl: callbackUrl.toString() },
+        { callbackUrl: emailCallbackUrl },
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
@@ -522,9 +535,13 @@ export function UserDetailDrawer({
 
   const sendResetPasswordMutation = useMutation({
     mutationFn: async () => {
-      const callbackUrl = new URL(window.location.href, window.location.origin);
+      if (!emailCallbackUrl) {
+        throw new Error(
+          "Set `email_callback_url` in the better-auth-dashboard plugin config to enable this action.",
+        );
+      }
       const result = await client.dash.sendResetPasswordEmail(
-        { callbackUrl: callbackUrl.toString() },
+        { callbackUrl: emailCallbackUrl },
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error) throw new Error(result.error.message ?? "Failed");
@@ -874,7 +891,7 @@ export function UserDetailDrawer({
                         variant="secondary"
                         size="S"
                         loading={sendVerificationMutation.isLoading}
-                        disabled={user?.emailVerified}
+                        disabled={!emailCallbackUrl || user?.emailVerified}
                         onClick={() => sendVerificationMutation.mutate()}
                         style={{ width: "100%" }}
                       >
@@ -884,11 +901,18 @@ export function UserDetailDrawer({
                         variant="secondary"
                         size="S"
                         loading={sendResetPasswordMutation.isLoading}
+                        disabled={!emailCallbackUrl}
                         onClick={() => sendResetPasswordMutation.mutate()}
                         style={{ width: "100%" }}
                       >
                         Send password reset
                       </Button>
+                      {!settingsQuery.isLoading && !emailCallbackUrl && (
+                        <Typography variant="pi" textColor="neutral500">
+                          Set `email_callback_url` in the better-auth-dashboard
+                          plugin config to enable these actions.
+                        </Typography>
+                      )}
                     </Flex>
                   </Box>
                 )}
