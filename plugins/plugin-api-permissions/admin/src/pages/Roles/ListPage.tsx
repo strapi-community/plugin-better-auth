@@ -1,15 +1,19 @@
 import {
+  Button,
+  Dialog,
   EmptyStateLayout,
-  LinkButton,
   Table,
   Th,
   Thead,
   Tr,
   Typography,
+  useCollator,
+  useFilter,
   VisuallyHidden,
 } from "@strapi/design-system";
 import { Plus } from "@strapi/icons";
 import {
+  ConfirmDialog,
   Layouts,
   Page,
   SearchInput,
@@ -18,12 +22,14 @@ import {
   useQueryParams,
   useRBAC,
 } from "@strapi/strapi/admin";
+import { useState } from "react";
 import { useIntl } from "react-intl";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useNavigate } from "react-router-dom";
 import type { GenericResponse } from "../../types/content-api";
 import TableBody from "./components/TableBody";
 import { PERMISSIONS } from "./constants";
-import { ROLES_NEW } from "./paths";
+import { ROLES_ROUTE_NEW } from "./paths";
 
 type Role = {
   documentId: string;
@@ -35,12 +41,17 @@ type Role = {
 };
 
 export const RolesListPage = () => {
-  const { formatMessage } = useIntl();
+  const { formatMessage, locale } = useIntl();
   const { toggleNotification } = useNotification();
   const { get, del } = useFetchClient();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [{ query }] = useQueryParams<{ _q?: string }>();
   const _q = query?._q || "";
+  const { contains } = useFilter(locale);
+  const formatter = useCollator(locale, { sensitivity: "base" });
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState<string>();
 
   const {
     isLoading: isLoadingForPermissions,
@@ -78,28 +89,41 @@ export const RolesListPage = () => {
 
   const sortedRoles = roles
     .filter(
-      (role) =>
-        !_q ||
-        role.name.toLowerCase().includes(_q.toLowerCase()) ||
-        (role.description ?? "").toLowerCase().includes(_q.toLowerCase()),
+      (role) => contains(role.name, _q) || contains(role.description ?? "", _q),
     )
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  const handleDeleteClick = async (id: string, name: string) => {
-    const confirmed = window.confirm(
-      formatMessage(
-        {
-          id: "app.components.ConfirmDialog.body",
-          defaultMessage: "Are you sure you want to delete {target}?",
-        },
-        { target: name },
-      ),
+    .sort(
+      (a, b) =>
+        formatter.compare(a.name, b.name) ||
+        formatter.compare(a.description ?? "", b.description ?? ""),
     );
-    if (!confirmed) return;
-    deleteMutation.mutate(id);
+
+  const handleDeleteClick = (id: string) => {
+    setRoleToDelete(id);
+    setShowConfirmDelete(true);
   };
 
+  const handleConfirmDelete = async () => {
+    if (!roleToDelete) return;
+
+    await deleteMutation.mutateAsync(roleToDelete);
+    setShowConfirmDelete(false);
+    setRoleToDelete(undefined);
+  };
+
+  const goToCreate = () => navigate(ROLES_ROUTE_NEW);
+
   const isLoading = isLoadingData || isLoadingForPermissions;
+  const emptyLayout = {
+    roles: {
+      id: "api-permissions.Roles.empty",
+      defaultMessage: "You don't have any roles yet.",
+    },
+    search: {
+      id: "api-permissions.Roles.empty.search",
+      defaultMessage: "No roles match the search.",
+    },
+  };
+  const emptyContent = _q && !sortedRoles.length ? "search" : "roles";
 
   if (isLoading) {
     return <Page.Loading />;
@@ -126,12 +150,17 @@ export const RolesListPage = () => {
         })}
         primaryAction={
           canCreate ? (
-            <LinkButton href={ROLES_NEW} startIcon={<Plus />} size="S">
+            <Button
+              onClick={goToCreate}
+              startIcon={<Plus />}
+              size="S"
+              fullWidth
+            >
               {formatMessage({
                 id: "api-permissions.List.button.roles",
                 defaultMessage: "Add new role",
               })}
-            </LinkButton>
+            </Button>
           ) : null
         }
       />
@@ -194,13 +223,13 @@ export const RolesListPage = () => {
           </Table>
         ) : (
           <EmptyStateLayout
-            content={formatMessage({
-              id: "api-permissions.Roles.empty",
-              defaultMessage: "You don't have any roles yet.",
-            })}
+            content={formatMessage(emptyLayout[emptyContent])}
           />
         )}
       </Layouts.Content>
+      <Dialog.Root open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
+        <ConfirmDialog onConfirm={handleConfirmDelete} />
+      </Dialog.Root>
     </Page.Main>
   );
 };
