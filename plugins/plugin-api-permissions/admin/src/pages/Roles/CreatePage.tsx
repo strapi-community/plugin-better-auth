@@ -17,56 +17,51 @@ import {
   useNotification,
   useRBAC,
 } from "@strapi/strapi/admin";
-import type React from "react";
-import { useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { useIntl } from "react-intl";
 import { useMutation, useQuery } from "react-query";
+import { useNavigate } from "react-router-dom";
 import type { GenericResponse } from "../../types/content-api";
-import { Permissions, type PermissionsRef } from "./components/Permissions";
+import { Permissions } from "./components/Permissions";
 import { PERMISSIONS } from "./constants";
-import { PermissionsProvider } from "./contexts/PermissionsContext";
-import { ROLES_BASE } from "./paths";
+import {
+  PermissionsProvider,
+  usePermissions,
+} from "./contexts/PermissionsContext";
+import { ROLES_BASE, ROLES_ROUTE_BASE } from "./paths";
 import {
   createEmptyFormState,
   type PermissionsFormState,
   type PermissionsLayout,
 } from "./utils/transform";
 
-export const RolesCreatePage = () => {
+type RolesCreatePageContentProps = {
+  layout: PermissionsLayout;
+  permissions: PermissionsFormState;
+};
+
+const RolesCreatePageContent = ({
+  layout,
+  permissions,
+}: RolesCreatePageContentProps) => {
   const { formatMessage } = useIntl();
   const { toggleNotification } = useNotification();
-  const { get, post } = useFetchClient();
-  const permissionsRef = useRef<PermissionsRef>(null);
-  const goBack = () => {
-    if (typeof window !== "undefined") window.location.href = ROLES_BASE;
-  };
-
-  const {
-    allowedActions: { canCreate },
-  } = useRBAC({
-    create: PERMISSIONS.createRole,
-  });
+  const { post } = useFetchClient();
+  const { modifiedData } = usePermissions();
+  const navigate = useNavigate();
+  const goBack = () => navigate(ROLES_ROUTE_BASE);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const { data: layoutData, isLoading: isLoadingLayout } = useQuery(
-    ["api-permissions", "permissions", "layout"],
-    async () =>
-      get<GenericResponse<{ sections: PermissionsLayout }>>(
-        "/api-permissions/permissions/layout",
-      ),
-  );
-
-  const layout = layoutData?.data?.data?.sections ?? null;
-
-  const permissionsForm: PermissionsFormState = layout
-    ? createEmptyFormState(layout)
-    : { collectionTypes: {}, singleTypes: {}, plugins: {}, settings: {} };
-
   const createMutation = useMutation(
-    (body: { name: string; description: string }) =>
+    (body: {
+      name: string;
+      description: string;
+      permissions: PermissionsFormState;
+    }) =>
       post("/api-permissions/roles", {
         data: body,
       }),
@@ -93,7 +88,7 @@ export const RolesCreatePage = () => {
     },
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!name || name.length < 3) {
@@ -105,16 +100,8 @@ export const RolesCreatePage = () => {
       );
       return;
     }
-    createMutation.mutate({ name, description });
+    createMutation.mutate({ name, description, permissions: modifiedData });
   };
-
-  if (!canCreate) {
-    return <Page.NoPermissions />;
-  }
-
-  if (isLoadingLayout || !layout) {
-    return <Page.Loading />;
-  }
 
   return (
     <Page.Main>
@@ -173,6 +160,7 @@ export const RolesCreatePage = () => {
                         defaultMessage: "Details",
                       })}
                     </Typography>
+                    <br />
                     <Typography variant="pi" textColor="neutral600">
                       {formatMessage({
                         id: "Settings.roles.form.description",
@@ -259,18 +247,55 @@ export const RolesCreatePage = () => {
               </Flex>
             </Box>
             <Box shadow="filterShadow" hasRadius>
-              <PermissionsProvider permissions={permissionsForm}>
-                <Permissions
-                  ref={permissionsRef}
-                  permissions={permissionsForm}
-                  layout={layout}
-                />
-              </PermissionsProvider>
+              <Permissions permissions={permissions} layout={layout} />
             </Box>
           </Flex>
         </Layouts.Content>
       </form>
     </Page.Main>
+  );
+};
+
+export const RolesCreatePage = () => {
+  const { get } = useFetchClient();
+
+  const {
+    isLoading: isLoadingForPermissions,
+    allowedActions: { canCreate },
+  } = useRBAC({
+    create: PERMISSIONS.createRole,
+  });
+
+  const { data: layoutData, isLoading: isLoadingLayout } = useQuery(
+    ["api-permissions", "permissions", "layout"],
+    async () =>
+      get<GenericResponse<{ sections: PermissionsLayout }>>(
+        "/api-permissions/permissions/layout",
+      ),
+  );
+
+  const layout = layoutData?.data?.data?.sections ?? null;
+  const permissions = useMemo(
+    () => (layout ? createEmptyFormState(layout) : null),
+    [layout],
+  );
+
+  if (isLoadingForPermissions) {
+    return <Page.Loading />;
+  }
+
+  if (!canCreate) {
+    return <Page.NoPermissions />;
+  }
+
+  if (isLoadingLayout || !layout || !permissions) {
+    return <Page.Loading />;
+  }
+
+  return (
+    <PermissionsProvider permissions={permissions}>
+      <RolesCreatePageContent layout={layout} permissions={permissions} />
+    </PermissionsProvider>
   );
 };
 

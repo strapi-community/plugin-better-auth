@@ -1,7 +1,6 @@
 import {
   Flex,
   IconButton,
-  Link,
   Tbody,
   Td,
   Tr,
@@ -10,8 +9,9 @@ import {
 import { Pencil, Trash } from "@strapi/icons";
 import type React from "react";
 import { useIntl } from "react-intl";
+import { useNavigate } from "react-router-dom";
 
-import { ROLES_BASE } from "../paths";
+import { ROLES_ROUTE_BASE } from "../paths";
 
 interface Role {
   documentId: string;
@@ -36,10 +36,8 @@ const TableBody = ({
   onDeleteClick,
 }: TableBodyProps) => {
   const { formatMessage } = useIntl();
-  const goToEdit = (id: string) => {
-    if (typeof window !== "undefined")
-      window.location.href = `${ROLES_BASE}/${id}`;
-  };
+  const navigate = useNavigate();
+  const goToEdit = (id: string) => navigate(`${ROLES_ROUTE_BASE}/${id}`);
 
   const checkCanDeleteRole = (role: Role) =>
     canDelete && !["public", "authenticated"].includes(role.type);
@@ -47,6 +45,11 @@ const TableBody = ({
   const handleClickDelete = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     onDeleteClick(id, name);
+  };
+
+  const handleClickEdit = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    goToEdit(id);
   };
 
   return (
@@ -78,19 +81,19 @@ const TableBody = ({
           <Td>
             <Flex justifyContent="end" onClick={(e) => e.stopPropagation()}>
               {canUpdate ? (
-                <Link
-                  href={`${ROLES_BASE}/${role.documentId}`}
-                  aria-label={formatMessage(
+                <IconButton
+                  onClick={(e) => handleClickEdit(e, role.documentId)}
+                  variant="ghost"
+                  label={formatMessage(
                     {
                       id: "app.component.table.edit",
                       defaultMessage: "Edit {target}",
                     },
                     { target: role.name },
                   )}
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <Pencil />
-                </Link>
+                </IconButton>
               ) : null}
               {checkCanDeleteRole(role) && (
                 <IconButton

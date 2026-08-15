@@ -38,7 +38,7 @@ test.describe("Roles list page", () => {
     await page.goto(ROLES_URL);
 
     await expect(
-      page.getByRole("link", { name: /add new role/i }),
+      page.getByRole("button", { name: /add new role/i }),
     ).toBeVisible();
   });
 
@@ -53,7 +53,7 @@ test.describe("Roles list page", () => {
 test.describe("Create role", () => {
   test("navigates to create page from list", async ({ page }) => {
     await page.goto(ROLES_URL);
-    await page.getByRole("link", { name: /add new role/i }).click();
+    await page.getByRole("button", { name: /add new role/i }).click();
 
     await expect(page).toHaveURL(ROLES_NEW_URL);
     await expect(
@@ -105,6 +105,28 @@ test.describe("Edit role", () => {
     await expect(page.getByLabel("Description")).toHaveValue(
       TEST_ROLE_DESCRIPTION,
     );
+  });
+
+  test("saves and reloads selected permissions", async ({ page }) => {
+    await page.goto(ROLES_URL);
+
+    await getRoleCell(page, TEST_ROLE_NAME).click();
+
+    const findTestPermission = page.getByRole("checkbox", {
+      name: /select find test permission/i,
+    });
+    await findTestPermission.click();
+    await expect(findTestPermission).toBeChecked();
+
+    await page.getByRole("button", { name: /save/i }).click();
+    await expect(page).toHaveURL(ROLES_URL);
+
+    await getRoleCell(page, TEST_ROLE_NAME).click();
+    await expect(
+      page.getByRole("checkbox", {
+        name: /select find test permission/i,
+      }),
+    ).toBeChecked();
   });
 
   test("updates the role name and redirects to list", async ({ page }) => {
@@ -180,8 +202,11 @@ test.describe("Delete role", () => {
       .filter({ has: page.locator("td", { hasText: UPDATED_ROLE_NAME }) });
     const deleteButton = roleRow.getByRole("button", { name: /^delete/i });
 
-    page.once("dialog", (dialog) => dialog.accept());
     await deleteButton.click();
+
+    const confirmDialog = page.getByRole("alertdialog");
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole("button", { name: /^confirm$/i }).click();
 
     await expect(getRoleCell(page, UPDATED_ROLE_NAME)).not.toBeVisible();
   });
