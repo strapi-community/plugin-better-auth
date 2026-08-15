@@ -4,12 +4,23 @@ import {
   type DBAdapterDebugLogOption,
 } from "better-auth/adapters";
 import kebabCase from "lodash/kebabCase";
+import { runAsInternalCall } from "./internal-context";
 import {
   transformFilters,
   transformSort,
   transformOutput as transformStrapiOutput,
   updateStrapiSchema,
 } from "./transformers";
+
+/**
+ * Re-exported here so consumers importing from the package root (the `.` export,
+ * which resolves types straight to this file - see `types`/`exports["."]` in
+ * package.json) can use `runAsInternalCall` to exempt their own document service
+ * calls from `restrictDocumentService`, the same way this adapter does.
+ *
+ * @see ../middlewares/restrict-document-service.ts
+ */
+export { isInternalCall, runAsInternalCall } from "./internal-context";
 
 /**
  * Configuration options for the Strapi Better Auth adapter
@@ -83,10 +94,12 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           const uid = getModelUid(model);
           const fields = mapSelectFields(model, select);
 
-          const result = await strapi.documents(uid).create({
-            data,
-            fields,
-          });
+          const result = await runAsInternalCall(() =>
+            strapi.documents(uid).create({
+              data,
+              fields,
+            }),
+          );
 
           return transformStrapiOutput(result);
         },
@@ -110,11 +123,13 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             throw new Error(`Record not found for model ${model}`);
           }
 
-          const result = await strapi.documents(uid).update({
-            documentId: record.documentId,
-            // @ts-expect-error
-            data: update,
-          });
+          const result = await runAsInternalCall(() =>
+            strapi.documents(uid).update({
+              documentId: record.documentId,
+              // @ts-expect-error
+              data: update,
+            }),
+          );
 
           if (!result) {
             throw new Error(`Failed to update record for model ${model}`);
@@ -144,10 +159,12 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           // Update each record
           for (const record of records) {
-            await strapi.documents(uid).update({
-              documentId: record.documentId,
-              data: update,
-            });
+            await runAsInternalCall(() =>
+              strapi.documents(uid).update({
+                documentId: record.documentId,
+                data: update,
+              }),
+            );
           }
 
           return records.length;
@@ -172,9 +189,11 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             return;
           }
 
-          await strapi.documents(uid).delete({
-            documentId: record.documentId,
-          });
+          await runAsInternalCall(() =>
+            strapi.documents(uid).delete({
+              documentId: record.documentId,
+            }),
+          );
         },
 
         /**
@@ -197,9 +216,11 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           // Delete each record
           for (const record of records) {
-            await strapi.documents(uid).delete({
-              documentId: record.documentId,
-            });
+            await runAsInternalCall(() =>
+              strapi.documents(uid).delete({
+                documentId: record.documentId,
+              }),
+            );
           }
 
           return records.length;

@@ -1,5 +1,6 @@
 import { fromNodeHeaders } from "better-auth/node";
 import type { ParameterizedContext } from "koa";
+import restrictDocumentService from "./middlewares/restrict-document-service";
 import { createContentApiRoutes } from "./routes";
 import {
   getPluginService,
@@ -17,6 +18,8 @@ export default () => {
         `Please upgrade to Strapi v${MIN_STRAPI_VERSION} or higher.`,
     );
   }
+
+  strapi.documents.use(restrictDocumentService);
 
   const apiPermissionsPlugin = strapi.plugin("api-permissions");
   const usersPermissionsPlugin = strapi.plugin("users-permissions");

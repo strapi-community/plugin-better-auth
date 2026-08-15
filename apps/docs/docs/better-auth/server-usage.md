@@ -79,3 +79,38 @@ export default {
 ```
 
 Strapi will call the policy before the handler and automatically return a `403 Forbidden` response if it returns `false`.
+
+## Interacting with Better Auth's data
+
+Better Auth's own content types (`plugin::better-auth.user`, `.session`, `.account`, ...) carry business logic that needs to run alongside their CRUD operations — for example, creating a complementary account when a user is created. Because Better Auth is hosted inside Strapi, it's technically possible to bypass that logic entirely by writing to these content types straight through Strapi's document service:
+
+```typescript
+// Don't do this — it skips Better Auth's own business logic.
+await strapi.documents('plugin::better-auth.user').create({
+  data: { name: 'Jane', email: 'jane@example.com' },
+});
+
+// Do this instead.
+await auth.api.signUpEmail({
+  body: { name: 'Jane', email: 'jane@example.com', password: '...' },
+});
+```
+
+To prevent this, direct document service writes (`create`, `update`, `delete`, and their `*Many` variants) to Better Auth's content types are blocked by default. Reads (`findOne`, `findMany`, `count`) are unaffected. If a write is blocked, you'll see an error like:
+
+```
+[@strapi-community/plugin-better-auth] Direct document service writes to "plugin::better-auth.user" are restricted, as they bypass Better Auth's own business logic for this operation. Use the Better Auth API instead, or set the 'unsafe_document_service' config option to true to disable this restriction.
+```
+
+If you have a use case that genuinely requires writing to these content types directly — and you understand the risk of bypassing Better Auth's business logic — disable the restriction with `unsafe_document_service`:
+
+```typescript title="config/plugins.ts"
+export default {
+  'better-auth': {
+    enabled: true,
+    config: {
+      unsafe_document_service: true,
+    },
+  },
+};
+```

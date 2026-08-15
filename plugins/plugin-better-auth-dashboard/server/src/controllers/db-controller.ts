@@ -1,4 +1,5 @@
 import type { UID } from "@strapi/strapi";
+import { runAsInternalCall } from "@strapi-community/plugin-better-auth";
 import type { Context } from "koa";
 
 /**
@@ -7,6 +8,12 @@ import type { Context } from "koa";
  * These admin routes proxy directly to the Strapi document service and are
  * protected by Strapi's own admin JWT — only authenticated admin users can
  * reach them, which is the same access level as the built-in content manager.
+ *
+ * Writes are wrapped in `runAsInternalCall` so they're exempt from
+ * `plugin-better-auth`'s document service write restriction (see
+ * https://github.com/strapi-community/plugin-better-auth/issues/18) — this
+ * controller is first-party admin tooling, not the arbitrary application code
+ * that restriction is meant to guard against.
  */
 
 function assertValidUid(ctx: Context, uid: unknown): uid is string {
@@ -107,11 +114,15 @@ const dbController = () => ({
 
     const { documentId } = ctx.params as { documentId: string };
 
-    // biome-ignore lint/suspicious/noExplicitAny: strapi global
-    const result = await (strapi as any).documents(uid).update({
-      documentId,
-      data: ctx.request.body,
-    });
+    const result = await runAsInternalCall(() =>
+      // biome-ignore lint/suspicious/noExplicitAny: strapi global
+      (strapi as any)
+        .documents(uid)
+        .update({
+          documentId,
+          data: ctx.request.body,
+        }),
+    );
 
     if (!result) {
       ctx.status = 404;
