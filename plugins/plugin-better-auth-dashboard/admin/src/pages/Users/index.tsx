@@ -12,6 +12,7 @@ import { Page, useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
+import { useOutletContext } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
@@ -344,279 +345,285 @@ export function UsersPage({ config }: Props) {
   };
 
   return (
+    <Wrap data-testid="users-page">
+      <PageHeader>
+        <TitleBlock>
+          <PageTitle>Users</PageTitle>
+          <PageSubtitle>
+            {total.toLocaleString()} total
+            {data?.onlineUsers ? ` · ${data.onlineUsers} online` : ""}
+          </PageSubtitle>
+        </TitleBlock>
+        {rbac.allowedActions.canCreate && (
+          <Button
+            startIcon={<Plus />}
+            onClick={() => setShowCreate(true)}
+            data-testid="create-user-btn"
+          >
+            Create user
+          </Button>
+        )}
+      </PageHeader>
+
+      <Toolbar>
+        <SearchForm onSubmit={handleSearch}>
+          <Searchbar
+            clearLabel="Clear"
+            name="search"
+            placeholder="Search by email…"
+            value={searchInput}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearchInput(e.target.value)
+            }
+            onClear={() => {
+              setSearchInput("");
+              setSearch("");
+              setPage(1);
+            }}
+            data-testid="user-search"
+          >
+            Search users
+          </Searchbar>
+        </SearchForm>
+
+        {someSelected && (
+          <Flex gap={2}>
+            {rbac.allowedActions.canDelete && (
+              <Button
+                variant="danger-light"
+                size="S"
+                onClick={() => setConfirmDeleteMany(true)}
+                data-testid="delete-selected-btn"
+              >
+                Delete {selected.size} selected
+              </Button>
+            )}
+            {banEnabled && rbac.allowedActions.canUpdate && (
+              <Button
+                variant="secondary"
+                size="S"
+                onClick={() => setConfirmBanMany(true)}
+              >
+                Ban {selected.size} selected
+              </Button>
+            )}
+          </Flex>
+        )}
+      </Toolbar>
+
+      {isError && (
+        <div style={{ color: "#d02b20", fontSize: 12, padding: "8px 0" }}>
+          {(error as Error)?.message}
+        </div>
+      )}
+
+      <TableCard>
+        {isLoading ? (
+          <Flex justifyContent="center" padding={8}>
+            <Loader>Loading users…</Loader>
+          </Flex>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                {(rbac.allowedActions.canDelete ||
+                  rbac.allowedActions.canUpdate) && (
+                  <THCheck>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </THCheck>
+                )}
+                <TH>Name</TH>
+                <TH>Email</TH>
+                <TH>Status</TH>
+                <TH>Created</TH>
+                <THActions />
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <TD
+                    colSpan={6}
+                    style={{
+                      textAlign: "center",
+                      padding: "40px",
+                      color: "#8e8ea9",
+                    }}
+                    data-testid="users-empty"
+                  >
+                    {search
+                      ? `No users matching "${search}"`
+                      : "No users found"}
+                  </TD>
+                </tr>
+              ) : (
+                users.map((user, i) => (
+                  <TR
+                    key={user.id}
+                    $selected={selected.has(user.id)}
+                    $i={i}
+                    data-testid="user-row"
+                  >
+                    {(rbac.allowedActions.canDelete ||
+                      rbac.allowedActions.canUpdate) && (
+                      <TDCheck>
+                        <Checkbox
+                          checked={selected.has(user.id)}
+                          onCheckedChange={() => toggleSelect(user.id)}
+                          aria-label={`Select ${user.name}`}
+                        />
+                      </TDCheck>
+                    )}
+                    <TD>
+                      <Flex alignItems="center" gap={2}>
+                        <Avatar
+                          name={user.name ?? ""}
+                          src={user.image}
+                          size={28}
+                        />
+                        <UserName>{user.name}</UserName>
+                      </Flex>
+                    </TD>
+                    <TD>
+                      <MonoText>{user.email}</MonoText>
+                    </TD>
+                    <TD>
+                      <Flex gap={1}>
+                        {user.emailVerified ? (
+                          <StatusChip $variant="verified">Verified</StatusChip>
+                        ) : (
+                          <StatusChip $variant="unverified">
+                            Unverified
+                          </StatusChip>
+                        )}
+                        {user.banned && (
+                          <StatusChip $variant="banned">Banned</StatusChip>
+                        )}
+                      </Flex>
+                    </TD>
+                    <TD>
+                      <DateText>
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </DateText>
+                    </TD>
+                    <TDActions>
+                      <Flex gap={1} justifyContent="flex-end">
+                        {rbac.allowedActions.canUpdate && (
+                          <IconButton
+                            label="Edit user"
+                            onClick={() => setDetailUserId(user.id)}
+                            data-testid="edit-user-btn"
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
+                        {rbac.allowedActions.canDelete && (
+                          <IconButton
+                            label="Delete user"
+                            onClick={() => setConfirmDelete(user.id)}
+                            data-testid="delete-user-btn"
+                          >
+                            <Trash />
+                          </IconButton>
+                        )}
+                      </Flex>
+                    </TDActions>
+                  </TR>
+                ))
+              )}
+            </tbody>
+          </Table>
+        )}
+      </TableCard>
+
+      {pageCount > 1 && (
+        <Flex justifyContent="flex-end">
+          <Flex gap={2}>
+            <Button
+              variant="tertiary"
+              size="S"
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="tertiary"
+              size="S"
+              disabled={page >= pageCount}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </Flex>
+        </Flex>
+      )}
+
+      {rbac.allowedActions.canCreate && showCreate && (
+        <CreateUserDialog onClose={() => setShowCreate(false)} />
+      )}
+
+      {rbac.allowedActions.canUpdate && detailUserId && (
+        <UserDetailDrawer
+          userId={detailUserId}
+          banEnabled={banEnabled}
+          emailVerificationEnabled={emailVerificationEnabled}
+          twoFactorEnabled={twoFactorEnabled}
+          onClose={() => setDetailUserId(null)}
+        />
+      )}
+
+      {rbac.allowedActions.canDelete && confirmDelete && (
+        <ConfirmDialog
+          title="Delete user"
+          message="Are you sure you want to delete this user? This action cannot be undone."
+          confirmLabel="Delete"
+          loading={deleteMutation.isLoading}
+          onConfirm={() => deleteMutation.mutate(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {rbac.allowedActions.canDelete && confirmDeleteMany && (
+        <ConfirmDialog
+          title={`Delete ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
+          message={`Are you sure you want to delete ${selected.size} user${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
+          confirmLabel="Delete all"
+          loading={deleteManyMutation.isLoading}
+          onConfirm={() => deleteManyMutation.mutate([...selected])}
+          onCancel={() => setConfirmDeleteMany(false)}
+        />
+      )}
+
+      {rbac.allowedActions.canUpdate && confirmBanMany && (
+        <ConfirmDialog
+          title={`Ban ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
+          message={`Are you sure you want to ban ${selected.size} user${selected.size !== 1 ? "s" : ""}? They will be prevented from signing in.`}
+          confirmLabel="Ban all"
+          variant="danger"
+          loading={banManyMutation.isLoading}
+          onConfirm={() => banManyMutation.mutate([...selected])}
+          onCancel={() => setConfirmBanMany(false)}
+        />
+      )}
+    </Wrap>
+  );
+}
+
+export default function ProtectedUsersPage() {
+  const { config } = useOutletContext<{ config: DashConfig }>();
+
+  return (
     <Page.Protect
       permissions={PERMISSIONS.user.filter(
         (p) => p.action === `plugin::${PLUGIN_ID}.user.read`,
       )}
     >
-      <Wrap data-testid="users-page">
-        <PageHeader>
-          <TitleBlock>
-            <PageTitle>Users</PageTitle>
-            <PageSubtitle>
-              {total.toLocaleString()} total
-              {data?.onlineUsers ? ` · ${data.onlineUsers} online` : ""}
-            </PageSubtitle>
-          </TitleBlock>
-          {rbac.allowedActions.canCreate && (
-            <Button
-              startIcon={<Plus />}
-              onClick={() => setShowCreate(true)}
-              data-testid="create-user-btn"
-            >
-              Create user
-            </Button>
-          )}
-        </PageHeader>
-
-        <Toolbar>
-          <SearchForm onSubmit={handleSearch}>
-            <Searchbar
-              clearLabel="Clear"
-              name="search"
-              placeholder="Search by email…"
-              value={searchInput}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setSearchInput(e.target.value)
-              }
-              onClear={() => {
-                setSearchInput("");
-                setSearch("");
-                setPage(1);
-              }}
-              data-testid="user-search"
-            >
-              Search users
-            </Searchbar>
-          </SearchForm>
-
-          {someSelected && (
-            <Flex gap={2}>
-              {rbac.allowedActions.canDelete && (
-                <Button
-                  variant="danger-light"
-                  size="S"
-                  onClick={() => setConfirmDeleteMany(true)}
-                  data-testid="delete-selected-btn"
-                >
-                  Delete {selected.size} selected
-                </Button>
-              )}
-              {banEnabled && rbac.allowedActions.canUpdate && (
-                <Button
-                  variant="secondary"
-                  size="S"
-                  onClick={() => setConfirmBanMany(true)}
-                >
-                  Ban {selected.size} selected
-                </Button>
-              )}
-            </Flex>
-          )}
-        </Toolbar>
-
-        {isError && (
-          <div style={{ color: "#d02b20", fontSize: 12, padding: "8px 0" }}>
-            {(error as Error)?.message}
-          </div>
-        )}
-
-        <TableCard>
-          {isLoading ? (
-            <Flex justifyContent="center" padding={8}>
-              <Loader>Loading users…</Loader>
-            </Flex>
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  {(rbac.allowedActions.canDelete ||
-                    rbac.allowedActions.canUpdate) && (
-                    <THCheck>
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={handleSelectAll}
-                        aria-label="Select all"
-                      />
-                    </THCheck>
-                  )}
-                  <TH>Name</TH>
-                  <TH>Email</TH>
-                  <TH>Status</TH>
-                  <TH>Created</TH>
-                  <THActions />
-                </tr>
-              </thead>
-              <tbody>
-                {users.length === 0 ? (
-                  <tr>
-                    <TD
-                      colSpan={6}
-                      style={{
-                        textAlign: "center",
-                        padding: "40px",
-                        color: "#8e8ea9",
-                      }}
-                      data-testid="users-empty"
-                    >
-                      {search
-                        ? `No users matching "${search}"`
-                        : "No users found"}
-                    </TD>
-                  </tr>
-                ) : (
-                  users.map((user, i) => (
-                    <TR
-                      key={user.id}
-                      $selected={selected.has(user.id)}
-                      $i={i}
-                      data-testid="user-row"
-                    >
-                      {(rbac.allowedActions.canDelete ||
-                        rbac.allowedActions.canUpdate) && (
-                        <TDCheck>
-                          <Checkbox
-                            checked={selected.has(user.id)}
-                            onCheckedChange={() => toggleSelect(user.id)}
-                            aria-label={`Select ${user.name}`}
-                          />
-                        </TDCheck>
-                      )}
-                      <TD>
-                        <Flex alignItems="center" gap={2}>
-                          <Avatar
-                            name={user.name ?? ""}
-                            src={user.image}
-                            size={28}
-                          />
-                          <UserName>{user.name}</UserName>
-                        </Flex>
-                      </TD>
-                      <TD>
-                        <MonoText>{user.email}</MonoText>
-                      </TD>
-                      <TD>
-                        <Flex gap={1}>
-                          {user.emailVerified ? (
-                            <StatusChip $variant="verified">
-                              Verified
-                            </StatusChip>
-                          ) : (
-                            <StatusChip $variant="unverified">
-                              Unverified
-                            </StatusChip>
-                          )}
-                          {user.banned && (
-                            <StatusChip $variant="banned">Banned</StatusChip>
-                          )}
-                        </Flex>
-                      </TD>
-                      <TD>
-                        <DateText>
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </DateText>
-                      </TD>
-                      <TDActions>
-                        <Flex gap={1} justifyContent="flex-end">
-                          {rbac.allowedActions.canUpdate && (
-                            <IconButton
-                              label="Edit user"
-                              onClick={() => setDetailUserId(user.id)}
-                              data-testid="edit-user-btn"
-                            >
-                              <Pencil />
-                            </IconButton>
-                          )}
-                          {rbac.allowedActions.canDelete && (
-                            <IconButton
-                              label="Delete user"
-                              onClick={() => setConfirmDelete(user.id)}
-                              data-testid="delete-user-btn"
-                            >
-                              <Trash />
-                            </IconButton>
-                          )}
-                        </Flex>
-                      </TDActions>
-                    </TR>
-                  ))
-                )}
-              </tbody>
-            </Table>
-          )}
-        </TableCard>
-
-        {pageCount > 1 && (
-          <Flex justifyContent="flex-end">
-            <Flex gap={2}>
-              <Button
-                variant="tertiary"
-                size="S"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="tertiary"
-                size="S"
-                disabled={page >= pageCount}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </Flex>
-          </Flex>
-        )}
-
-        {rbac.allowedActions.canCreate && showCreate && (
-          <CreateUserDialog onClose={() => setShowCreate(false)} />
-        )}
-
-        {rbac.allowedActions.canUpdate && detailUserId && (
-          <UserDetailDrawer
-            userId={detailUserId}
-            banEnabled={banEnabled}
-            emailVerificationEnabled={emailVerificationEnabled}
-            twoFactorEnabled={twoFactorEnabled}
-            onClose={() => setDetailUserId(null)}
-          />
-        )}
-
-        {rbac.allowedActions.canDelete && confirmDelete && (
-          <ConfirmDialog
-            title="Delete user"
-            message="Are you sure you want to delete this user? This action cannot be undone."
-            confirmLabel="Delete"
-            loading={deleteMutation.isLoading}
-            onConfirm={() => deleteMutation.mutate(confirmDelete)}
-            onCancel={() => setConfirmDelete(null)}
-          />
-        )}
-
-        {rbac.allowedActions.canDelete && confirmDeleteMany && (
-          <ConfirmDialog
-            title={`Delete ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
-            message={`Are you sure you want to delete ${selected.size} user${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
-            confirmLabel="Delete all"
-            loading={deleteManyMutation.isLoading}
-            onConfirm={() => deleteManyMutation.mutate([...selected])}
-            onCancel={() => setConfirmDeleteMany(false)}
-          />
-        )}
-
-        {rbac.allowedActions.canUpdate && confirmBanMany && (
-          <ConfirmDialog
-            title={`Ban ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
-            message={`Are you sure you want to ban ${selected.size} user${selected.size !== 1 ? "s" : ""}? They will be prevented from signing in.`}
-            confirmLabel="Ban all"
-            variant="danger"
-            loading={banManyMutation.isLoading}
-            onConfirm={() => banManyMutation.mutate([...selected])}
-            onCancel={() => setConfirmBanMany(false)}
-          />
-        )}
-      </Wrap>
+      <UsersPage config={config} />
     </Page.Protect>
   );
 }

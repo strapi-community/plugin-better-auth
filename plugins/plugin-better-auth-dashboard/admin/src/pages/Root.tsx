@@ -1,21 +1,8 @@
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { Navigate, Route, Routes, useOutletContext } from "react-router-dom";
-import type { DashConfig } from "../hooks/useDashConfig";
-import { ProtectedApp } from "./App";
-import { OrganizationsPage } from "./Organizations";
-import { OverviewPage } from "./Overview";
-import { UsersPage } from "./Users";
-
-function UsersRoute() {
-  const { config } = useOutletContext<{ config: DashConfig }>();
-  return <UsersPage config={config} />;
-}
-
-function OrganizationsRoute() {
-  const { teamsEnabled } = useOutletContext<{ teamsEnabled: boolean }>();
-  return <OrganizationsPage teamsEnabled={teamsEnabled} />;
-}
+import { Navigate, useMatch } from "react-router-dom";
+import { PLUGIN_ID } from "../pluginId";
+import { App } from "./App";
 
 /**
  * Root component that provides the React Query client.
@@ -23,15 +10,16 @@ function OrganizationsRoute() {
  * to avoid re-creating it on re-renders.
  */
 export function Root() {
+  const isDashboardIndex = useMatch({
+    path: `/plugins/${PLUGIN_ID}`,
+    end: true,
+  });
+
   const queryClient = useMemo(
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: {
-            retry: 1,
-            refetchOnWindowFocus: false,
-            staleTime: 30_000,
-          },
+          queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 },
         },
       }),
     [],
@@ -39,14 +27,7 @@ export function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Routes>
-        <Route path="/" element={<ProtectedApp />}>
-          <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<OverviewPage />} />
-          <Route path="users" element={<UsersRoute />} />
-          <Route path="organizations" element={<OrganizationsRoute />} />
-        </Route>
-      </Routes>
+      {isDashboardIndex ? <Navigate to="overview" replace /> : <App />}
     </QueryClientProvider>
   );
 }

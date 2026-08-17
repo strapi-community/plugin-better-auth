@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import { Outlet } from "react-router-dom";
 import { client } from "../client";
 import { Nav } from "../components/Nav";
-import { PERMISSIONS } from "../constants";
 import { hasPlugin, useDashConfig } from "../hooks/useDashConfig";
 
 const RESPONSIVE_DEFAULT_SPACING = {
@@ -77,18 +76,4 @@ const App = () => {
   );
 };
 
-const ProtectedApp = () => {
-  return (
-    <Page.Protect
-      permissions={[
-        ...PERMISSIONS.overview,
-        ...PERMISSIONS.user,
-        ...PERMISSIONS.organization,
-      ]}
-    >
-      <App />
-    </Page.Protect>
-  );
-};
-
-export { ProtectedApp };
+export { App };
