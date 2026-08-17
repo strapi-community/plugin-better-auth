@@ -1,23 +1,10 @@
+import type { StrapiApp } from "@strapi/strapi/admin";
+
 const pluginId = "api-permissions";
 
-export default {
-  register(app: {
-    createSettingSection: (
-      section: {
-        id: string;
-        intlLabel: { id: string; defaultMessage: string };
-      },
-      links: Array<{
-        id: string;
-        intlLabel: { id: string; defaultMessage: string };
-        to: string;
-        Component: () => Promise<{ default: React.ComponentType }>;
-        permissions?: Array<{ action: string; subject: null }>;
-      }>,
-    ) => void;
-    registerPlugin: (config: { id: string; name: string }) => void;
-  }) {
-    app.createSettingSection(
+const plugin: StrapiApp["appPlugins"][string] = {
+  register(app) {
+    app.addSettingsLink(
       {
         id: pluginId,
         intlLabel: {
@@ -25,27 +12,21 @@ export default {
           defaultMessage: "API Permissions",
         },
       },
-      [
-        {
-          id: "roles",
-          intlLabel: {
-            id: "global.roles",
-            defaultMessage: "Roles",
-          },
-          to: `${pluginId}/roles`,
-          Component: () =>
-            import("./pages/Roles").then((mod) => ({ default: mod.default })),
-          permissions: [
-            { action: "plugin::api-permissions.roles.read", subject: null },
-            { action: "plugin::api-permissions.roles.create", subject: null },
-          ],
+      {
+        id: "roles",
+        intlLabel: {
+          id: "global.roles",
+          defaultMessage: "Roles",
         },
-      ],
+        to: `${pluginId}/roles`,
+        Component: () => import("./pages/Roles"),
+        permissions: [
+          { action: "plugin::api-permissions.roles.read", subject: null },
+          { action: "plugin::api-permissions.roles.create", subject: null },
+        ],
+      },
     );
-
-    app.registerPlugin({
-      id: pluginId,
-      name: "API Permissions",
-    });
   },
 };
+
+export default plugin;
