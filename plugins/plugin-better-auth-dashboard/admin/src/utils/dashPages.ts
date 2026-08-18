@@ -193,6 +193,9 @@ const mapLinkToRoute = (link: DashLink): RouteObject => {
       `Link with id ${link.to} does not have a Component property`,
     );
 
+  const permissions = link.permissions;
+  const hasPermissions = Array.isArray(permissions) && permissions.length > 0;
+
   return {
     path: `${link.to.replace(/^\/+|\/+$/g, "")}/*`,
     lazy: async () => {
@@ -204,11 +207,13 @@ const mapLinkToRoute = (link: DashLink): RouteObject => {
           createElement(
             AvailabilityProtector,
             { link },
-            createElement(
-              RouteProtector,
-              { permissions: link.permissions ?? [] },
-              createElement(Component),
-            ),
+            hasPermissions
+              ? createElement(
+                  RouteProtector,
+                  { permissions },
+                  createElement(Component),
+                )
+              : createElement(Component),
           ),
       };
     },
