@@ -1,5 +1,11 @@
 import { Page, type StrapiApp } from "@strapi/strapi/admin";
-import { type ComponentProps, type ComponentType, createElement } from "react";
+import {
+  type ComponentProps,
+  type ComponentType,
+  createElement,
+  type ReactNode,
+} from "react";
+import { useQuery } from "react-query";
 import type { RouteObject } from "react-router-dom";
 import { PLUGIN_ID } from "../pluginId";
 
@@ -8,15 +14,37 @@ type DashSection = Exclude<
   string
 > & { priority?: number };
 
+export type DashLink = Parameters<
+  StrapiApp["router"]["addSettingsLink"]
+>[1][number] & {
+  isAvailable?: () => boolean | Promise<boolean>;
+};
+
+type StoredDashLink = Omit<DashLink, "Component">;
+
 export type DashLinkStore = {
   [key: string]: DashSection & {
-    links: Array<
-      Omit<
-        Parameters<StrapiApp["router"]["addSettingsLink"]>[1][number],
-        "Component"
-      >
-    >;
+    links: StoredDashLink[];
   };
+};
+
+export const DASH_LINK_AVAILABILITY_STALE_TIME = 5 * 60 * 1000;
+
+export const getDashLinkAvailabilityQueryKey = (link: StoredDashLink) => [
+  PLUGIN_ID,
+  "link-availability",
+  link.id,
+  link.to,
+];
+
+export const resolveDashLinkAvailability = async (
+  link: StoredDashLink,
+): Promise<boolean> => {
+  try {
+    return (await link.isAvailable?.()) ?? true;
+  } catch {
+    return false;
+  }
 };
 
 let currentStore: DashLinkStore = {};
@@ -33,7 +61,7 @@ export type ReturnInitDash = {
     section: Parameters<StrapiApp["router"]["addSettingsLink"]>[0] & {
       priority?: number;
     },
-    link: Parameters<StrapiApp["router"]["addSettingsLink"]>[1][number],
+    link: DashLink,
   ) => void;
   addDashSection: (
     section: Exclude<
@@ -59,6 +87,25 @@ type routerOverride = Omit<StrapiApp["router"], "_routes"> & {
 const RouteProtector = Page.Protect as ComponentType<
   Omit<ComponentProps<typeof Page.Protect>, "children">
 >;
+
+const AvailabilityProtector = ({
+  link,
+  children,
+}: {
+  link: StoredDashLink;
+  children?: ReactNode;
+}) => {
+  const { data: isAvailable, isLoading } = useQuery<boolean>({
+    queryKey: getDashLinkAvailabilityQueryKey(link),
+    queryFn: () => resolveDashLinkAvailability(link),
+    staleTime: DASH_LINK_AVAILABILITY_STALE_TIME,
+  });
+
+  if (isLoading) return createElement(Page.Loading);
+  if (!isAvailable) return createElement(Page.NoPermissions);
+
+  return children;
+};
 
 export const initDash = (app: StrapiApp): ReturnInitDash => {
   const store: DashLinkStore = {};
@@ -140,9 +187,7 @@ export const initDash = (app: StrapiApp): ReturnInitDash => {
  * @param link The link object to be mapped to a route
  * @returns A route object compatible with react-router-dom
  */
-const mapLinkToRoute = (
-  link: Parameters<StrapiApp["router"]["addSettingsLink"]>[1][number],
-): RouteObject => {
+const mapLinkToRoute = (link: DashLink): RouteObject => {
   if (!link.Component)
     throw new Error(
       `Link with id ${link.to} does not have a Component property`,
@@ -157,9 +202,13 @@ const mapLinkToRoute = (
       return {
         Component: () =>
           createElement(
-            RouteProtector,
-            { permissions: link.permissions ?? [] },
-            createElement(Component),
+            AvailabilityProtector,
+            { link },
+            createElement(
+              RouteProtector,
+              { permissions: link.permissions ?? [] },
+              createElement(Component),
+            ),
           ),
       };
     },

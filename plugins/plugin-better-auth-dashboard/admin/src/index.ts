@@ -1,6 +1,7 @@
 import type { StrapiApp } from "@strapi/strapi/admin";
 import { PluginIcon } from "./components/PluginIcon";
 import { PERMISSIONS } from "./constants";
+import { getDashConfig, hasPlugin } from "./hooks/useDashConfig";
 import { PLUGIN_ID } from "./pluginId";
 import { initDash, type ReturnInitDash } from "./utils/dashPages";
 import { addEditViewSidePanel } from "./utils/editViewPanelRegistry";
@@ -76,6 +77,7 @@ const plugin: StrapiApp["appPlugins"][string] = {
       to: "/organizations",
       Component: () => import("./pages/Organizations"),
       permissions: PERMISSIONS.organization,
+      isAvailable: async () => hasPlugin(await getDashConfig(), "organization"),
     });
   },
 };

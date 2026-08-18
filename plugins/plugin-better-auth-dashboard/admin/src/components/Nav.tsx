@@ -2,17 +2,24 @@ import { Divider } from "@strapi/design-system";
 import { useAuth } from "@strapi/strapi/admin";
 import { useEffect, useState } from "react";
 import { useIntl } from "react-intl";
+import { useQueryClient } from "react-query";
 import { PLUGIN_ID } from "../pluginId";
-import { type DashLinkStore, getDashLinks } from "../utils/dashPages";
+import {
+  DASH_LINK_AVAILABILITY_STALE_TIME,
+  type DashLinkStore,
+  getDashLinkAvailabilityQueryKey,
+  getDashLinks,
+  resolveDashLinkAvailability,
+} from "../utils/dashPages";
 import { SubNav } from "./SubNav";
 
 type NavProps = {
   isFullPage?: boolean;
-  orgEnabled?: boolean;
 };
 
-const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
+const Nav = ({ isFullPage = false }: NavProps) => {
   const { formatMessage } = useIntl();
+  const queryClient = useQueryClient();
   const checkUserHasPermissions = useAuth(
     "DashboardNav",
     (state) => state.checkUserHasPermissions,
@@ -31,11 +38,21 @@ const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
             await Promise.all(
               section.links.map(async (link) => {
                 const permissions = link.permissions ?? [];
-                const hasPermission =
-                  permissions.length === 0 ||
-                  (await checkUserHasPermissions(permissions)).length > 0;
+                const [hasPermission, isAvailable] = await Promise.all([
+                  permissions.length === 0
+                    ? true
+                    : checkUserHasPermissions(permissions).then(
+                        (authorizedPermissions) =>
+                          authorizedPermissions.length > 0,
+                      ),
+                  queryClient.fetchQuery(
+                    getDashLinkAvailabilityQueryKey(link),
+                    () => resolveDashLinkAvailability(link),
+                    { staleTime: DASH_LINK_AVAILABILITY_STALE_TIME },
+                  ),
+                ]);
 
-                return hasPermission ? link : null;
+                return hasPermission && isAvailable ? link : null;
               }),
             )
           ).filter((link) => link !== null),
@@ -60,7 +77,7 @@ const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
     return () => {
       isCurrent = false;
     };
-  }, [checkUserHasPermissions, dashLinks]);
+  }, [checkUserHasPermissions, dashLinks, queryClient]);
 
   return (
     <SubNav.Main>
@@ -83,20 +100,18 @@ const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
               key={section.id}
               label={formatMessage(section.intlLabel)}
             >
-              {section.links
-                .filter((link) => orgEnabled || link.id !== "organizations")
-                .map((link) => {
-                  return (
-                    <SubNav.Link
-                      to={`/plugins/${PLUGIN_ID}/${link.to.replace(/^\/+/, "")}`}
-                      key={link.id}
-                      label={formatMessage(link.intlLabel)}
-                      data-testid={`nav-${link.id}`}
-                    >
-                      {formatMessage(link.intlLabel)}
-                    </SubNav.Link>
-                  );
-                })}
+              {section.links.map((link) => {
+                return (
+                  <SubNav.Link
+                    to={`/plugins/${PLUGIN_ID}/${link.to.replace(/^\/+/, "")}`}
+                    key={link.id}
+                    label={formatMessage(link.intlLabel)}
+                    data-testid={`nav-${link.id}`}
+                  >
+                    {formatMessage(link.intlLabel)}
+                  </SubNav.Link>
+                );
+              })}
             </SubNav.Section>
           ))}
         </SubNav.Sections>

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Checkbox,
   Flex,
@@ -12,14 +13,16 @@ import { Page, useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
-import { useOutletContext } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PERMISSIONS } from "../../constants";
-import type { DashConfig } from "../../hooks/useDashConfig";
-import { hasPlugin } from "../../hooks/useDashConfig";
+import {
+  type DashConfig,
+  hasPlugin,
+  useDashConfig,
+} from "../../hooks/useDashConfig";
 import { useUsers } from "../../hooks/useUsers";
 import { PLUGIN_ID } from "../../pluginId";
 import { withContext } from "../../utils/dashContext";
@@ -615,7 +618,29 @@ export function UsersPage({ config }: Props) {
 }
 
 export default function ProtectedUsersPage() {
-  const { config } = useOutletContext<{ config: DashConfig }>();
+  const { data: config, isError, error } = useDashConfig();
+
+  if (isError) {
+    return (
+      <Flex padding={6}>
+        <Alert
+          closeLabel="Close"
+          title="Error loading configuration"
+          variant="danger"
+        >
+          {error.message}
+        </Alert>
+      </Flex>
+    );
+  }
+
+  if (!config) {
+    return (
+      <Flex justifyContent="center" alignItems="center" padding={12}>
+        <Loader>Loading user configuration…</Loader>
+      </Flex>
+    );
+  }
 
   return (
     <Page.Protect

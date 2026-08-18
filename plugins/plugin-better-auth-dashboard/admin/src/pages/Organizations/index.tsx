@@ -13,11 +13,11 @@ import { Page, useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { useOutletContext } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import { client, getAuthHeaders } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PERMISSIONS } from "../../constants";
+import { useOrganizationOptions } from "../../hooks/useDashConfig";
 import { PLUGIN_ID } from "../../pluginId";
 import { withContext } from "../../utils/dashContext";
 import { CreateOrganizationDialog } from "./CreateOrganizationDialog";
@@ -581,7 +581,8 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
 }
 
 export default function ProtectedOrganizationsPage() {
-  const { teamsEnabled } = useOutletContext<{ teamsEnabled: boolean }>();
+  const { data: organizationOptions } = useOrganizationOptions();
+  const teamsEnabled = organizationOptions?.teamsEnabled ?? false;
 
   return (
     <Page.Protect
