@@ -26,6 +26,11 @@ const plugin: StrapiApp["appPlugins"][string] = {
         ],
       },
     );
+
+    app.registerPlugin({
+      id: pluginId,
+      name: "API Permissions",
+    });
   },
 };
 
