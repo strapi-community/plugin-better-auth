@@ -1,60 +1,83 @@
 import { Divider } from "@strapi/design-system";
-import { useRBAC } from "@strapi/strapi/admin";
+import { useAuth } from "@strapi/strapi/admin";
+import { useEffect, useState } from "react";
 import { useIntl } from "react-intl";
-import { PERMISSIONS } from "../constants";
-import { getTranslation } from "../utils/getTranslation";
+import { useQueryClient } from "react-query";
+import { PLUGIN_ID } from "../pluginId";
+import {
+  DASH_LINK_AVAILABILITY_STALE_TIME,
+  type DashLinkStore,
+  getDashLinkAvailabilityQueryKey,
+  getDashLinks,
+  resolveDashLinkAvailability,
+} from "../utils/dashPages";
 import { SubNav } from "./SubNav";
-
-const sections = [
-  {
-    id: "api-roles",
-    intlLabel: {
-      id: getTranslation("settings.general"),
-      defaultMessage: "General",
-    },
-    links: [
-      {
-        id: "overview",
-        intlLabel: {
-          id: getTranslation("settings.overview"),
-          defaultMessage: "Overview",
-        },
-        to: "/plugins/better-auth-dashboard/overview",
-        testid: "nav-overview",
-      },
-      {
-        id: "users",
-        intlLabel: {
-          id: getTranslation("settings.users"),
-          defaultMessage: "User Management",
-        },
-        to: "/plugins/better-auth-dashboard/users",
-        testid: "nav-users",
-      },
-      {
-        id: "organizations",
-        intlLabel: {
-          id: getTranslation("settings.organizations"),
-          defaultMessage: "Organization Management",
-        },
-        to: "/plugins/better-auth-dashboard/organizations",
-        testid: "nav-organizations",
-      },
-    ],
-  },
-];
 
 type NavProps = {
   isFullPage?: boolean;
-  orgEnabled?: boolean;
 };
 
-const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
+const Nav = ({ isFullPage = false }: NavProps) => {
   const { formatMessage } = useIntl();
+  const queryClient = useQueryClient();
+  const checkUserHasPermissions = useAuth(
+    "DashboardNav",
+    (state) => state.checkUserHasPermissions,
+  );
+  const dashLinks = getDashLinks();
+  const [sections, setSections] = useState<DashLinkStore[string][]>([]);
 
-  const overviewRBAC = useRBAC(PERMISSIONS.overview);
-  const userRBAC = useRBAC(PERMISSIONS.user);
-  const organizationRBAC = useRBAC(PERMISSIONS.organization);
+  useEffect(() => {
+    let isCurrent = true;
+
+    const loadAuthorizedSections = async () => {
+      const authorizedSections = await Promise.all(
+        Object.values(dashLinks).map(async (section) => ({
+          ...section,
+          links: (
+            await Promise.all(
+              section.links.map(async (link) => {
+                const permissions = link.permissions ?? [];
+                const [hasPermission, isAvailable] = await Promise.all([
+                  permissions.length === 0
+                    ? true
+                    : checkUserHasPermissions(permissions).then(
+                        (authorizedPermissions) =>
+                          authorizedPermissions.length > 0,
+                      ),
+                  queryClient.fetchQuery(
+                    getDashLinkAvailabilityQueryKey(link),
+                    () => resolveDashLinkAvailability(link),
+                    { staleTime: DASH_LINK_AVAILABILITY_STALE_TIME },
+                  ),
+                ]);
+
+                return hasPermission && isAvailable ? link : null;
+              }),
+            )
+          ).filter((link) => link !== null),
+        })),
+      );
+
+      if (isCurrent) {
+        setSections(
+          authorizedSections
+            .filter((section) => section.links.length > 0)
+            .sort(
+              (a, b) =>
+                (a.priority ?? 0) - (b.priority ?? 0) ||
+                a.id.localeCompare(b.id),
+            ),
+        );
+      }
+    };
+
+    loadAuthorizedSections();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [checkUserHasPermissions, dashLinks, queryClient]);
 
   return (
     <SubNav.Main>
@@ -77,32 +100,18 @@ const Nav = ({ isFullPage = false, orgEnabled = false }: NavProps) => {
               key={section.id}
               label={formatMessage(section.intlLabel)}
             >
-              {section.links
-                .filter((link) => orgEnabled || link.id !== "organizations")
-                .filter((link) => {
-                  if (link.id === "overview") {
-                    return overviewRBAC.allowedActions.canRead;
-                  }
-                  if (link.id === "users") {
-                    return userRBAC.allowedActions.canRead;
-                  }
-                  if (link.id === "organizations") {
-                    return organizationRBAC.allowedActions.canRead;
-                  }
-                  return true;
-                })
-                .map((link) => {
-                  return (
-                    <SubNav.Link
-                      to={link.to}
-                      key={link.id}
-                      label={formatMessage(link.intlLabel)}
-                      data-testid={link.testid}
-                    >
-                      {formatMessage(link.intlLabel)}
-                    </SubNav.Link>
-                  );
-                })}
+              {section.links.map((link) => {
+                return (
+                  <SubNav.Link
+                    to={`/plugins/${PLUGIN_ID}/${link.to.replace(/^\/+/, "")}`}
+                    key={link.id}
+                    label={formatMessage(link.intlLabel)}
+                    data-testid={`nav-${link.id}`}
+                  >
+                    {formatMessage(link.intlLabel)}
+                  </SubNav.Link>
+                );
+              })}
             </SubNav.Section>
           ))}
         </SubNav.Sections>

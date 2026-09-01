@@ -17,6 +17,7 @@ import styled, { keyframes } from "styled-components";
 import { client, getAuthHeaders } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PERMISSIONS } from "../../constants";
+import { useOrganizationOptions } from "../../hooks/useDashConfig";
 import { PLUGIN_ID } from "../../pluginId";
 import { withContext } from "../../utils/dashContext";
 import { CreateOrganizationDialog } from "./CreateOrganizationDialog";
@@ -353,234 +354,243 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
   };
 
   return (
+    <Wrap data-testid="organizations-page">
+      <PageHeader>
+        <TitleBlock>
+          <PageTitle>Organizations</PageTitle>
+          <PageSubtitle>{total.toLocaleString()} total</PageSubtitle>
+        </TitleBlock>
+        {rbac.allowedActions.canCreate && (
+          <Button
+            startIcon={<Plus />}
+            onClick={() => setShowCreate(true)}
+            data-testid="create-org-btn"
+          >
+            Create organization
+          </Button>
+        )}
+      </PageHeader>
+
+      <Toolbar>
+        <SearchForm onSubmit={handleSearch}>
+          <Searchbar
+            clearLabel="Clear"
+            name="search"
+            placeholder="Search organizations…"
+            value={searchInput}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearchInput(e.target.value)
+            }
+            onClear={() => {
+              setSearchInput("");
+              setSearch("");
+              setPage(1);
+            }}
+          >
+            Search organizations
+          </Searchbar>
+        </SearchForm>
+
+        {someSelected && rbac.allowedActions.canDelete && (
+          <Button
+            variant="danger-light"
+            size="S"
+            onClick={() => setConfirmDeleteMany(true)}
+            data-testid="delete-selected-orgs-btn"
+          >
+            Delete {selected.size} selected
+          </Button>
+        )}
+      </Toolbar>
+
+      {orgsQuery.isError && (
+        <div style={{ color: "#d02b20", fontSize: 12, padding: "8px 0" }}>
+          {orgsQuery.error instanceof Error
+            ? orgsQuery.error.message
+            : "An error occurred"}
+        </div>
+      )}
+
+      <TableCard>
+        {orgsQuery.isLoading ? (
+          <Flex justifyContent="center" padding={8}>
+            <Loader>Loading organizations…</Loader>
+          </Flex>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                {rbac.allowedActions.canDelete && (
+                  <THCheck>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </THCheck>
+                )}
+                <TH>Name</TH>
+                <TH>Slug</TH>
+                <TH>Members</TH>
+                <TH>Created</TH>
+                <THActions />
+              </tr>
+            </thead>
+            <tbody>
+              {orgs.length === 0 ? (
+                <tr>
+                  <TD
+                    colSpan={6}
+                    style={{
+                      textAlign: "center",
+                      padding: "40px",
+                      color: "#8e8ea9",
+                    }}
+                    data-testid="orgs-empty"
+                  >
+                    {search
+                      ? `No organizations matching "${search}"`
+                      : "No organizations found"}
+                  </TD>
+                </tr>
+              ) : (
+                orgs.map((org, i) => (
+                  <TR
+                    key={org.id}
+                    $selected={selected.has(org.id)}
+                    $i={i}
+                    data-testid="org-row"
+                  >
+                    {rbac.allowedActions.canDelete && (
+                      <TDCheck>
+                        <Checkbox
+                          checked={selected.has(org.id)}
+                          onCheckedChange={() => toggleSelect(org.id)}
+                          aria-label={`Select ${org.name}`}
+                        />
+                      </TDCheck>
+                    )}
+                    <TD>
+                      <Flex alignItems="center" gap={2}>
+                        <OrgAvatar name={org.name} logo={org.logo} />
+                        <OrgName>{org.name}</OrgName>
+                      </Flex>
+                    </TD>
+                    <TD>
+                      <SlugChip>{org.slug}</SlugChip>
+                    </TD>
+                    <TD>
+                      <CountChip>{org.memberCount}</CountChip>
+                    </TD>
+                    <TD>
+                      <DateText>
+                        {new Date(org.createdAt).toLocaleDateString()}
+                      </DateText>
+                    </TD>
+                    <TDActions>
+                      <Flex gap={1} justifyContent="flex-end">
+                        {rbac.allowedActions.canUpdate && (
+                          <IconButton
+                            label="Edit organization"
+                            onClick={() => setDetailOrgId(org.id)}
+                            data-testid="edit-org-btn"
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
+                        {rbac.allowedActions.canDelete && (
+                          <IconButton
+                            label="Delete organization"
+                            onClick={() => setConfirmDelete(org.id)}
+                            data-testid="delete-org-btn"
+                          >
+                            <Trash />
+                          </IconButton>
+                        )}
+                      </Flex>
+                    </TDActions>
+                  </TR>
+                ))
+              )}
+            </tbody>
+          </Table>
+        )}
+      </TableCard>
+
+      {pageCount > 1 && (
+        <Flex justifyContent="flex-end">
+          <Flex gap={2}>
+            <Button
+              variant="tertiary"
+              size="S"
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="tertiary"
+              size="S"
+              disabled={page >= pageCount}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </Flex>
+        </Flex>
+      )}
+
+      {rbac.allowedActions.canCreate && showCreate && (
+        <CreateOrganizationDialog
+          teamsEnabled={teamsEnabled}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
+
+      {rbac.allowedActions.canUpdate && detailOrgId && (
+        <OrganizationDetail
+          organizationId={detailOrgId}
+          teamsEnabled={teamsEnabled}
+          onClose={() => setDetailOrgId(null)}
+        />
+      )}
+
+      {rbac.allowedActions.canDelete && confirmDelete && (
+        <ConfirmDialog
+          title="Delete organization"
+          message="Are you sure you want to delete this organization? All members and teams will be removed. This action cannot be undone."
+          confirmLabel="Delete"
+          loading={deleteMutation.isLoading}
+          onConfirm={() => deleteMutation.mutate(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {rbac.allowedActions.canDelete && confirmDeleteMany && (
+        <ConfirmDialog
+          title={`Delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}`}
+          message={`Are you sure you want to delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
+          confirmLabel="Delete all"
+          loading={deleteManyMutation.isLoading}
+          onConfirm={() => deleteManyMutation.mutate([...selected])}
+          onCancel={() => setConfirmDeleteMany(false)}
+        />
+      )}
+    </Wrap>
+  );
+}
+
+export default function ProtectedOrganizationsPage() {
+  const { data: organizationOptions } = useOrganizationOptions();
+  const teamsEnabled = organizationOptions?.teamsEnabled ?? false;
+
+  return (
     <Page.Protect
       permissions={PERMISSIONS.organization.filter(
         (p) => p.action === `plugin::${PLUGIN_ID}.organization.read`,
       )}
     >
-      <Wrap data-testid="organizations-page">
-        <PageHeader>
-          <TitleBlock>
-            <PageTitle>Organizations</PageTitle>
-            <PageSubtitle>{total.toLocaleString()} total</PageSubtitle>
-          </TitleBlock>
-          {rbac.allowedActions.canCreate && (
-            <Button
-              startIcon={<Plus />}
-              onClick={() => setShowCreate(true)}
-              data-testid="create-org-btn"
-            >
-              Create organization
-            </Button>
-          )}
-        </PageHeader>
-
-        <Toolbar>
-          <SearchForm onSubmit={handleSearch}>
-            <Searchbar
-              clearLabel="Clear"
-              name="search"
-              placeholder="Search organizations…"
-              value={searchInput}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setSearchInput(e.target.value)
-              }
-              onClear={() => {
-                setSearchInput("");
-                setSearch("");
-                setPage(1);
-              }}
-            >
-              Search organizations
-            </Searchbar>
-          </SearchForm>
-
-          {someSelected && rbac.allowedActions.canDelete && (
-            <Button
-              variant="danger-light"
-              size="S"
-              onClick={() => setConfirmDeleteMany(true)}
-              data-testid="delete-selected-orgs-btn"
-            >
-              Delete {selected.size} selected
-            </Button>
-          )}
-        </Toolbar>
-
-        {orgsQuery.isError && (
-          <div style={{ color: "#d02b20", fontSize: 12, padding: "8px 0" }}>
-            {orgsQuery.error instanceof Error
-              ? orgsQuery.error.message
-              : "An error occurred"}
-          </div>
-        )}
-
-        <TableCard>
-          {orgsQuery.isLoading ? (
-            <Flex justifyContent="center" padding={8}>
-              <Loader>Loading organizations…</Loader>
-            </Flex>
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  {rbac.allowedActions.canDelete && (
-                    <THCheck>
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={handleSelectAll}
-                        aria-label="Select all"
-                      />
-                    </THCheck>
-                  )}
-                  <TH>Name</TH>
-                  <TH>Slug</TH>
-                  <TH>Members</TH>
-                  <TH>Created</TH>
-                  <THActions />
-                </tr>
-              </thead>
-              <tbody>
-                {orgs.length === 0 ? (
-                  <tr>
-                    <TD
-                      colSpan={6}
-                      style={{
-                        textAlign: "center",
-                        padding: "40px",
-                        color: "#8e8ea9",
-                      }}
-                      data-testid="orgs-empty"
-                    >
-                      {search
-                        ? `No organizations matching "${search}"`
-                        : "No organizations found"}
-                    </TD>
-                  </tr>
-                ) : (
-                  orgs.map((org, i) => (
-                    <TR
-                      key={org.id}
-                      $selected={selected.has(org.id)}
-                      $i={i}
-                      data-testid="org-row"
-                    >
-                      {rbac.allowedActions.canDelete && (
-                        <TDCheck>
-                          <Checkbox
-                            checked={selected.has(org.id)}
-                            onCheckedChange={() => toggleSelect(org.id)}
-                            aria-label={`Select ${org.name}`}
-                          />
-                        </TDCheck>
-                      )}
-                      <TD>
-                        <Flex alignItems="center" gap={2}>
-                          <OrgAvatar name={org.name} logo={org.logo} />
-                          <OrgName>{org.name}</OrgName>
-                        </Flex>
-                      </TD>
-                      <TD>
-                        <SlugChip>{org.slug}</SlugChip>
-                      </TD>
-                      <TD>
-                        <CountChip>{org.memberCount}</CountChip>
-                      </TD>
-                      <TD>
-                        <DateText>
-                          {new Date(org.createdAt).toLocaleDateString()}
-                        </DateText>
-                      </TD>
-                      <TDActions>
-                        <Flex gap={1} justifyContent="flex-end">
-                          {rbac.allowedActions.canUpdate && (
-                            <IconButton
-                              label="Edit organization"
-                              onClick={() => setDetailOrgId(org.id)}
-                              data-testid="edit-org-btn"
-                            >
-                              <Pencil />
-                            </IconButton>
-                          )}
-                          {rbac.allowedActions.canDelete && (
-                            <IconButton
-                              label="Delete organization"
-                              onClick={() => setConfirmDelete(org.id)}
-                              data-testid="delete-org-btn"
-                            >
-                              <Trash />
-                            </IconButton>
-                          )}
-                        </Flex>
-                      </TDActions>
-                    </TR>
-                  ))
-                )}
-              </tbody>
-            </Table>
-          )}
-        </TableCard>
-
-        {pageCount > 1 && (
-          <Flex justifyContent="flex-end">
-            <Flex gap={2}>
-              <Button
-                variant="tertiary"
-                size="S"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="tertiary"
-                size="S"
-                disabled={page >= pageCount}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </Flex>
-          </Flex>
-        )}
-
-        {rbac.allowedActions.canCreate && showCreate && (
-          <CreateOrganizationDialog
-            teamsEnabled={teamsEnabled}
-            onClose={() => setShowCreate(false)}
-          />
-        )}
-
-        {rbac.allowedActions.canUpdate && detailOrgId && (
-          <OrganizationDetail
-            organizationId={detailOrgId}
-            teamsEnabled={teamsEnabled}
-            onClose={() => setDetailOrgId(null)}
-          />
-        )}
-
-        {rbac.allowedActions.canDelete && confirmDelete && (
-          <ConfirmDialog
-            title="Delete organization"
-            message="Are you sure you want to delete this organization? All members and teams will be removed. This action cannot be undone."
-            confirmLabel="Delete"
-            loading={deleteMutation.isLoading}
-            onConfirm={() => deleteMutation.mutate(confirmDelete)}
-            onCancel={() => setConfirmDelete(null)}
-          />
-        )}
-
-        {rbac.allowedActions.canDelete && confirmDeleteMany && (
-          <ConfirmDialog
-            title={`Delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}`}
-            message={`Are you sure you want to delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
-            confirmLabel="Delete all"
-            loading={deleteManyMutation.isLoading}
-            onConfirm={() => deleteManyMutation.mutate([...selected])}
-            onCancel={() => setConfirmDeleteMany(false)}
-          />
-        )}
-      </Wrap>
+      <OrganizationsPage teamsEnabled={teamsEnabled} />
     </Page.Protect>
   );
 }

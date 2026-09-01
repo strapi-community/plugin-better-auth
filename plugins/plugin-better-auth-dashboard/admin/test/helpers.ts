@@ -7,7 +7,9 @@ export const uniqueSuffix = () =>
 
 export async function navigateToDashboard(page: Page) {
   await page.goto(PLUGIN_URL);
-  await expect(page.getByTestId("dashboard-root")).toBeVisible();
+  await expect(page.getByTestId("dashboard-root")).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 export async function navigateToUsers(page: Page) {

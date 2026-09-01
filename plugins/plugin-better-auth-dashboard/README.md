@@ -97,6 +97,54 @@ The dashboard is now available in the Strapi admin panel.
 | **Users** | Searchable user table with create, edit, delete, ban, and session revoke per user |
 | **Organizations** | Organization list with member management (requires Better Auth `organization` plugin) |
 
+## Extending the dashboard
+
+Other Strapi admin plugins can add sections and lazy-loaded screens through the dashboard plugin's admin API. Call the API during your plugin's `bootstrap` lifecycle:
+
+```typescript
+export default {
+  bootstrap(app) {
+    const plugin = app.getPlugin("better-auth-dashboard");
+    if (!plugin) return;
+
+    const dashboard = plugin.apis;
+
+    dashboard.addDashSection({
+      id: "my-plugin",
+      intlLabel: {
+        id: "my-plugin.dashboard.section",
+        defaultMessage: "My plugin",
+      },
+      priority: 20,
+    });
+
+    dashboard.addDashLink("my-plugin", {
+      id: "my-plugin.audit-log",
+      intlLabel: {
+        id: "my-plugin.dashboard.audit-log",
+        defaultMessage: "Audit log",
+      },
+      to: "/audit-log",
+      Component: () => import("./pages/AuditLog"),
+      permissions: [],
+      isAvailable: async () => checkAuditLogAvailability(),
+    });
+  },
+};
+```
+
+Available APIs:
+
+| API | Description |
+| --- | --- |
+| `addDashSection(section)` | Creates a navigation section. `priority` controls section order. |
+| `addDashLink(section, link)` | Registers a lazy route and adds its link to a section. Supports Strapi admin `permissions` and sync or async `isAvailable`. |
+| `getDashLinks()` | Returns the live section and link registry. Treat the result as read-only. |
+
+`isAvailable` defaults to `true`. Its result is cached for five minutes, combined with permission checks, and applied to both navigation and direct route access. Errors are treated as unavailable.
+
+See the [Dashboard documentation](https://strapi-community.github.io/plugin-better-auth/docs/better-auth/dashboard#dashboard-screen-api) for the complete API reference and extension guidance.
+
 ## Requirements
 
 - `@strapi-community/plugin-better-auth` installed and configured
