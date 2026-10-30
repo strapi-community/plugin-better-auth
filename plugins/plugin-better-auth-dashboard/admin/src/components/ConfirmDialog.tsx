@@ -1,4 +1,5 @@
-import { Button, Modal, Typography } from "@strapi/design-system";
+import { Button, Dialog } from "@strapi/design-system";
+import { WarningCircle } from "@strapi/icons";
 
 interface ConfirmDialogProps {
   title: string;
@@ -20,28 +21,37 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <Modal.Root
+    <Dialog.Root
       defaultOpen
       onOpenChange={(open: boolean) => !open && onCancel()}
     >
-      <Modal.Content>
-        <Modal.Header>
-          <Typography variant="beta" tag="h2">
-            {title}
-          </Typography>
-        </Modal.Header>
-        <Modal.Body>
-          <Typography variant="omega">{message}</Typography>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="tertiary" onClick={onCancel} disabled={loading}>
-            Cancel
-          </Button>
-          <Button variant={variant} loading={loading} onClick={onConfirm}>
+      <Dialog.Content>
+        <Dialog.Header>{title}</Dialog.Header>
+        <Dialog.Body
+          icon={
+            <WarningCircle
+              fill={variant === "danger" ? "danger600" : "primary600"}
+            />
+          }
+        >
+          {message}
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Dialog.Cancel>
+            <Button fullWidth variant="tertiary" disabled={loading}>
+              Cancel
+            </Button>
+          </Dialog.Cancel>
+          <Button
+            fullWidth
+            variant={variant}
+            loading={loading}
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </Button>
-        </Modal.Footer>
-      </Modal.Content>
-    </Modal.Root>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }

@@ -145,14 +145,17 @@ test.describe("Overview page", () => {
   });
 
   test("can switch feed mode to Recently Active", async ({ page }) => {
-    await page.locator("select").selectOption("active");
+    await page.getByRole("combobox", { name: "Feed" }).click();
+    await page.getByRole("option", { name: "Recently Active" }).click();
     await expect(page.getByText("Recently Active").first()).toBeVisible();
   });
 
   test("switching feed back to Recent Sign-ups works", async ({ page }) => {
-    await page.locator("select").selectOption("active");
+    await page.getByRole("combobox", { name: "Feed" }).click();
+    await page.getByRole("option", { name: "Recently Active" }).click();
     await expect(page.getByText("Recently Active").first()).toBeVisible();
-    await page.locator("select").selectOption("signups");
+    await page.getByRole("combobox", { name: "Feed" }).click();
+    await page.getByRole("option", { name: "Recent Sign-ups" }).click();
     await expect(page.getByText("Recent Sign-ups").first()).toBeVisible();
   });
 

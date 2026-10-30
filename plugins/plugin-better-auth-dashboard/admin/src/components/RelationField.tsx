@@ -11,22 +11,7 @@ import { useFetchClient } from "@strapi/strapi/admin";
 import type React from "react";
 import { useRef, useState } from "react";
 import { useQuery } from "react-query";
-import styled from "styled-components";
 import type { StrapiAttribute } from "../hooks/useModelSchema";
-
-const EntryRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 12px;
-  width: 100%;
-  box-sizing: border-box;
-  background: #ffffff;
-  border: 1px solid ${({ theme }) => (theme as unknown as Record<string, Record<string, string>>).colors?.neutral200 ?? "#dcdce4"};
-  border-radius: 4px;
-  min-width: 0;
-`;
 
 function getDisplayLabel(doc: Record<string, unknown>): string {
   for (const key of ["name", "title", "email", "username", "label", "slug"]) {
@@ -195,21 +180,31 @@ export function RelationField({
       {currentDocs.length > 0 && (
         <Flex
           direction="column"
+          alignItems="stretch"
           gap={1}
-          style={{ marginTop: 8, width: "100%" }}
+          marginTop={2}
+          width="100%"
         >
           {currentDocs.map((doc) => (
-            <EntryRow key={doc.documentId}>
+            <Flex
+              key={doc.documentId}
+              justifyContent="space-between"
+              gap={2}
+              paddingTop={2}
+              paddingBottom={2}
+              paddingLeft={3}
+              paddingRight={3}
+              background="neutral0"
+              borderColor="neutral200"
+              borderStyle="solid"
+              borderWidth="1px"
+              hasRadius
+            >
               <Typography
                 variant="omega"
                 textColor="neutral800"
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  flex: 1,
-                  minWidth: 0,
-                }}
+                ellipsis
+                style={{ flex: 1, minWidth: 0 }}
               >
                 {doc.label}
               </Typography>
@@ -222,7 +217,7 @@ export function RelationField({
                   <Trash />
                 </IconButton>
               )}
-            </EntryRow>
+            </Flex>
           ))}
         </Flex>
       )}

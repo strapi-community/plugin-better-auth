@@ -1,4 +1,4 @@
-import { Button, Field, Flex, TextInput } from "@strapi/design-system";
+import { Box, Button, Field, Flex, TextInput } from "@strapi/design-system";
 import { Images } from "@strapi/icons";
 import type React from "react";
 import { useState } from "react";
@@ -43,7 +43,7 @@ export function MediaPickerField({
       <Field.Root style={{ width: "100%" }} hint={hint} required={required}>
         <Field.Label>{label}</Field.Label>
         <Flex gap={2} alignItems="center">
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <Box flex={1} minWidth={0}>
             <TextInput
               name={name}
               type="url"
@@ -52,9 +52,8 @@ export function MediaPickerField({
                 onChange(e.target.value)
               }
               placeholder={placeholder}
-              style={{ width: "100%" }}
             />
-          </div>
+          </Box>
           {MediaLibraryDialog && (
             <Button
               variant="secondary"
