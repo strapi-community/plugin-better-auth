@@ -106,14 +106,16 @@ test.describe("User detail drawer", () => {
     await expect(page.getByTestId("save-user-btn")).toBeEnabled();
   });
 
-  test("discard button resets edited name to original", async ({ page }) => {
+  test("discard button closes the drawer and drops edits", async ({ page }) => {
     await openUserDetail(page, userEmail);
     const nameInput = page.getByTestId("user-name-input");
     await nameInput.fill("Changed Name");
     await expect(page.getByTestId("save-user-btn")).toBeEnabled();
 
     await page.getByRole("button", { name: "Discard" }).click();
+    await expect(page.getByTestId("user-detail-drawer")).not.toBeVisible();
 
+    await openUserDetail(page, userEmail);
     await expect(nameInput).toHaveValue(userName);
     await expect(page.getByTestId("save-user-btn")).toBeDisabled();
   });

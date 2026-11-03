@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PLUGIN_URL } from "./helpers";
+import { isOrgTabVisible, PLUGIN_URL } from "./helpers";
 
 test.describe("Navigation", () => {
   test.beforeEach(async ({ page }) => {
@@ -52,13 +52,11 @@ test.describe("Navigation", () => {
     page,
   }) => {
     await expect(page.getByTestId("dashboard-root")).toBeVisible();
-    const orgTab = page.getByTestId("nav-organizations");
-    const isVisible = await orgTab.isVisible();
-    if (!isVisible) {
+    if (!(await isOrgTabVisible(page))) {
       test.skip();
       return;
     }
-    await orgTab.click();
+    await page.getByTestId("nav-organizations").click();
     await expect(page.getByTestId("organizations-page")).toBeVisible();
   });
 
