@@ -248,3 +248,83 @@ describe("foreign keys — cascading deletes", () => {
     }
   });
 });
+
+describe("foreign keys — orphan cleanup migration", () => {
+  const MIGRATION_NAME = "better-auth::1.0.0-remove-orphaned-rows";
+  const MIGRATIONS_TABLE = "strapi_migrations_internal";
+  const MISSING_ID = 999_999;
+
+  const isMigrationRecorded = async () =>
+    (await strapi.db
+      .getConnection(MIGRATIONS_TABLE)
+      .where({ name: MIGRATION_NAME })
+      .first()) !== undefined;
+
+  it("has run on boot", async () => {
+    expect(await isMigrationRecorded()).toBe(true);
+  });
+
+  it("removes rows orphaned before the foreign keys existed", async () => {
+    // Simulate an install from before the foreign keys existed: drop the
+    // constraints, then insert rows that point at missing parents.
+    const tables = ["ba_member", "ba_team", "ba_team_member"];
+
+    await strapi.db.dialect.startSchemaUpdate();
+    for (const table of tables) {
+      const foreignKeys = (await getForeignKeys(table)) as Array<
+        ForeignKeyInfo & { name: string }
+      >;
+      await strapi.db.getSchemaConnection().alterTable(table, (builder) => {
+        for (const fk of foreignKeys) {
+          // SQLite foreign keys are unnamed; knex then drops them by column.
+          builder.dropForeign(fk.columns, fk.name || undefined);
+        }
+      });
+    }
+    await strapi.db.dialect.endSchemaUpdate();
+
+    const intact = await createOrganizationFixture();
+
+    await strapi.documents(UIDS.member).create({
+      data: {
+        organizationId: MISSING_ID,
+        userId: intact.userIds[0],
+        role: "member",
+      },
+    });
+    const orphanedTeam = await strapi.documents(UIDS.team).create({
+      data: { name: "Orphaned team", organizationId: MISSING_ID },
+    });
+    // Only orphaned once its team is removed, so this needs a second pass.
+    await strapi.documents(UIDS.teamMember).create({
+      data: { teamId: orphanedTeam.id, userId: intact.userIds[1] },
+    });
+
+    // Make the migration pending again, as it is on the first boot after upgrading.
+    await strapi.db
+      .getConnection(MIGRATIONS_TABLE)
+      .where({ name: MIGRATION_NAME })
+      .delete();
+
+    await stopStrapi();
+    await setupStrapi();
+
+    expect(await isMigrationRecorded()).toBe(true);
+    expect(await count(UIDS.member, { organizationId: MISSING_ID })).toBe(0);
+    expect(await count(UIDS.team, { organizationId: MISSING_ID })).toBe(0);
+    expect(await count(UIDS.teamMember, { teamId: orphanedTeam.id })).toBe(0);
+
+    // Rows with an existing parent are untouched.
+    await expectOrganizationFixture(intact, true);
+
+    // Strapi adds foreign keys to existing tables on Postgres and MySQL only;
+    // on SQLite it only creates them along with a new table.
+    if (strapi.db.dialect.usesForeignKeys()) {
+      for (const table of tables) {
+        expect(await getForeignKeys(table)).toContainEqual(
+          expect.objectContaining({ onDelete: "CASCADE" }),
+        );
+      }
+    }
+  }, 120_000);
+});

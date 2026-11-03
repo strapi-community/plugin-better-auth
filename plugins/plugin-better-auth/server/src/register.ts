@@ -1,5 +1,9 @@
 import { fromNodeHeaders } from "better-auth/node";
 import type { ParameterizedContext } from "koa";
+import {
+  declaresForeignKeys,
+  removeOrphanedRows,
+} from "./migrations/remove-orphaned-rows";
 import { createContentApiRoutes } from "./routes";
 import {
   getPluginService,
@@ -39,6 +43,15 @@ export default () => {
       "[@strapi-community/plugin-better-auth] The 'users-permissions' plugin is installed. " +
         "Better Auth and users-permissions cannot be used together.",
     );
+  }
+
+  /**
+   * Clean up rows orphaned before the foreign keys existed, as they'd block the schema sync
+   * from adding them. Strapi runs it once, before the sync, on the first boot where the
+   * schema (generated with `npx auth generate`) declares the foreign keys.
+   */
+  if (declaresForeignKeys(strapi)) {
+    strapi.db.migrations.providers.internal.register(removeOrphanedRows);
   }
 
   /**
