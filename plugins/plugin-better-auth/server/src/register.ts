@@ -5,7 +5,6 @@ import {
   getPluginService,
   isVersionAtLeast,
   MIN_STRAPI_VERSION,
-  POSSIBLE_CONFIG_LOCATIONS,
 } from "./utils";
 
 export default () => {
