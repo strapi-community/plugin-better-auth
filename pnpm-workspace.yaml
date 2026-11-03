@@ -13,10 +13,10 @@ catalogs:
     "@strapi/design-system": 2.2.0
     "@strapi/icons": 2.2.0
   strapi:
-    "@strapi/strapi": 5.45.0
-    "@strapi/types": 5.45.0
-    "@strapi/typescript-utils": 5.45.0
-    "@strapi/utils": 5.45.0
+    "@strapi/strapi": 5.60.0
+    "@strapi/types": 5.60.0
+    "@strapi/typescript-utils": 5.60.0
+    "@strapi/utils": 5.60.0
 
 onlyBuiltDependencies:
   - better-sqlite3

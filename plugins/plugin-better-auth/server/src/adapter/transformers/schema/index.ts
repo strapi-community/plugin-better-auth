@@ -1,5 +1,9 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Core } from "@strapi/strapi";
 import type { BetterAuthDBSchema } from "better-auth/db";
+import { PLUGIN_ID } from "../../../utils";
+import { getForeignKeys, writeForeignKeys } from "./foreign-keys";
 import { transformSchema } from "./transformer";
 import type { UpdateSchemaResult } from "./types";
 
@@ -15,6 +19,7 @@ export * from "./utils";
  * - Deletes orphaned content types when plugins are disabled
  * - Deletes orphaned fields when removed from schema
  * - Preserves user-added custom fields
+ * - Declares a foreign key for every Better Auth reference
  */
 export async function updateStrapiSchema(
   strapi: Core.Strapi,
@@ -22,10 +27,18 @@ export async function updateStrapiSchema(
 ): Promise<UpdateSchemaResult> {
   const { schema, allChangeDetails } = transformSchema(strapi, tables);
 
+  // Since Strapi 5.60 the CTB only deletes `api::` content types, so deletions
+  // are handled below instead of being sent to the CTB.
+  const deletedContentTypes = schema.contentTypes.filter(
+    (contentType) => contentType.action === "delete",
+  );
+  schema.contentTypes = schema.contentTypes.filter(
+    (contentType) => contentType.action !== "delete",
+  );
+
   // The CTB service clones the in-memory __schema__ when writing content types
   // back to disk, so any pre-flight mutations here are reflected in the output.
   for (const contentType of schema.contentTypes) {
-    if (contentType.action === "delete") continue;
     const uid = contentType.uid;
 
     const rawSchema = (
@@ -54,6 +67,27 @@ export async function updateStrapiSchema(
 
   const schemaService = strapi.plugin("content-type-builder").service("schema");
   await schemaService.updateSchema(schema);
+
+  // Better Auth content types only exist as schema files in the app's
+  // extensions folder, so removing that folder deletes the content type.
+  // Strapi drops its table on the next boot.
+  for (const contentType of deletedContentTypes) {
+    await fs.rm(
+      path.join(
+        strapi.dirs.app.extensions,
+        PLUGIN_ID,
+        "content-types",
+        contentType.singularName,
+      ),
+      { recursive: true, force: true },
+    );
+  }
+
+  await writeForeignKeys(
+    strapi,
+    schema.contentTypes,
+    getForeignKeys(strapi, tables),
+  );
 
   return { changeDetails: allChangeDetails };
 }

@@ -1,6 +1,7 @@
 import type { Core } from "@strapi/strapi";
 import type { BetterAuthDBSchema } from "better-auth/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getForeignKeys } from "../src/adapter/transformers/schema/foreign-keys";
 import {
   transformSchema,
   transformTable,
@@ -195,5 +196,109 @@ describe("transformSchema — always includes all tables", () => {
     const result = transformSchema(strapi, tables);
 
     expect(result.schema.contentTypes).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getForeignKeys
+// ---------------------------------------------------------------------------
+
+describe("getForeignKeys", () => {
+  // Identity identifiers: names are short enough to never be shortened.
+  function makeStrapiWithDb() {
+    const strapi = makeStrapi("ba_") as unknown as Record<string, unknown>;
+    strapi.db = {
+      metadata: {
+        identifiers: {
+          getTableName: (name: string) => name,
+          getColumnName: (name: string) => name,
+          getFkIndexName: (names: string[]) => `${names.join("_")}_fk`,
+        },
+      },
+    };
+    return strapi as unknown as Core.Strapi;
+  }
+
+  const tables = {
+    user: makeTable({ modelName: "users_custom" }),
+    organization: makeTable(),
+    member: makeTable({
+      fields: {
+        organizationId: {
+          type: "number",
+          required: true,
+          references: { model: "organization", field: "id" },
+        },
+        // References the configured modelName rather than the schema key.
+        userId: {
+          type: "number",
+          required: true,
+          fieldName: "memberUserId",
+          references: {
+            model: "users_custom",
+            field: "id",
+            onDelete: "set null",
+          },
+        },
+        // References a non-id field, so it can't hold a foreign key.
+        email: {
+          type: "string",
+          references: { model: "user", field: "email" },
+        },
+        // References a table whose migrations are disabled.
+        externalId: {
+          type: "number",
+          references: { model: "external", field: "id" },
+        },
+      },
+    }),
+    external: makeTable({ disableMigrations: true }),
+  } satisfies BetterAuthDBSchema;
+
+  beforeEach(() => {
+    vi.stubGlobal("strapi", makeStrapiWithDb());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("declares a foreign key per id reference, defaulting to ON DELETE CASCADE", () => {
+    const result = getForeignKeys(strapi, tables);
+
+    expect(result.get("plugin::better-auth.member")).toEqual({
+      attributes: ["organizationId", "memberUserId"],
+      foreignKeys: [
+        {
+          name: "ba_member_organization_id_fk",
+          columns: ["organization_id"],
+          referencedColumns: ["id"],
+          referencedTable: "ba_organization",
+          onDelete: "CASCADE",
+        },
+        {
+          name: "ba_member_member_user_id_fk",
+          columns: ["member_user_id"],
+          referencedColumns: ["id"],
+          referencedTable: "ba_users_custom",
+          onDelete: "SET NULL",
+        },
+      ],
+    });
+  });
+
+  it("returns an empty entry for tables without references", () => {
+    const result = getForeignKeys(strapi, tables);
+
+    expect(result.get("plugin::better-auth.organization")).toEqual({
+      attributes: [],
+      foreignKeys: [],
+    });
+  });
+
+  it("skips tables whose migrations are disabled", () => {
+    const result = getForeignKeys(strapi, tables);
+
+    expect(result.has("plugin::better-auth.external")).toBe(false);
   });
 });
