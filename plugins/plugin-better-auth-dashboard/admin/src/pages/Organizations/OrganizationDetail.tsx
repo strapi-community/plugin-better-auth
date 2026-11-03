@@ -1,11 +1,14 @@
 import {
+  Accordion,
   Alert,
+  Badge,
   Box,
   Button,
   Field,
   Flex,
   Grid,
   IconButton,
+  Loader,
   SingleSelect,
   SingleSelectOption,
   Tabs,
@@ -17,10 +20,8 @@ import { useFetchClient, useNotification } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import styled from "styled-components";
 import { client, getAuthHeaders } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { Drawer } from "../../components/Drawer";
 import { CustomFieldsSection } from "../../components/DynamicField";
 import { EditViewSidePanels } from "../../components/EditViewSidePanels";
 import {
@@ -36,42 +37,25 @@ import {
   SectionLabel,
 } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
+import { SheetDialog } from "../../components/Sheet";
 import { UserCombobox } from "../../components/UserCombobox";
 import { useModelSchema } from "../../hooks/useModelSchema";
 import { withContext } from "../../utils/dashContext";
 
-// ─── Team row styled components ───────────────────────────────────────────────
+const INVITATION_STATUS_VARIANT = {
+  pending: "warning",
+  accepted: "success",
+  rejected: "danger",
+  canceled: "neutral",
+} as const;
 
-const ExpandableRow = styled.div`
-  width: 100%;
-  background: white;
-  border: 1px solid #dcdce4;
-  border-radius: 8px;
-  overflow: hidden;
-`;
-
-const ExpandableRowHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  gap: 12px;
-  cursor: pointer;
-  &:hover {
-    background: #fafafe;
-  }
-`;
-
-const ExpandableRowBody = styled.div`
-  padding: 12px 14px;
-  border-top: 1px solid #eaeaef;
-  background: #fafafe;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-`;
-
-// ──────────────────────────────────────────────────────────────────────────────
+function InlineLoader() {
+  return (
+    <Flex justifyContent="center" padding={4}>
+      <Loader small>Loading…</Loader>
+    </Flex>
+  );
+}
 
 const STANDARD_ORG_FIELDS = new Set([
   "id",
@@ -503,6 +487,7 @@ export function OrganizationDetail({
             setEditSlug(undefined);
             setEditLogo(undefined);
             setEditExtra({});
+            onClose();
           }}
         >
           Discard
@@ -519,14 +504,14 @@ export function OrganizationDetail({
     ) : undefined;
 
   return (
-    <Drawer
+    <SheetDialog
       title={org?.name ?? "Organization"}
-      footer={detailsFooter}
+      actionButtons={detailsFooter}
       onClose={onClose}
       data-testid="org-detail-drawer"
     >
       {orgQuery.isLoading ? (
-        <Typography textColor="neutral500">Loading…</Typography>
+        <InlineLoader />
       ) : orgQuery.isError ? (
         <Alert
           closeLabel="Close"
@@ -602,30 +587,30 @@ export function OrganizationDetail({
               <EditSidebar>
                 <FormSection>
                   <SectionLabel>Details</SectionLabel>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 12,
-                    }}
-                  >
-                    <MetaItem style={{ gridColumn: "1 / -1" }}>
-                      <MetaKey>Organization ID</MetaKey>
-                      <MonoChip>{org?.id}</MonoChip>
-                    </MetaItem>
-                    <MetaItem>
-                      <MetaKey>Members</MetaKey>
-                      <MetaVal>{org?.memberCount ?? 0}</MetaVal>
-                    </MetaItem>
-                    <MetaItem>
-                      <MetaKey>Created</MetaKey>
-                      <MetaVal>
-                        {org?.createdAt
-                          ? new Date(org.createdAt).toLocaleDateString()
-                          : "—"}
-                      </MetaVal>
-                    </MetaItem>
-                  </div>
+                  <Grid.Root gap={3} gridCols={2}>
+                    <Grid.Item col={2}>
+                      <MetaItem>
+                        <MetaKey>Organization ID</MetaKey>
+                        <MonoChip>{org?.id}</MonoChip>
+                      </MetaItem>
+                    </Grid.Item>
+                    <Grid.Item col={1}>
+                      <MetaItem>
+                        <MetaKey>Members</MetaKey>
+                        <MetaVal>{org?.memberCount ?? 0}</MetaVal>
+                      </MetaItem>
+                    </Grid.Item>
+                    <Grid.Item col={1}>
+                      <MetaItem>
+                        <MetaKey>Created</MetaKey>
+                        <MetaVal>
+                          {org?.createdAt
+                            ? new Date(org.createdAt).toLocaleDateString()
+                            : "—"}
+                        </MetaVal>
+                      </MetaItem>
+                    </Grid.Item>
+                  </Grid.Root>
                 </FormSection>
                 <EditViewSidePanels
                   model="plugin::better-auth.organization"
@@ -691,7 +676,7 @@ export function OrganizationDetail({
               <FormSection>
                 <SectionLabel>Members ({members.length})</SectionLabel>
                 {membersQuery.isLoading ? (
-                  <Typography textColor="neutral500">Loading…</Typography>
+                  <InlineLoader />
                 ) : members.length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
                     No members yet.
@@ -704,7 +689,7 @@ export function OrganizationDetail({
                           direction="column"
                           gap={1}
                           alignItems="flex-start"
-                          style={{ flex: 1 }}
+                          flex={1}
                         >
                           <Typography variant="omega" fontWeight="semiBold">
                             {member.user?.name ?? "Unknown"}
@@ -760,7 +745,7 @@ export function OrganizationDetail({
                 <FormSection>
                   <SectionLabel>Create team</SectionLabel>
                   <Flex gap={2} alignItems="flex-end">
-                    <Box style={{ flex: 1 }}>
+                    <Box flex={1}>
                       <Field.Root>
                         <Field.Label>Team name</Field.Label>
                         <TextInput
@@ -786,7 +771,7 @@ export function OrganizationDetail({
                 <FormSection>
                   <SectionLabel>Teams ({teams.length})</SectionLabel>
                   {teamsQuery.isLoading ? (
-                    <Typography textColor="neutral500">Loading…</Typography>
+                    <InlineLoader />
                   ) : teams.length === 0 ? (
                     <Typography variant="pi" textColor="neutral500">
                       No teams yet.
@@ -814,7 +799,7 @@ export function OrganizationDetail({
               <FormSection>
                 <SectionLabel>SSO providers</SectionLabel>
                 {ssoQuery.isLoading ? (
-                  <Typography textColor="neutral500">Loading…</Typography>
+                  <InlineLoader />
                 ) : ssoProviders.length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
                     No SSO providers configured.
@@ -830,7 +815,7 @@ export function OrganizationDetail({
                           direction="column"
                           gap={1}
                           alignItems="flex-start"
-                          style={{ flex: 1 }}
+                          flex={1}
                         >
                           <ProviderBadge>{provider.providerId}</ProviderBadge>
                           <Typography variant="pi" textColor="neutral500">
@@ -914,7 +899,7 @@ export function OrganizationDetail({
               <FormSection>
                 <SectionLabel>Invitations ({invitations.length})</SectionLabel>
                 {invitationsQuery.isLoading ? (
-                  <Typography textColor="neutral500">Loading…</Typography>
+                  <InlineLoader />
                 ) : invitations.length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
                     No invitations yet.
@@ -922,13 +907,6 @@ export function OrganizationDetail({
                 ) : (
                   <Flex direction="column" gap={2}>
                     {invitations.map((inv) => {
-                      const statusColor: Record<string, string> = {
-                        pending: "#f59e0b",
-                        accepted: "#5cb176",
-                        rejected: "#d02b20",
-                        canceled: "#8e8ea9",
-                      };
-                      const color = statusColor[inv.status] ?? "#8e8ea9";
                       const isPending = inv.status === "pending";
                       return (
                         <AccountRow key={inv.id}>
@@ -936,7 +914,7 @@ export function OrganizationDetail({
                             direction="column"
                             gap={1}
                             alignItems="flex-start"
-                            style={{ flex: 1 }}
+                            flex={1}
                           >
                             <Typography variant="omega" fontWeight="semiBold">
                               {inv.user?.name ?? inv.email}
@@ -950,15 +928,15 @@ export function OrganizationDetail({
                             </Typography>
                           </Flex>
                           <Flex gap={2} alignItems="center">
-                            <MonoChip
-                              style={{
-                                color,
-                                borderColor: color,
-                                background: `${color}18`,
-                              }}
+                            <Badge
+                              size="S"
+                              variant={
+                                INVITATION_STATUS_VARIANT[inv.status] ??
+                                "neutral"
+                              }
                             >
                               {inv.status}
-                            </MonoChip>
+                            </Badge>
                             {isPending && (
                               <>
                                 <Button
@@ -1038,7 +1016,7 @@ export function OrganizationDetail({
           onCancel={() => setConfirmCancelInvitationId(null)}
         />
       )}
-    </Drawer>
+    </SheetDialog>
   );
 }
 
@@ -1109,95 +1087,90 @@ function TeamRow({
   });
 
   return (
-    <ExpandableRow data-testid="team-row">
-      <ExpandableRowHeader onClick={() => setExpanded((e) => !e)}>
-        <Flex
-          direction="column"
-          gap={1}
-          alignItems="flex-start"
-          style={{ flex: 1 }}
-        >
-          <Typography variant="omega" fontWeight="semiBold">
-            {team.name}
-          </Typography>
-          <Typography variant="pi" textColor="neutral500">
-            {expanded ? "Collapse" : "Expand"} ·{" "}
-            {teamMembersQuery.data?.length ?? "—"} members
-          </Typography>
-        </Flex>
-        <Flex gap={2} alignItems="center">
-          <Typography variant="pi" textColor="neutral400">
-            {expanded ? "▲" : "▼"}
-          </Typography>
-          <Box onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-            <IconButton label="Delete team" onClick={onDelete}>
-              <Trash />
-            </IconButton>
-          </Box>
-        </Flex>
-      </ExpandableRowHeader>
-
-      {expanded && (
-        <ExpandableRowBody>
-          <Flex gap={2} alignItems="flex-end">
-            <Box style={{ flex: 1 }}>
-              <UserCombobox
-                label="Add member to team"
-                value={addUserId}
-                onChange={setAddUserId}
-              />
-            </Box>
-            <Button
-              size="S"
-              startIcon={<Plus />}
-              disabled={!addUserId}
-              loading={addTeamMemberMutation.isLoading}
-              onClick={() => addTeamMemberMutation.mutate()}
+    <Box width="100%">
+      <Accordion.Root
+        value={expanded ? team.id : ""}
+        onValueChange={(v: string) => setExpanded(v === team.id)}
+        collapsible
+      >
+        <Accordion.Item value={team.id} data-testid="team-row">
+          <Accordion.Header>
+            <Accordion.Trigger
+              description={`${teamMembersQuery.data?.length ?? "—"} members`}
             >
-              Add
-            </Button>
-          </Flex>
+              {team.name}
+            </Accordion.Trigger>
+            <Accordion.Actions>
+              <IconButton
+                label="Delete team"
+                variant="ghost"
+                onClick={onDelete}
+              >
+                <Trash />
+              </IconButton>
+            </Accordion.Actions>
+          </Accordion.Header>
+          <Accordion.Content>
+            <Flex direction="column" alignItems="stretch" gap={3} padding={4}>
+              <Flex gap={2} alignItems="flex-end">
+                <Box flex={1}>
+                  <UserCombobox
+                    label="Add member to team"
+                    value={addUserId}
+                    onChange={setAddUserId}
+                  />
+                </Box>
+                <Button
+                  size="S"
+                  startIcon={<Plus />}
+                  disabled={!addUserId}
+                  loading={addTeamMemberMutation.isLoading}
+                  onClick={() => addTeamMemberMutation.mutate()}
+                >
+                  Add
+                </Button>
+              </Flex>
 
-          {teamMembersQuery.isLoading ? (
-            <Typography variant="pi" textColor="neutral500">
-              Loading…
-            </Typography>
-          ) : (teamMembersQuery.data ?? []).length === 0 ? (
-            <Typography variant="pi" textColor="neutral500">
-              No members in this team.
-            </Typography>
-          ) : (
-            <Flex direction="column" gap={2}>
-              {/* biome-ignore lint/suspicious/noExplicitAny: team member shape varies by config */}
-              {(teamMembersQuery.data ?? []).map((tm: any) => (
-                <AccountRow key={tm.id}>
-                  <Flex
-                    direction="column"
-                    gap={1}
-                    alignItems="flex-start"
-                    style={{ flex: 1 }}
-                  >
-                    <Typography variant="omega" fontWeight="semiBold">
-                      {tm.user?.name ?? tm.userId}
-                    </Typography>
-                    {tm.user?.email && (
-                      <Typography variant="pi" textColor="neutral500">
-                        {tm.user.email}
-                      </Typography>
-                    )}
-                  </Flex>
-                  <IconButton
-                    label="Remove from team"
-                    onClick={() => setConfirmRemoveTeamMemberId(tm.userId)}
-                  >
-                    <Trash />
-                  </IconButton>
-                </AccountRow>
-              ))}
+              {teamMembersQuery.isLoading ? (
+                <InlineLoader />
+              ) : (teamMembersQuery.data ?? []).length === 0 ? (
+                <Typography variant="pi" textColor="neutral500">
+                  No members in this team.
+                </Typography>
+              ) : (
+                <Flex direction="column" alignItems="stretch" gap={2}>
+                  {/* biome-ignore lint/suspicious/noExplicitAny: team member shape varies by config */}
+                  {(teamMembersQuery.data ?? []).map((tm: any) => (
+                    <AccountRow key={tm.id}>
+                      <Flex
+                        direction="column"
+                        gap={1}
+                        alignItems="flex-start"
+                        flex={1}
+                      >
+                        <Typography variant="omega" fontWeight="semiBold">
+                          {tm.user?.name ?? tm.userId}
+                        </Typography>
+                        {tm.user?.email && (
+                          <Typography variant="pi" textColor="neutral500">
+                            {tm.user.email}
+                          </Typography>
+                        )}
+                      </Flex>
+                      <IconButton
+                        label="Remove from team"
+                        onClick={() => setConfirmRemoveTeamMemberId(tm.userId)}
+                      >
+                        <Trash />
+                      </IconButton>
+                    </AccountRow>
+                  ))}
+                </Flex>
+              )}
             </Flex>
-          )}
-        </ExpandableRowBody>
-      )}
+          </Accordion.Content>
+        </Accordion.Item>
+      </Accordion.Root>
 
       {confirmRemoveTeamMemberId && (
         <ConfirmDialog
@@ -1211,6 +1184,6 @@ function TeamRow({
           onCancel={() => setConfirmRemoveTeamMemberId(null)}
         />
       )}
-    </ExpandableRow>
+    </Box>
   );
 }

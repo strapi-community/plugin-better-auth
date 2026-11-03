@@ -12,9 +12,9 @@ import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { client } from "../../client";
-import { Drawer } from "../../components/Drawer";
 import { FormSection, SectionLabel } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
+import { SheetDialog } from "../../components/Sheet";
 
 interface Props {
   onClose: () => void;
@@ -84,9 +84,9 @@ export function CreateUserDialog({ onClose }: Props) {
   );
 
   return (
-    <Drawer
+    <SheetDialog
       title="Create user"
-      footer={footer}
+      actionButtons={footer}
       onClose={onClose}
       data-testid="create-user-drawer"
     >
@@ -192,6 +192,6 @@ export function CreateUserDialog({ onClose }: Props) {
           )}
         </FormSection>
       </Flex>
-    </Drawer>
+    </SheetDialog>
   );
 }

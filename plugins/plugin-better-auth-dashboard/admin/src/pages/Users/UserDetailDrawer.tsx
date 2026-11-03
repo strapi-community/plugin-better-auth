@@ -10,6 +10,7 @@ import {
   IconButton,
   Loader,
   Modal,
+  NumberInput,
   Tabs,
   TextInput,
   Typography,
@@ -19,15 +20,14 @@ import { useFetchClient, useNotification } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import styled from "styled-components";
 import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { Drawer } from "../../components/Drawer";
 import { CustomFieldsSection } from "../../components/DynamicField";
 import { EditViewSidePanels } from "../../components/EditViewSidePanels";
 import {
   AccountRow,
+  Code,
   DangerRow,
   EditLayout,
   EditSidebar,
@@ -43,111 +43,44 @@ import {
   WarnCard,
 } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
+import { SheetDialog } from "../../components/Sheet";
 import { useModelSchema } from "../../hooks/useModelSchema";
 import { usePluginSettings } from "../../hooks/usePluginSettings";
 import { withContext } from "../../utils/dashContext";
 
-// ─── 2FA styled components ────────────────────────────────────────────────────
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <Field.Root width="100%">
+      <Field.Label>{label}</Field.Label>
+      <TextInput readOnly value={value} />
+    </Field.Root>
+  );
+}
 
-const TwoFaChip = styled.span<{ $enabled: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  background: ${(p) => (p.$enabled ? "#eafbe7" : "#f0f0ff")};
-  color: ${(p) => (p.$enabled ? "#5cb176" : "#8e8ea9")};
-  &::before {
-    content: '';
-    display: inline-block;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: ${(p) => (p.$enabled ? "#5cb176" : "#b8b8c7")};
-  }
-`;
-
-const BackupCodeGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-`;
-
-const BackupCodeItem = styled.span`
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 10px;
-  background: white;
-  border: 1px solid #eaeaef;
-  border-radius: 6px;
-  color: #32324d;
-  letter-spacing: 0.05em;
-  text-align: center;
-`;
-
-const ReadOnlyCodeInput = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: white;
-  border: 1px solid #eaeaef;
-  border-radius: 6px;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 11px;
-  color: #32324d;
-  word-break: break-all;
-  overflow-wrap: anywhere;
-`;
-
-// ─── Session sub-row (per-user sessions tab) ──────────────────────────────────
-
-const SessionCard = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  background: white;
-  border: 1px solid #eaeaef;
-  border-radius: 8px;
-`;
-
-const SessionMeta = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
-`;
-
-const IpChip = styled.span`
-  display: inline-block;
-  background: #f0f0ff;
-  color: #4945ff;
-  border-radius: 5px;
-  padding: 2px 6px;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 11px;
-  font-weight: 600;
-`;
-
-const TimestampText = styled.span`
-  font-size: 11px;
-  color: #8e8ea9;
-`;
-
-const AgentText = styled.span`
-  font-size: 11px;
-  color: #b8b8c7;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
-`;
+function BackupCodes({ codes }: { codes: string[] }) {
+  return (
+    <Grid.Root gap={2} gridCols={2}>
+      {codes.map((code) => (
+        <Grid.Item key={code} col={1}>
+          <Box
+            width="100%"
+            background="neutral0"
+            borderColor="neutral200"
+            borderStyle="solid"
+            borderWidth="1px"
+            hasRadius
+            padding={2}
+            textAlign="center"
+          >
+            <Code variant="omega" fontWeight="semiBold" textColor="neutral800">
+              {code}
+            </Code>
+          </Box>
+        </Grid.Item>
+      ))}
+    </Grid.Root>
+  );
+}
 
 // ─── Standard field set ───────────────────────────────────────────────────────
 
@@ -720,22 +653,20 @@ export function UserDetailDrawer({
       : null;
 
   const drawerTitle = (
-    <Flex gap={2} alignItems="center">
-      <Avatar name={user?.name ?? "?"} src={user?.image} size={30} />
-      <Box>
-        <Typography variant="beta" tag="span">
+    <Flex tag="span" gap={3} alignItems="center">
+      <Avatar name={user?.name ?? "?"} src={user?.image} size={32} />
+      <Flex tag="span" direction="column" alignItems="flex-start">
+        <Typography variant="omega" fontWeight="bold" textColor="neutral800">
           {user?.name ?? "User"}
         </Typography>
         {user?.email && (
-          <Box>
-            <Typography variant="pi" textColor="neutral500">
-              {user.email}
-            </Typography>
-          </Box>
+          <Typography variant="pi" textColor="neutral600">
+            {user.email}
+          </Typography>
         )}
-      </Box>
+      </Flex>
       {user?.banned && (
-        <Badge backgroundColor="danger100" textColor="danger600">
+        <Badge variant="danger" size="S">
           Banned
         </Badge>
       )}
@@ -753,6 +684,7 @@ export function UserDetailDrawer({
             setEditEmailVerified(undefined);
             setEditImage(undefined);
             setEditExtra({});
+            onClose();
           }}
         >
           Discard
@@ -769,15 +701,15 @@ export function UserDetailDrawer({
     ) : undefined;
 
   return (
-    <Drawer
+    <SheetDialog
       title={drawerTitle}
-      footer={profileFooter}
+      actionButtons={profileFooter}
       onClose={onClose}
       data-testid="user-detail-drawer"
     >
       {userQuery.isLoading ? (
         <Flex justifyContent="center" padding={8}>
-          <Typography textColor="neutral500">Loading user…</Typography>
+          <Loader>Loading user…</Loader>
         </Flex>
       ) : userQuery.isError ? (
         <Alert closeLabel="Close" title="Failed to load user" variant="danger">
@@ -851,70 +783,68 @@ export function UserDetailDrawer({
               <EditSidebar>
                 <FormSection>
                   <SectionLabel>Details</SectionLabel>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 12,
-                    }}
-                  >
-                    <MetaItem style={{ gridColumn: "1 / -1" }}>
-                      <MetaKey>User ID</MetaKey>
-                      <MonoChip>{user?.id}</MonoChip>
-                    </MetaItem>
-                    <MetaItem>
-                      <MetaKey>Created</MetaKey>
-                      <MetaVal>
-                        {user?.createdAt
-                          ? new Date(user.createdAt).toLocaleString()
-                          : "—"}
-                      </MetaVal>
-                    </MetaItem>
-                    <MetaItem>
-                      <MetaKey>Last updated</MetaKey>
-                      <MetaVal>
-                        {user?.updatedAt
-                          ? new Date(user.updatedAt).toLocaleString()
-                          : "—"}
-                      </MetaVal>
-                    </MetaItem>
-                  </div>
+                  <Grid.Root gap={3} gridCols={2}>
+                    <Grid.Item col={2}>
+                      <MetaItem>
+                        <MetaKey>User ID</MetaKey>
+                        <MonoChip>{user?.id}</MonoChip>
+                      </MetaItem>
+                    </Grid.Item>
+                    <Grid.Item col={1}>
+                      <MetaItem>
+                        <MetaKey>Created</MetaKey>
+                        <MetaVal>
+                          {user?.createdAt
+                            ? new Date(user.createdAt).toLocaleString()
+                            : "—"}
+                        </MetaVal>
+                      </MetaItem>
+                    </Grid.Item>
+                    <Grid.Item col={1}>
+                      <MetaItem>
+                        <MetaKey>Last updated</MetaKey>
+                        <MetaVal>
+                          {user?.updatedAt
+                            ? new Date(user.updatedAt).toLocaleString()
+                            : "—"}
+                        </MetaVal>
+                      </MetaItem>
+                    </Grid.Item>
+                  </Grid.Root>
                 </FormSection>
 
                 {emailVerificationEnabled && (
-                  <Box>
-                    <SectionLabel style={{ marginBottom: 10 }}>
-                      Email actions
-                    </SectionLabel>
-                    <Flex direction="column" gap={2}>
+                  <Flex direction="column" alignItems="stretch" gap={2}>
+                    <SectionLabel>Email actions</SectionLabel>
+                    <Flex direction="column" alignItems="stretch" gap={2}>
                       <Button
                         variant="secondary"
                         size="S"
+                        fullWidth
                         loading={sendVerificationMutation.isLoading}
                         disabled={!emailCallbackUrl || user?.emailVerified}
                         onClick={() => sendVerificationMutation.mutate()}
-                        style={{ width: "100%" }}
                       >
                         Send verification email
                       </Button>
                       <Button
                         variant="secondary"
                         size="S"
+                        fullWidth
                         loading={sendResetPasswordMutation.isLoading}
                         disabled={!emailCallbackUrl}
                         onClick={() => sendResetPasswordMutation.mutate()}
-                        style={{ width: "100%" }}
                       >
                         Send password reset
                       </Button>
                       {!settingsQuery.isLoading && !emailCallbackUrl && (
-                        <Typography variant="pi" textColor="neutral500">
+                        <Typography variant="pi" textColor="neutral600">
                           Set `email_callback_url` in the better-auth-dashboard
                           plugin config to enable these actions.
                         </Typography>
                       )}
                     </Flex>
-                  </Box>
+                  </Flex>
                 )}
 
                 <EditViewSidePanels
@@ -988,18 +918,19 @@ export function UserDetailDrawer({
               {twoFactorEnabled && (
                 <FormSection>
                   <Flex justifyContent="space-between" alignItems="center">
-                    <SectionLabel style={{ margin: 0 }}>
-                      Two-factor authentication
-                    </SectionLabel>
-                    <TwoFaChip
-                      $enabled={
-                        !!(user as Record<string, unknown>)?.twoFactorEnabled
+                    <SectionLabel>Two-factor authentication</SectionLabel>
+                    <Badge
+                      size="S"
+                      variant={
+                        (user as Record<string, unknown>)?.twoFactorEnabled
+                          ? "success"
+                          : "neutral"
                       }
                     >
                       {(user as Record<string, unknown>)?.twoFactorEnabled
                         ? "Enabled"
                         : "Not enabled"}
-                    </TwoFaChip>
+                    </Badge>
                   </Flex>
 
                   {(user as Record<string, unknown>)?.twoFactorEnabled ? (
@@ -1095,36 +1026,22 @@ export function UserDetailDrawer({
                   ) : (
                     <Flex direction="column" gap={2}>
                       {twoFactorData && (
-                        <Flex
-                          direction="column"
-                          gap={3}
-                          style={{ padding: "2px 4px" }}
-                        >
-                          <Typography variant="pi" textColor="neutral500">
+                        <Flex direction="column" alignItems="stretch" gap={3}>
+                          <Typography variant="pi" textColor="neutral600">
                             Scan the TOTP URI with an authenticator app, or
                             enter the secret key manually.
                           </Typography>
-                          <Field.Root>
-                            <Field.Label>TOTP URI</Field.Label>
-                            <ReadOnlyCodeInput>
-                              {twoFactorData.totpURI}
-                            </ReadOnlyCodeInput>
-                          </Field.Root>
-                          <Field.Root>
-                            <Field.Label>Secret key</Field.Label>
-                            <ReadOnlyCodeInput>
-                              {twoFactorData.secret}
-                            </ReadOnlyCodeInput>
-                          </Field.Root>
-                          <Flex direction="column" gap={2}>
+                          <ReadOnlyField
+                            label="TOTP URI"
+                            value={twoFactorData.totpURI}
+                          />
+                          <ReadOnlyField
+                            label="Secret key"
+                            value={twoFactorData.secret}
+                          />
+                          <Flex direction="column" alignItems="stretch" gap={2}>
                             <SectionLabel>Backup codes</SectionLabel>
-                            <BackupCodeGrid>
-                              {twoFactorData.backupCodes.map((code) => (
-                                <BackupCodeItem key={code}>
-                                  {code}
-                                </BackupCodeItem>
-                              ))}
-                            </BackupCodeGrid>
+                            <BackupCodes codes={twoFactorData.backupCodes} />
                           </Flex>
                         </Flex>
                       )}
@@ -1222,38 +1139,37 @@ export function UserDetailDrawer({
                       />
                       <Field.Hint />
                     </Field.Root>
-                    <Grid.Root gap={4}>
-                      <Grid.Item col={6}>
-                        <Field.Root
-                          hint="Leave empty for a permanent ban"
-                          style={{ width: "100%" }}
-                        >
-                          <Field.Label>Duration (days)</Field.Label>
-                          <TextInput
-                            type="number"
-                            value={banExpiresDays}
-                            onChange={(
-                              e: React.ChangeEvent<HTMLInputElement>,
-                            ) => setBanExpiresDays(e.target.value)}
+                    <Field.Root
+                      hint="Leave empty for a permanent ban"
+                      style={{ width: "100%" }}
+                    >
+                      <Field.Label>Duration (days)</Field.Label>
+                      <Flex gap={4} alignItems="center">
+                        <Box flex={1}>
+                          <NumberInput
+                            value={
+                              banExpiresDays
+                                ? Number(banExpiresDays)
+                                : undefined
+                            }
+                            onValueChange={(v: number | undefined) =>
+                              setBanExpiresDays(
+                                v === undefined ? "" : String(v),
+                              )
+                            }
                             placeholder="e.g. 30"
                           />
-                          <Field.Hint />
-                        </Field.Root>
-                      </Grid.Item>
-                      <Grid.Item col={6}>
-                        <Flex
-                          direction="column"
-                          justifyContent="flex-end"
-                          style={{ height: "100%", paddingBottom: 4 }}
-                        >
+                        </Box>
+                        <Box shrink={0}>
                           <PreviewPill>
                             {banExpiryPreview
-                              ? `⏱ Expires ${banExpiryPreview}`
-                              : "♾ Permanent ban"}
+                              ? `Expires ${banExpiryPreview}`
+                              : "Permanent ban"}
                           </PreviewPill>
-                        </Flex>
-                      </Grid.Item>
-                    </Grid.Root>
+                        </Box>
+                      </Flex>
+                      <Field.Hint />
+                    </Field.Root>
                     <Box>
                       <Button
                         variant="danger"
@@ -1306,37 +1222,48 @@ export function UserDetailDrawer({
                 ) : (
                   <Flex direction="column" gap={2} alignItems="stretch">
                     {(sessionsQuery.data ?? []).map((session) => (
-                      <SessionCard key={session.documentId}>
-                        <SessionMeta>
-                          <Flex
-                            gap={2}
-                            alignItems="center"
-                            style={{ flexWrap: "wrap" }}
-                          >
+                      <AccountRow
+                        key={session.documentId}
+                        alignItems="flex-start"
+                      >
+                        <Flex
+                          direction="column"
+                          alignItems="flex-start"
+                          gap={1}
+                          flex={1}
+                          minWidth={0}
+                        >
+                          <Flex gap={2} alignItems="center" wrap="wrap">
                             {session.ipAddress && (
-                              <IpChip>{session.ipAddress}</IpChip>
+                              <MonoChip>{session.ipAddress}</MonoChip>
                             )}
-                            <TimestampText>
+                            <Typography variant="pi" textColor="neutral600">
                               Created{" "}
                               {new Date(session.createdAt).toLocaleString()} ·
                               Expires{" "}
                               {new Date(session.expiresAt).toLocaleString()}
-                            </TimestampText>
+                            </Typography>
                           </Flex>
                           {session.userAgent && (
-                            <AgentText>{session.userAgent}</AgentText>
+                            <Typography
+                              variant="pi"
+                              textColor="neutral500"
+                              ellipsis
+                              width="100%"
+                            >
+                              {session.userAgent}
+                            </Typography>
                           )}
-                        </SessionMeta>
+                        </Flex>
                         <IconButton
                           label="Revoke session"
                           onClick={() =>
                             setConfirmRevokeSessionId(String(session.id))
                           }
-                          style={{ flexShrink: 0 }}
                         >
                           <Trash />
                         </IconButton>
-                      </SessionCard>
+                      </AccountRow>
                     ))}
                   </Flex>
                 )}
@@ -1350,7 +1277,9 @@ export function UserDetailDrawer({
               <FormSection>
                 <SectionLabel>Memberships</SectionLabel>
                 {orgsQuery.isLoading ? (
-                  <Typography textColor="neutral500">Loading…</Typography>
+                  <Flex justifyContent="center" padding={4}>
+                    <Loader small>Loading…</Loader>
+                  </Flex>
                 ) : (orgsQuery.data ?? []).length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
                     Not a member of any organizations.
@@ -1369,7 +1298,9 @@ export function UserDetailDrawer({
                               {org.name}
                             </Typography>
                             <Flex gap={2} alignItems="center">
-                              <RoleBadge $role={org.role}>{org.role}</RoleBadge>
+                              <RoleBadge memberRole={org.role}>
+                                {org.role}
+                              </RoleBadge>
                               {org.teams.length > 0 && (
                                 <Typography variant="pi" textColor="neutral500">
                                   {org.teams.length} team
@@ -1479,24 +1410,16 @@ export function UserDetailDrawer({
         >
           <Modal.Content>
             <Modal.Header>
-              <Typography variant="beta" tag="h2">
-                TOTP authenticator
-              </Typography>
+              <Modal.Title>TOTP authenticator</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-              <Flex direction="column" gap={4}>
+              <Flex direction="column" alignItems="stretch" gap={4}>
                 <Typography variant="omega" textColor="neutral600">
                   Share these details with the user to set up their
                   authenticator app.
                 </Typography>
-                <Field.Root>
-                  <Field.Label>TOTP URI</Field.Label>
-                  <ReadOnlyCodeInput>{totpUriData.totpURI}</ReadOnlyCodeInput>
-                </Field.Root>
-                <Field.Root>
-                  <Field.Label>Secret key</Field.Label>
-                  <ReadOnlyCodeInput>{totpUriData.secret}</ReadOnlyCodeInput>
-                </Field.Root>
+                <ReadOnlyField label="TOTP URI" value={totpUriData.totpURI} />
+                <ReadOnlyField label="Secret key" value={totpUriData.secret} />
               </Flex>
             </Modal.Body>
             <Modal.Footer>
@@ -1520,20 +1443,14 @@ export function UserDetailDrawer({
         >
           <Modal.Content>
             <Modal.Header>
-              <Typography variant="beta" tag="h2">
-                Backup codes
-              </Typography>
+              <Modal.Title>Backup codes</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-              <Flex direction="column" gap={4}>
+              <Flex direction="column" alignItems="stretch" gap={4}>
                 <Typography variant="omega" textColor="neutral600">
                   Each code can only be used once. Store them somewhere safe.
                 </Typography>
-                <BackupCodeGrid>
-                  {backupCodesData.map((code) => (
-                    <BackupCodeItem key={code}>{code}</BackupCodeItem>
-                  ))}
-                </BackupCodeGrid>
+                <BackupCodes codes={backupCodesData} />
               </Flex>
             </Modal.Body>
             <Modal.Footer>
@@ -1547,6 +1464,6 @@ export function UserDetailDrawer({
           </Modal.Content>
         </Modal.Root>
       )}
-    </Drawer>
+    </SheetDialog>
   );
 }

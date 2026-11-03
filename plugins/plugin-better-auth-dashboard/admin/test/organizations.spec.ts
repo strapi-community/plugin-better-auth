@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   createOrgWithOwner,
   createUser,
+  isOrgTabVisible,
   navigateToDashboard,
   uniqueSuffix,
 } from "./helpers";
@@ -14,14 +15,12 @@ test.describe("Organizations page", () => {
   test.beforeEach(async ({ page }) => {
     await navigateToDashboard(page);
 
-    const orgTab = page.getByTestId("nav-organizations");
-    const isVisible = await orgTab.isVisible();
-    if (!isVisible) {
+    if (!(await isOrgTabVisible(page))) {
       test.skip();
       return;
     }
 
-    await orgTab.click();
+    await page.getByTestId("nav-organizations").click();
     await expect(page.getByTestId("organizations-page")).toBeVisible();
   });
 

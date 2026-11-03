@@ -23,7 +23,7 @@ test.describe("Users page", () => {
     await expect(page.getByText("Email").first()).toBeVisible();
     await expect(page.getByText("Status").first()).toBeVisible();
     await expect(
-      page.getByRole("columnheader", { name: "Created" }),
+      page.getByRole("gridcell", { name: "Created", exact: true }),
     ).toBeVisible();
   });
 

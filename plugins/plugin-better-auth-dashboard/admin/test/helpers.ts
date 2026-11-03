@@ -48,6 +48,9 @@ export async function closeDrawer(page: Page) {
 }
 
 export async function isOrgTabVisible(page: Page) {
+  // Nav links resolve asynchronously and render together, so wait for the
+  // always-present Users link before checking for the Organizations link.
+  await expect(page.getByTestId("nav-users")).toBeVisible();
   return page.getByTestId("nav-organizations").isVisible();
 }
 

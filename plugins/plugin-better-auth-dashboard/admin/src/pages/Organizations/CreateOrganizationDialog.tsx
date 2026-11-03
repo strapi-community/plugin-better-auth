@@ -12,9 +12,9 @@ import type React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { client, getAuthHeaders } from "../../client";
-import { Drawer } from "../../components/Drawer";
 import { FormSection, SectionLabel } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
+import { SheetDialog } from "../../components/Sheet";
 import { UserCombobox } from "../../components/UserCombobox";
 import { withContext } from "../../utils/dashContext";
 
@@ -92,7 +92,11 @@ export function CreateOrganizationDialog({ teamsEnabled, onClose }: Props) {
   );
 
   return (
-    <Drawer title="Create organization" footer={footer} onClose={onClose}>
+    <SheetDialog
+      title="Create organization"
+      actionButtons={footer}
+      onClose={onClose}
+    >
       <Flex direction="column" gap={5}>
         {/* Details */}
         <FormSection>
@@ -177,7 +181,7 @@ export function CreateOrganizationDialog({ teamsEnabled, onClose }: Props) {
           </FormSection>
         )}
       </Flex>
-    </Drawer>
+    </SheetDialog>
   );
 }
 
