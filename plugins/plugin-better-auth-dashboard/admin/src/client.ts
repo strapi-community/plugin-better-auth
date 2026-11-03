@@ -117,6 +117,14 @@ export const client = createAuthClient({
     InferPlugin<ReturnType<typeof dash>>(),
   ],
   fetchOptions: {
-    headers: getAuthHeaders(),
+    onRequest: ({ headers }) => {
+      const token = getToken();
+
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      } else {
+        headers.delete("Authorization");
+      }
+    },
   },
 });
