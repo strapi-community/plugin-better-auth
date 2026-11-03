@@ -19,6 +19,7 @@ import { Trash } from "@strapi/icons";
 import { useFetchClient, useNotification } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
+import { useIntl } from "react-intl";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
@@ -47,6 +48,7 @@ import { SheetDialog } from "../../components/Sheet";
 import { useModelSchema } from "../../hooks/useModelSchema";
 import { usePluginSettings } from "../../hooks/usePluginSettings";
 import { withContext } from "../../utils/dashContext";
+import { getTranslation } from "../../utils/getTranslation";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
@@ -112,6 +114,7 @@ export function UserDetailDrawer({
   twoFactorEnabled,
   onClose,
 }: Props) {
+  const { formatMessage } = useIntl();
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
   const { get, put } = useFetchClient();
@@ -133,7 +136,13 @@ export function UserDetailDrawer({
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to load user");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.loadUserFailed"),
+              defaultMessage: "Failed to load user",
+            }),
+        );
       return result.data;
     },
   });
@@ -145,7 +154,14 @@ export function UserDetailDrawer({
         {},
         withContext({ userId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data?.organizations ?? [];
     },
   });
@@ -254,14 +270,26 @@ export function UserDetailDrawer({
       if (editImage !== undefined) body.image = editImage;
 
       const documentId = strapiUserQuery.data?.documentId as string | undefined;
-      if (!documentId) throw new Error("Could not resolve documentId for user");
+      if (!documentId)
+        throw new Error(
+          formatMessage({
+            id: getTranslation("userDetail.errors.documentIdMissing"),
+            defaultMessage: "Could not resolve documentId for user",
+          }),
+        );
 
       const updateUser = await client.dash.updateUser(
         { userId, ...body },
         withContext({ userId }, getAuthHeaders()),
       );
 
-      if (!updateUser.data) throw new Error("Update failed");
+      if (!updateUser.data)
+        throw new Error(
+          formatMessage({
+            id: getTranslation("userDetail.common.updateFailed"),
+            defaultMessage: "Update failed",
+          }),
+        );
 
       if (Object.keys(editExtra).length > 0) {
         await put(
@@ -281,14 +309,22 @@ export function UserDetailDrawer({
       setEditExtra({});
       toggleNotification({
         type: "success",
-        message: "User updated successfully",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.updated"),
+          defaultMessage: "User updated successfully",
+        }),
       });
       onClose();
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Update failed",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.updateFailed"),
+            defaultMessage: "Update failed",
+          }),
       });
     },
   });
@@ -300,17 +336,34 @@ export function UserDetailDrawer({
         withContext({ sessionId, userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Revoke failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.revokeFailed"),
+              defaultMessage: "Revoke failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmRevokeSessionId(null);
       qc.invalidateQueries({ queryKey: ["dash-user-sessions", userId] });
-      toggleNotification({ type: "success", message: "Session revoked" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.sessionRevoked"),
+          defaultMessage: "Session revoked",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to revoke session",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.notifications.revokeSessionError"),
+            defaultMessage: "Failed to revoke session",
+          }),
       });
     },
   });
@@ -322,20 +375,34 @@ export function UserDetailDrawer({
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Password update failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.passwordUpdateFailed"),
+              defaultMessage: "Password update failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       setNewPassword("");
       toggleNotification({
         type: "success",
-        message: "Password updated successfully",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.passwordUpdated"),
+          defaultMessage: "Password updated successfully",
+        }),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Password update failed",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.passwordUpdateFailed"),
+            defaultMessage: "Password update failed",
+          }),
       });
     },
   });
@@ -352,7 +419,14 @@ export function UserDetailDrawer({
         body,
         withContext({ userId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Ban failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.banFailed"),
+              defaultMessage: "Ban failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
@@ -361,12 +435,23 @@ export function UserDetailDrawer({
       qc.invalidateQueries({ queryKey: ["dash-users"] });
       setBanReason("");
       setBanExpiresDays("");
-      toggleNotification({ type: "success", message: "User has been banned" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.banned"),
+          defaultMessage: "User has been banned",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Ban failed",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.banFailed"),
+            defaultMessage: "Ban failed",
+          }),
       });
     },
   });
@@ -377,19 +462,37 @@ export function UserDetailDrawer({
         {},
         withContext({ userId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Unban failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.unbanFailed"),
+              defaultMessage: "Unban failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       setConfirmUnban(false);
       qc.invalidateQueries({ queryKey: ["dash-user", userId] });
       qc.invalidateQueries({ queryKey: ["dash-users"] });
-      toggleNotification({ type: "success", message: "Ban has been lifted" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.unbanned"),
+          defaultMessage: "Ban has been lifted",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Unban failed",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.unbanFailed"),
+            defaultMessage: "Unban failed",
+          }),
       });
     },
   });
@@ -401,17 +504,34 @@ export function UserDetailDrawer({
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to unlink account");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.unlinkFailed"),
+              defaultMessage: "Failed to unlink account",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmUnlinkAccountId(null);
       qc.invalidateQueries({ queryKey: ["dash-user", userId] });
-      toggleNotification({ type: "success", message: "Account unlinked" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.accountUnlinked"),
+          defaultMessage: "Account unlinked",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to unlink account",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.unlinkFailed"),
+            defaultMessage: "Failed to unlink account",
+          }),
       });
     },
   });
@@ -423,17 +543,34 @@ export function UserDetailDrawer({
         withContext({}, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Revoke failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.revokeFailed"),
+              defaultMessage: "Revoke failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       setConfirmRevokeAll(false);
-      toggleNotification({ type: "success", message: "All sessions revoked" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.allSessionsRevoked"),
+          defaultMessage: "All sessions revoked",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to revoke sessions",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.notifications.revokeAllError"),
+            defaultMessage: "Failed to revoke sessions",
+          }),
       });
     },
   });
@@ -442,26 +579,45 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       if (!emailCallbackUrl) {
         throw new Error(
-          "Set `email_callback_url` in the better-auth-dashboard plugin config to enable this action.",
+          formatMessage({
+            id: getTranslation("userDetail.common.callbackUrlMissing"),
+            defaultMessage:
+              "Set `email_callback_url` in the better-auth-dashboard plugin config to enable this action.",
+          }),
         );
       }
       const result = await client.dash.sendVerificationEmail(
         { callbackUrl: emailCallbackUrl },
         withContext({ userId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       toggleNotification({
         type: "success",
-        message: "Verification email sent",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.verificationSent"),
+          defaultMessage: "Verification email sent",
+        }),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to send email",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.sendEmailFailed"),
+            defaultMessage: "Failed to send email",
+          }),
       });
     },
   });
@@ -470,26 +626,45 @@ export function UserDetailDrawer({
     mutationFn: async () => {
       if (!emailCallbackUrl) {
         throw new Error(
-          "Set `email_callback_url` in the better-auth-dashboard plugin config to enable this action.",
+          formatMessage({
+            id: getTranslation("userDetail.common.callbackUrlMissing"),
+            defaultMessage:
+              "Set `email_callback_url` in the better-auth-dashboard plugin config to enable this action.",
+          }),
         );
       }
       const result = await client.dash.sendResetPasswordEmail(
         { callbackUrl: emailCallbackUrl },
         withContext({ userId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       toggleNotification({
         type: "success",
-        message: "Password reset email sent",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.resetPasswordSent"),
+          defaultMessage: "Password reset email sent",
+        }),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to send email",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.sendEmailFailed"),
+            defaultMessage: "Failed to send email",
+          }),
       });
     },
   });
@@ -501,7 +676,13 @@ export function UserDetailDrawer({
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to enable 2FA");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.enableTwoFactorFailed"),
+              defaultMessage: "Failed to enable 2FA",
+            }),
+        );
       return result.data;
     },
     onSuccess: (data) => {
@@ -509,13 +690,21 @@ export function UserDetailDrawer({
       qc.invalidateQueries({ queryKey: ["dash-user", userId] });
       toggleNotification({
         type: "success",
-        message: "Two-factor authentication enabled",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.twoFactorEnabled"),
+          defaultMessage: "Two-factor authentication enabled",
+        }),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to enable 2FA",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.enableTwoFactorFailed"),
+            defaultMessage: "Failed to enable 2FA",
+          }),
       });
     },
   });
@@ -527,7 +716,13 @@ export function UserDetailDrawer({
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to disable 2FA");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.disableTwoFactorFailed"),
+              defaultMessage: "Failed to disable 2FA",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
@@ -538,13 +733,21 @@ export function UserDetailDrawer({
       qc.invalidateQueries({ queryKey: ["dash-user", userId] });
       toggleNotification({
         type: "success",
-        message: "Two-factor authentication disabled",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.twoFactorDisabled"),
+          defaultMessage: "Two-factor authentication disabled",
+        }),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to disable 2FA",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.disableTwoFactorFailed"),
+            defaultMessage: "Failed to disable 2FA",
+          }),
       });
     },
   });
@@ -557,7 +760,13 @@ export function UserDetailDrawer({
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to load TOTP URI");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.loadTotpUriFailed"),
+              defaultMessage: "Failed to load TOTP URI",
+            }),
+        );
       return result.data;
     },
     onSuccess: (data) => {
@@ -569,7 +778,12 @@ export function UserDetailDrawer({
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to load TOTP URI",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.loadTotpUriFailed"),
+            defaultMessage: "Failed to load TOTP URI",
+          }),
       });
     },
   });
@@ -581,7 +795,13 @@ export function UserDetailDrawer({
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to load backup codes");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.loadBackupCodesFailed"),
+              defaultMessage: "Failed to load backup codes",
+            }),
+        );
       return result.data;
     },
     onSuccess: (data) => {
@@ -593,7 +813,12 @@ export function UserDetailDrawer({
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to load backup codes",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.loadBackupCodesFailed"),
+            defaultMessage: "Failed to load backup codes",
+          }),
       });
     },
   });
@@ -606,7 +831,11 @@ export function UserDetailDrawer({
       );
       if (result.error)
         throw new Error(
-          result.error.message ?? "Failed to generate backup codes",
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("userDetail.common.generateBackupCodesFailed"),
+              defaultMessage: "Failed to generate backup codes",
+            }),
         );
       return result.data;
     },
@@ -618,13 +847,21 @@ export function UserDetailDrawer({
       }
       toggleNotification({
         type: "success",
-        message: "New backup codes generated",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.backupCodesGenerated"),
+          defaultMessage: "New backup codes generated",
+        }),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to generate backup codes",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.generateBackupCodesFailed"),
+            defaultMessage: "Failed to generate backup codes",
+          }),
       });
     },
   });
@@ -657,7 +894,11 @@ export function UserDetailDrawer({
       <Avatar name={user?.name ?? "?"} src={user?.image} size={32} />
       <Flex tag="span" direction="column" alignItems="flex-start">
         <Typography variant="omega" fontWeight="bold" textColor="neutral800">
-          {user?.name ?? "User"}
+          {user?.name ??
+            formatMessage({
+              id: getTranslation("userDetail.header.fallbackName"),
+              defaultMessage: "User",
+            })}
         </Typography>
         {user?.email && (
           <Typography variant="pi" textColor="neutral600">
@@ -667,7 +908,10 @@ export function UserDetailDrawer({
       </Flex>
       {user?.banned && (
         <Badge variant="danger" size="S">
-          Banned
+          {formatMessage({
+            id: getTranslation("userDetail.header.banned"),
+            defaultMessage: "Banned",
+          })}
         </Badge>
       )}
     </Flex>
@@ -687,7 +931,10 @@ export function UserDetailDrawer({
             onClose();
           }}
         >
-          Discard
+          {formatMessage({
+            id: getTranslation("userDetail.footer.discard"),
+            defaultMessage: "Discard",
+          })}
         </Button>
         <Button
           disabled={!hasEdits}
@@ -695,7 +942,10 @@ export function UserDetailDrawer({
           onClick={() => updateMutation.mutate()}
           data-testid="save-user-btn"
         >
-          Save changes
+          {formatMessage({
+            id: getTranslation("userDetail.footer.save"),
+            defaultMessage: "Save changes",
+          })}
         </Button>
       </>
     ) : undefined;
@@ -709,22 +959,67 @@ export function UserDetailDrawer({
     >
       {userQuery.isLoading ? (
         <Flex justifyContent="center" padding={8}>
-          <Loader>Loading user…</Loader>
+          <Loader>
+            {formatMessage({
+              id: getTranslation("userDetail.loadingUser"),
+              defaultMessage: "Loading user…",
+            })}
+          </Loader>
         </Flex>
       ) : userQuery.isError ? (
-        <Alert closeLabel="Close" title="Failed to load user" variant="danger">
+        <Alert
+          closeLabel={formatMessage({
+            id: getTranslation("userDetail.common.close"),
+            defaultMessage: "Close",
+          })}
+          title={formatMessage({
+            id: getTranslation("userDetail.common.loadUserFailed"),
+            defaultMessage: "Failed to load user",
+          })}
+          variant="danger"
+        >
           {userQuery.error instanceof Error
             ? userQuery.error.message
-            : "An error occurred"}
+            : formatMessage({
+                id: getTranslation("userDetail.errors.generic"),
+                defaultMessage: "An error occurred",
+              })}
         </Alert>
       ) : (
         <Tabs.Root defaultValue="profile" onValueChange={setActiveTab}>
           <Tabs.List>
-            <Tabs.Trigger value="profile">Profile</Tabs.Trigger>
-            <Tabs.Trigger value="security">Security</Tabs.Trigger>
-            {banEnabled && <Tabs.Trigger value="ban">Ban</Tabs.Trigger>}
-            <Tabs.Trigger value="sessions">Sessions</Tabs.Trigger>
-            <Tabs.Trigger value="organizations">Organizations</Tabs.Trigger>
+            <Tabs.Trigger value="profile">
+              {formatMessage({
+                id: getTranslation("userDetail.tabs.profile"),
+                defaultMessage: "Profile",
+              })}
+            </Tabs.Trigger>
+            <Tabs.Trigger value="security">
+              {formatMessage({
+                id: getTranslation("userDetail.tabs.security"),
+                defaultMessage: "Security",
+              })}
+            </Tabs.Trigger>
+            {banEnabled && (
+              <Tabs.Trigger value="ban">
+                {formatMessage({
+                  id: getTranslation("userDetail.tabs.ban"),
+                  defaultMessage: "Ban",
+                })}
+              </Tabs.Trigger>
+            )}
+            <Tabs.Trigger value="sessions">
+              {formatMessage({
+                id: getTranslation("userDetail.tabs.sessions"),
+                defaultMessage: "Sessions",
+              })}
+            </Tabs.Trigger>
+            <Tabs.Trigger value="organizations">
+              {formatMessage({
+                id: getTranslation("userDetail.tabs.organizations"),
+                defaultMessage: "Organizations",
+              })}
+            </Tabs.Trigger>
           </Tabs.List>
 
           {/* ── Profile ── */}
@@ -733,9 +1028,19 @@ export function UserDetailDrawer({
               {/* Left: editable fields */}
               <Flex direction="column" gap={5}>
                 <FormSection>
-                  <SectionLabel>Personal information</SectionLabel>
+                  <SectionLabel>
+                    {formatMessage({
+                      id: getTranslation("userDetail.profile.personalInfo"),
+                      defaultMessage: "Personal information",
+                    })}
+                  </SectionLabel>
                   <Field.Root style={{ width: "100%" }}>
-                    <Field.Label>Full name</Field.Label>
+                    <Field.Label>
+                      {formatMessage({
+                        id: getTranslation("userDetail.profile.fullName"),
+                        defaultMessage: "Full name",
+                      })}
+                    </Field.Label>
                     <TextInput
                       value={displayName}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -745,7 +1050,12 @@ export function UserDetailDrawer({
                     />
                   </Field.Root>
                   <Field.Root style={{ width: "100%" }}>
-                    <Field.Label>Email address</Field.Label>
+                    <Field.Label>
+                      {formatMessage({
+                        id: getTranslation("userDetail.profile.email"),
+                        defaultMessage: "Email address",
+                      })}
+                    </Field.Label>
                     <TextInput
                       type="email"
                       value={displayEmail}
@@ -760,15 +1070,30 @@ export function UserDetailDrawer({
                       setEditEmailVerified(checked)
                     }
                   >
-                    Mark email as verified
+                    {formatMessage({
+                      id: getTranslation("userDetail.profile.markVerified"),
+                      defaultMessage: "Mark email as verified",
+                    })}
                   </Checkbox>
                   <MediaPickerField
-                    label="Avatar URL"
+                    label={formatMessage({
+                      id: getTranslation("userDetail.profile.avatar.label"),
+                      defaultMessage: "Avatar URL",
+                    })}
                     name="image"
                     value={displayImage}
                     onChange={setEditImage}
-                    placeholder="https://example.com/avatar.png"
-                    hint="Optional — publicly accessible image URL"
+                    placeholder={formatMessage({
+                      id: getTranslation(
+                        "userDetail.profile.avatar.placeholder",
+                      ),
+                      defaultMessage: "https://example.com/avatar.png",
+                    })}
+                    hint={formatMessage({
+                      id: getTranslation("userDetail.profile.avatar.hint"),
+                      defaultMessage:
+                        "Optional — publicly accessible image URL",
+                    })}
                   />
                 </FormSection>
 
@@ -782,17 +1107,32 @@ export function UserDetailDrawer({
               {/* Right: metadata + email actions */}
               <EditSidebar>
                 <FormSection>
-                  <SectionLabel>Details</SectionLabel>
+                  <SectionLabel>
+                    {formatMessage({
+                      id: getTranslation("userDetail.profile.details"),
+                      defaultMessage: "Details",
+                    })}
+                  </SectionLabel>
                   <Grid.Root gap={3} gridCols={2}>
                     <Grid.Item col={2}>
                       <MetaItem>
-                        <MetaKey>User ID</MetaKey>
+                        <MetaKey>
+                          {formatMessage({
+                            id: getTranslation("userDetail.profile.userId"),
+                            defaultMessage: "User ID",
+                          })}
+                        </MetaKey>
                         <MonoChip>{user?.id}</MonoChip>
                       </MetaItem>
                     </Grid.Item>
                     <Grid.Item col={1}>
                       <MetaItem>
-                        <MetaKey>Created</MetaKey>
+                        <MetaKey>
+                          {formatMessage({
+                            id: getTranslation("userDetail.profile.created"),
+                            defaultMessage: "Created",
+                          })}
+                        </MetaKey>
                         <MetaVal>
                           {user?.createdAt
                             ? new Date(user.createdAt).toLocaleString()
@@ -802,7 +1142,14 @@ export function UserDetailDrawer({
                     </Grid.Item>
                     <Grid.Item col={1}>
                       <MetaItem>
-                        <MetaKey>Last updated</MetaKey>
+                        <MetaKey>
+                          {formatMessage({
+                            id: getTranslation(
+                              "userDetail.profile.lastUpdated",
+                            ),
+                            defaultMessage: "Last updated",
+                          })}
+                        </MetaKey>
                         <MetaVal>
                           {user?.updatedAt
                             ? new Date(user.updatedAt).toLocaleString()
@@ -815,7 +1162,14 @@ export function UserDetailDrawer({
 
                 {emailVerificationEnabled && (
                   <Flex direction="column" alignItems="stretch" gap={2}>
-                    <SectionLabel>Email actions</SectionLabel>
+                    <SectionLabel>
+                      {formatMessage({
+                        id: getTranslation(
+                          "userDetail.profile.emailActions.title",
+                        ),
+                        defaultMessage: "Email actions",
+                      })}
+                    </SectionLabel>
                     <Flex direction="column" alignItems="stretch" gap={2}>
                       <Button
                         variant="secondary"
@@ -825,7 +1179,12 @@ export function UserDetailDrawer({
                         disabled={!emailCallbackUrl || user?.emailVerified}
                         onClick={() => sendVerificationMutation.mutate()}
                       >
-                        Send verification email
+                        {formatMessage({
+                          id: getTranslation(
+                            "userDetail.profile.emailActions.sendVerification",
+                          ),
+                          defaultMessage: "Send verification email",
+                        })}
                       </Button>
                       <Button
                         variant="secondary"
@@ -835,12 +1194,22 @@ export function UserDetailDrawer({
                         disabled={!emailCallbackUrl}
                         onClick={() => sendResetPasswordMutation.mutate()}
                       >
-                        Send password reset
+                        {formatMessage({
+                          id: getTranslation(
+                            "userDetail.profile.emailActions.sendReset",
+                          ),
+                          defaultMessage: "Send password reset",
+                        })}
                       </Button>
                       {!settingsQuery.isLoading && !emailCallbackUrl && (
                         <Typography variant="pi" textColor="neutral600">
-                          Set `email_callback_url` in the better-auth-dashboard
-                          plugin config to enable these actions.
+                          {formatMessage({
+                            id: getTranslation(
+                              "userDetail.profile.emailActions.callbackUrlHint",
+                            ),
+                            defaultMessage:
+                              "Set `email_callback_url` in the better-auth-dashboard plugin config to enable these actions.",
+                          })}
                         </Typography>
                       )}
                     </Flex>
@@ -863,16 +1232,37 @@ export function UserDetailDrawer({
             <Flex direction="column" gap={5} paddingTop={6}>
               {/* Password */}
               <FormSection>
-                <SectionLabel>Password</SectionLabel>
-                <Field.Root hint="The user will be able to sign in with this new password">
-                  <Field.Label>New password</Field.Label>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation("userDetail.security.password.title"),
+                    defaultMessage: "Password",
+                  })}
+                </SectionLabel>
+                <Field.Root
+                  hint={formatMessage({
+                    id: getTranslation("userDetail.security.password.hint"),
+                    defaultMessage:
+                      "The user will be able to sign in with this new password",
+                  })}
+                >
+                  <Field.Label>
+                    {formatMessage({
+                      id: getTranslation("userDetail.security.password.label"),
+                      defaultMessage: "New password",
+                    })}
+                  </Field.Label>
                   <TextInput
                     type="password"
                     value={newPassword}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       setNewPassword(e.target.value)
                     }
-                    placeholder="Enter a strong password…"
+                    placeholder={formatMessage({
+                      id: getTranslation(
+                        "userDetail.security.password.placeholder",
+                      ),
+                      defaultMessage: "Enter a strong password…",
+                    })}
                   />
                   <Field.Hint />
                 </Field.Root>
@@ -882,14 +1272,24 @@ export function UserDetailDrawer({
                     loading={passwordMutation.isLoading}
                     onClick={() => passwordMutation.mutate()}
                   >
-                    Set password
+                    {formatMessage({
+                      id: getTranslation("userDetail.security.password.submit"),
+                      defaultMessage: "Set password",
+                    })}
                   </Button>
                 </Box>
               </FormSection>
 
               {/* Linked accounts */}
               <FormSection>
-                <SectionLabel>Linked accounts</SectionLabel>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation(
+                      "userDetail.security.linkedAccounts.title",
+                    ),
+                    defaultMessage: "Linked accounts",
+                  })}
+                </SectionLabel>
                 {user?.account && user.account.length > 0 ? (
                   <Flex direction="column" gap={2}>
                     {user.account.map((acc) => (
@@ -902,14 +1302,22 @@ export function UserDetailDrawer({
                             setConfirmUnlinkAccountId(acc.providerId)
                           }
                         >
-                          Unlink
+                          {formatMessage({
+                            id: getTranslation("userDetail.common.unlink"),
+                            defaultMessage: "Unlink",
+                          })}
                         </Button>
                       </AccountRow>
                     ))}
                   </Flex>
                 ) : (
                   <Typography variant="pi" textColor="neutral500">
-                    No linked OAuth accounts.
+                    {formatMessage({
+                      id: getTranslation(
+                        "userDetail.security.linkedAccounts.empty",
+                      ),
+                      defaultMessage: "No linked OAuth accounts.",
+                    })}
                   </Typography>
                 )}
               </FormSection>
@@ -918,7 +1326,14 @@ export function UserDetailDrawer({
               {twoFactorEnabled && (
                 <FormSection>
                   <Flex justifyContent="space-between" alignItems="center">
-                    <SectionLabel>Two-factor authentication</SectionLabel>
+                    <SectionLabel>
+                      {formatMessage({
+                        id: getTranslation(
+                          "userDetail.security.twoFactor.title",
+                        ),
+                        defaultMessage: "Two-factor authentication",
+                      })}
+                    </SectionLabel>
                     <Badge
                       size="S"
                       variant={
@@ -928,8 +1343,18 @@ export function UserDetailDrawer({
                       }
                     >
                       {(user as Record<string, unknown>)?.twoFactorEnabled
-                        ? "Enabled"
-                        : "Not enabled"}
+                        ? formatMessage({
+                            id: getTranslation(
+                              "userDetail.security.twoFactor.status.enabled",
+                            ),
+                            defaultMessage: "Enabled",
+                          })
+                        : formatMessage({
+                            id: getTranslation(
+                              "userDetail.security.twoFactor.status.disabled",
+                            ),
+                            defaultMessage: "Not enabled",
+                          })}
                     </Badge>
                   </Flex>
 
@@ -943,11 +1368,21 @@ export function UserDetailDrawer({
                           alignItems="flex-start"
                         >
                           <Typography variant="omega" fontWeight="semiBold">
-                            TOTP authenticator
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.common.totpAuthenticator",
+                              ),
+                              defaultMessage: "TOTP authenticator",
+                            })}
                           </Typography>
                           <Typography variant="pi" textColor="neutral500">
-                            View the URI and secret for this user's
-                            authenticator app.
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.security.twoFactor.totp.description",
+                              ),
+                              defaultMessage:
+                                "View the URI and secret for this user's authenticator app.",
+                            })}
                           </Typography>
                         </Flex>
                         <Button
@@ -956,7 +1391,15 @@ export function UserDetailDrawer({
                           loading={viewTotpUriMutation.isLoading}
                           onClick={() => viewTotpUriMutation.mutate()}
                         >
-                          {totpUriData ? "Refresh" : "View"}
+                          {totpUriData
+                            ? formatMessage({
+                                id: getTranslation("userDetail.common.refresh"),
+                                defaultMessage: "Refresh",
+                              })
+                            : formatMessage({
+                                id: getTranslation("userDetail.common.view"),
+                                defaultMessage: "View",
+                              })}
                         </Button>
                       </AccountRow>
 
@@ -968,10 +1411,21 @@ export function UserDetailDrawer({
                           alignItems="flex-start"
                         >
                           <Typography variant="omega" fontWeight="semiBold">
-                            Backup codes
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.common.backupCodes",
+                              ),
+                              defaultMessage: "Backup codes",
+                            })}
                           </Typography>
                           <Typography variant="pi" textColor="neutral500">
-                            View or regenerate the user's recovery codes.
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.security.twoFactor.backupCodes.description",
+                              ),
+                              defaultMessage:
+                                "View or regenerate the user's recovery codes.",
+                            })}
                           </Typography>
                         </Flex>
                         <Flex gap={2}>
@@ -981,7 +1435,17 @@ export function UserDetailDrawer({
                             loading={viewBackupCodesMutation.isLoading}
                             onClick={() => viewBackupCodesMutation.mutate()}
                           >
-                            {backupCodesData ? "Refresh" : "View"}
+                            {backupCodesData
+                              ? formatMessage({
+                                  id: getTranslation(
+                                    "userDetail.common.refresh",
+                                  ),
+                                  defaultMessage: "Refresh",
+                                })
+                              : formatMessage({
+                                  id: getTranslation("userDetail.common.view"),
+                                  defaultMessage: "View",
+                                })}
                           </Button>
                           <Button
                             variant="secondary"
@@ -990,7 +1454,12 @@ export function UserDetailDrawer({
                               setConfirmRegenerateBackupCodes(true)
                             }
                           >
-                            Regenerate
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.common.regenerate",
+                              ),
+                              defaultMessage: "Regenerate",
+                            })}
                           </Button>
                         </Flex>
                       </AccountRow>
@@ -1007,11 +1476,22 @@ export function UserDetailDrawer({
                             fontWeight="semiBold"
                             textColor="danger600"
                           >
-                            Disable two-factor authentication
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.common.disableTwoFactorTitle",
+                              ),
+                              defaultMessage:
+                                "Disable two-factor authentication",
+                            })}
                           </Typography>
                           <Typography variant="pi" textColor="danger500">
-                            The user will no longer need a second factor to sign
-                            in.
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.security.twoFactor.disable.description",
+                              ),
+                              defaultMessage:
+                                "The user will no longer need a second factor to sign in.",
+                            })}
                           </Typography>
                         </Flex>
                         <Button
@@ -1019,7 +1499,12 @@ export function UserDetailDrawer({
                           size="S"
                           onClick={() => setConfirmDisable2FA(true)}
                         >
-                          Disable 2FA
+                          {formatMessage({
+                            id: getTranslation(
+                              "userDetail.common.disableTwoFactor",
+                            ),
+                            defaultMessage: "Disable 2FA",
+                          })}
                         </Button>
                       </DangerRow>
                     </Flex>
@@ -1028,19 +1513,37 @@ export function UserDetailDrawer({
                       {twoFactorData && (
                         <Flex direction="column" alignItems="stretch" gap={3}>
                           <Typography variant="pi" textColor="neutral600">
-                            Scan the TOTP URI with an authenticator app, or
-                            enter the secret key manually.
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.security.twoFactor.setup.instructions",
+                              ),
+                              defaultMessage:
+                                "Scan the TOTP URI with an authenticator app, or enter the secret key manually.",
+                            })}
                           </Typography>
                           <ReadOnlyField
-                            label="TOTP URI"
+                            label={formatMessage({
+                              id: getTranslation("userDetail.common.totpUri"),
+                              defaultMessage: "TOTP URI",
+                            })}
                             value={twoFactorData.totpURI}
                           />
                           <ReadOnlyField
-                            label="Secret key"
+                            label={formatMessage({
+                              id: getTranslation("userDetail.common.secretKey"),
+                              defaultMessage: "Secret key",
+                            })}
                             value={twoFactorData.secret}
                           />
                           <Flex direction="column" alignItems="stretch" gap={2}>
-                            <SectionLabel>Backup codes</SectionLabel>
+                            <SectionLabel>
+                              {formatMessage({
+                                id: getTranslation(
+                                  "userDetail.common.backupCodes",
+                                ),
+                                defaultMessage: "Backup codes",
+                              })}
+                            </SectionLabel>
                             <BackupCodes codes={twoFactorData.backupCodes} />
                           </Flex>
                         </Flex>
@@ -1053,10 +1556,22 @@ export function UserDetailDrawer({
                           alignItems="flex-start"
                         >
                           <Typography variant="omega" fontWeight="semiBold">
-                            Enable two-factor authentication
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.security.twoFactor.enable.title",
+                              ),
+                              defaultMessage:
+                                "Enable two-factor authentication",
+                            })}
                           </Typography>
                           <Typography variant="pi" textColor="neutral500">
-                            Add an extra layer of security to this account.
+                            {formatMessage({
+                              id: getTranslation(
+                                "userDetail.security.twoFactor.enable.description",
+                              ),
+                              defaultMessage:
+                                "Add an extra layer of security to this account.",
+                            })}
                           </Typography>
                         </Flex>
                         <Button
@@ -1064,7 +1579,12 @@ export function UserDetailDrawer({
                           loading={enableTwoFactorMutation.isLoading}
                           onClick={() => enableTwoFactorMutation.mutate()}
                         >
-                          Enable 2FA
+                          {formatMessage({
+                            id: getTranslation(
+                              "userDetail.security.twoFactor.enable.submit",
+                            ),
+                            defaultMessage: "Enable 2FA",
+                          })}
                         </Button>
                       </AccountRow>
                     </Flex>
@@ -1080,36 +1600,65 @@ export function UserDetailDrawer({
               <Flex direction="column" gap={5} paddingTop={6}>
                 {user?.banned ? (
                   <FormSection>
-                    <SectionLabel>Ban status</SectionLabel>
+                    <SectionLabel>
+                      {formatMessage({
+                        id: getTranslation("userDetail.ban.status.title"),
+                        defaultMessage: "Ban status",
+                      })}
+                    </SectionLabel>
                     <WarnCard>
                       <Typography
                         variant="omega"
                         fontWeight="semiBold"
                         textColor="danger600"
                       >
-                        This user is currently banned
+                        {formatMessage({
+                          id: getTranslation("userDetail.ban.status.current"),
+                          defaultMessage: "This user is currently banned",
+                        })}
                       </Typography>
                       {user.banReason && (
                         <Typography variant="pi" textColor="danger600">
-                          Reason: {user.banReason}
+                          {formatMessage(
+                            {
+                              id: getTranslation(
+                                "userDetail.ban.status.reason",
+                              ),
+                              defaultMessage: "Reason: {reason}",
+                            },
+                            { reason: user.banReason },
+                          )}
                         </Typography>
                       )}
                       {user.banExpires ? (
                         <Typography variant="pi" textColor="danger600">
-                          Expires:{" "}
-                          {new Date(user.banExpires).toLocaleDateString(
-                            undefined,
+                          {formatMessage(
                             {
-                              weekday: "long",
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
+                              id: getTranslation(
+                                "userDetail.ban.status.expires",
+                              ),
+                              defaultMessage: "Expires: {date}",
+                            },
+                            {
+                              date: new Date(
+                                user.banExpires,
+                              ).toLocaleDateString(undefined, {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              }),
                             },
                           )}
                         </Typography>
                       ) : (
                         <Typography variant="pi" textColor="danger600">
-                          Duration: Permanent
+                          {formatMessage({
+                            id: getTranslation(
+                              "userDetail.ban.status.permanent",
+                            ),
+                            defaultMessage: "Duration: Permanent",
+                          })}
                         </Typography>
                       )}
                     </WarnCard>
@@ -1118,32 +1667,67 @@ export function UserDetailDrawer({
                         variant="secondary"
                         onClick={() => setConfirmUnban(true)}
                       >
-                        Lift ban
+                        {formatMessage({
+                          id: getTranslation("userDetail.common.liftBan"),
+                          defaultMessage: "Lift ban",
+                        })}
                       </Button>
                     </Box>
                   </FormSection>
                 ) : (
                   <FormSection>
-                    <SectionLabel>Apply ban</SectionLabel>
+                    <SectionLabel>
+                      {formatMessage({
+                        id: getTranslation("userDetail.ban.apply.title"),
+                        defaultMessage: "Apply ban",
+                      })}
+                    </SectionLabel>
                     <Field.Root
-                      hint="Optional — will be shown to the user"
+                      hint={formatMessage({
+                        id: getTranslation("userDetail.ban.apply.reason.hint"),
+                        defaultMessage: "Optional — will be shown to the user",
+                      })}
                       style={{ width: "100%" }}
                     >
-                      <Field.Label>Reason</Field.Label>
+                      <Field.Label>
+                        {formatMessage({
+                          id: getTranslation(
+                            "userDetail.ban.apply.reason.label",
+                          ),
+                          defaultMessage: "Reason",
+                        })}
+                      </Field.Label>
                       <TextInput
                         value={banReason}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setBanReason(e.target.value)
                         }
-                        placeholder="e.g. Violated terms of service"
+                        placeholder={formatMessage({
+                          id: getTranslation(
+                            "userDetail.ban.apply.reason.placeholder",
+                          ),
+                          defaultMessage: "e.g. Violated terms of service",
+                        })}
                       />
                       <Field.Hint />
                     </Field.Root>
                     <Field.Root
-                      hint="Leave empty for a permanent ban"
+                      hint={formatMessage({
+                        id: getTranslation(
+                          "userDetail.ban.apply.duration.hint",
+                        ),
+                        defaultMessage: "Leave empty for a permanent ban",
+                      })}
                       style={{ width: "100%" }}
                     >
-                      <Field.Label>Duration (days)</Field.Label>
+                      <Field.Label>
+                        {formatMessage({
+                          id: getTranslation(
+                            "userDetail.ban.apply.duration.label",
+                          ),
+                          defaultMessage: "Duration (days)",
+                        })}
+                      </Field.Label>
                       <Flex gap={4} alignItems="center">
                         <Box flex={1}>
                           <NumberInput
@@ -1157,14 +1741,32 @@ export function UserDetailDrawer({
                                 v === undefined ? "" : String(v),
                               )
                             }
-                            placeholder="e.g. 30"
+                            placeholder={formatMessage({
+                              id: getTranslation(
+                                "userDetail.ban.apply.duration.placeholder",
+                              ),
+                              defaultMessage: "e.g. 30",
+                            })}
                           />
                         </Box>
                         <Box shrink={0}>
                           <PreviewPill>
                             {banExpiryPreview
-                              ? `Expires ${banExpiryPreview}`
-                              : "Permanent ban"}
+                              ? formatMessage(
+                                  {
+                                    id: getTranslation(
+                                      "userDetail.ban.apply.preview.expires",
+                                    ),
+                                    defaultMessage: "Expires {date}",
+                                  },
+                                  { date: banExpiryPreview },
+                                )
+                              : formatMessage({
+                                  id: getTranslation(
+                                    "userDetail.ban.apply.preview.permanent",
+                                  ),
+                                  defaultMessage: "Permanent ban",
+                                })}
                           </PreviewPill>
                         </Box>
                       </Flex>
@@ -1175,7 +1777,10 @@ export function UserDetailDrawer({
                         variant="danger"
                         onClick={() => setConfirmBan(true)}
                       >
-                        Ban user
+                        {formatMessage({
+                          id: getTranslation("userDetail.common.banUser"),
+                          defaultMessage: "Ban user",
+                        })}
                       </Button>
                     </Box>
                   </FormSection>
@@ -1188,14 +1793,30 @@ export function UserDetailDrawer({
           <Tabs.Content value="sessions">
             <Flex direction="column" gap={5} paddingTop={6}>
               <FormSection>
-                <SectionLabel>Session management</SectionLabel>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation("userDetail.sessions.management"),
+                    defaultMessage: "Session management",
+                  })}
+                </SectionLabel>
                 <AccountRow>
                   <Flex direction="column" gap={1} alignItems="flex-start">
                     <Typography variant="omega" fontWeight="semiBold">
-                      Revoke all sessions
+                      {formatMessage({
+                        id: getTranslation(
+                          "userDetail.common.revokeAllSessions",
+                        ),
+                        defaultMessage: "Revoke all sessions",
+                      })}
                     </Typography>
                     <Typography variant="pi" textColor="neutral500">
-                      Signs the user out immediately on all devices.
+                      {formatMessage({
+                        id: getTranslation(
+                          "userDetail.sessions.revokeAll.description",
+                        ),
+                        defaultMessage:
+                          "Signs the user out immediately on all devices.",
+                      })}
                     </Typography>
                   </Flex>
                   <Button
@@ -1204,20 +1825,36 @@ export function UserDetailDrawer({
                     onClick={() => setConfirmRevokeAll(true)}
                     style={{ flexShrink: 0 }}
                   >
-                    Revoke all
+                    {formatMessage({
+                      id: getTranslation("userDetail.common.revokeAll"),
+                      defaultMessage: "Revoke all",
+                    })}
                   </Button>
                 </AccountRow>
               </FormSection>
 
               <FormSection>
-                <SectionLabel>Active sessions</SectionLabel>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation("userDetail.sessions.active"),
+                    defaultMessage: "Active sessions",
+                  })}
+                </SectionLabel>
                 {sessionsQuery.isLoading ? (
                   <Flex justifyContent="center" padding={4}>
-                    <Loader>Loading sessions…</Loader>
+                    <Loader>
+                      {formatMessage({
+                        id: getTranslation("userDetail.sessions.loading"),
+                        defaultMessage: "Loading sessions…",
+                      })}
+                    </Loader>
                   </Flex>
                 ) : (sessionsQuery.data ?? []).length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
-                    No active sessions.
+                    {formatMessage({
+                      id: getTranslation("userDetail.sessions.empty"),
+                      defaultMessage: "No active sessions.",
+                    })}
                   </Typography>
                 ) : (
                   <Flex direction="column" gap={2} alignItems="stretch">
@@ -1238,10 +1875,23 @@ export function UserDetailDrawer({
                               <MonoChip>{session.ipAddress}</MonoChip>
                             )}
                             <Typography variant="pi" textColor="neutral600">
-                              Created{" "}
-                              {new Date(session.createdAt).toLocaleString()} ·
-                              Expires{" "}
-                              {new Date(session.expiresAt).toLocaleString()}
+                              {formatMessage(
+                                {
+                                  id: getTranslation(
+                                    "userDetail.sessions.timestamps",
+                                  ),
+                                  defaultMessage:
+                                    "Created {createdAt} · Expires {expiresAt}",
+                                },
+                                {
+                                  createdAt: new Date(
+                                    session.createdAt,
+                                  ).toLocaleString(),
+                                  expiresAt: new Date(
+                                    session.expiresAt,
+                                  ).toLocaleString(),
+                                },
+                              )}
                             </Typography>
                           </Flex>
                           {session.userAgent && (
@@ -1256,7 +1906,12 @@ export function UserDetailDrawer({
                           )}
                         </Flex>
                         <IconButton
-                          label="Revoke session"
+                          label={formatMessage({
+                            id: getTranslation(
+                              "userDetail.common.revokeSession",
+                            ),
+                            defaultMessage: "Revoke session",
+                          })}
                           onClick={() =>
                             setConfirmRevokeSessionId(String(session.id))
                           }
@@ -1275,14 +1930,27 @@ export function UserDetailDrawer({
           <Tabs.Content value="organizations">
             <Flex direction="column" gap={5} paddingTop={6}>
               <FormSection>
-                <SectionLabel>Memberships</SectionLabel>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation("userDetail.organizations.memberships"),
+                    defaultMessage: "Memberships",
+                  })}
+                </SectionLabel>
                 {orgsQuery.isLoading ? (
                   <Flex justifyContent="center" padding={4}>
-                    <Loader small>Loading…</Loader>
+                    <Loader small>
+                      {formatMessage({
+                        id: getTranslation("userDetail.organizations.loading"),
+                        defaultMessage: "Loading…",
+                      })}
+                    </Loader>
                   </Flex>
                 ) : (orgsQuery.data ?? []).length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
-                    Not a member of any organizations.
+                    {formatMessage({
+                      id: getTranslation("userDetail.organizations.empty"),
+                      defaultMessage: "Not a member of any organizations.",
+                    })}
                   </Typography>
                 ) : (
                   <Flex direction="column" gap={2}>
@@ -1303,8 +1971,16 @@ export function UserDetailDrawer({
                               </RoleBadge>
                               {org.teams.length > 0 && (
                                 <Typography variant="pi" textColor="neutral500">
-                                  {org.teams.length} team
-                                  {org.teams.length !== 1 ? "s" : ""}
+                                  {formatMessage(
+                                    {
+                                      id: getTranslation(
+                                        "userDetail.organizations.teams",
+                                      ),
+                                      defaultMessage:
+                                        "{count, plural, one {# team} other {# teams}}",
+                                    },
+                                    { count: org.teams.length },
+                                  )}
                                 </Typography>
                               )}
                             </Flex>
@@ -1322,9 +1998,19 @@ export function UserDetailDrawer({
 
       {confirmRevokeAll && (
         <ConfirmDialog
-          title="Revoke all sessions"
-          message="Are you sure you want to revoke all sessions for this user? They will be signed out on all devices."
-          confirmLabel="Revoke all"
+          title={formatMessage({
+            id: getTranslation("userDetail.common.revokeAllSessions"),
+            defaultMessage: "Revoke all sessions",
+          })}
+          message={formatMessage({
+            id: getTranslation("userDetail.confirm.revokeAll.message"),
+            defaultMessage:
+              "Are you sure you want to revoke all sessions for this user? They will be signed out on all devices.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.common.revokeAll"),
+            defaultMessage: "Revoke all",
+          })}
           loading={revokeAllMutation.isLoading}
           onConfirm={() => revokeAllMutation.mutate()}
           onCancel={() => setConfirmRevokeAll(false)}
@@ -1333,9 +2019,19 @@ export function UserDetailDrawer({
 
       {confirmRevokeSessionId && (
         <ConfirmDialog
-          title="Revoke session"
-          message="Are you sure you want to revoke this session? The user will be signed out on this device."
-          confirmLabel="Revoke"
+          title={formatMessage({
+            id: getTranslation("userDetail.common.revokeSession"),
+            defaultMessage: "Revoke session",
+          })}
+          message={formatMessage({
+            id: getTranslation("userDetail.confirm.revokeSession.message"),
+            defaultMessage:
+              "Are you sure you want to revoke this session? The user will be signed out on this device.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.confirm.revokeSession.confirm"),
+            defaultMessage: "Revoke",
+          })}
           loading={revokeSessionMutation.isLoading}
           onConfirm={() => revokeSessionMutation.mutate(confirmRevokeSessionId)}
           onCancel={() => setConfirmRevokeSessionId(null)}
@@ -1344,13 +2040,32 @@ export function UserDetailDrawer({
 
       {confirmBan && (
         <ConfirmDialog
-          title="Ban user"
+          title={formatMessage({
+            id: getTranslation("userDetail.common.banUser"),
+            defaultMessage: "Ban user",
+          })}
           message={
             banReason
-              ? `Ban this user for the following reason: "${banReason}"? They will be prevented from signing in.`
-              : "Are you sure you want to ban this user? They will be prevented from signing in."
+              ? formatMessage(
+                  {
+                    id: getTranslation(
+                      "userDetail.confirm.ban.messageWithReason",
+                    ),
+                    defaultMessage:
+                      'Ban this user for the following reason: "{reason}"? They will be prevented from signing in.',
+                  },
+                  { reason: banReason },
+                )
+              : formatMessage({
+                  id: getTranslation("userDetail.confirm.ban.message"),
+                  defaultMessage:
+                    "Are you sure you want to ban this user? They will be prevented from signing in.",
+                })
           }
-          confirmLabel="Ban user"
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.common.banUser"),
+            defaultMessage: "Ban user",
+          })}
           variant="danger"
           loading={banMutation.isLoading}
           onConfirm={() => banMutation.mutate()}
@@ -1360,9 +2075,19 @@ export function UserDetailDrawer({
 
       {confirmUnban && (
         <ConfirmDialog
-          title="Lift ban"
-          message="Are you sure you want to lift the ban on this user? They will be able to sign in again."
-          confirmLabel="Lift ban"
+          title={formatMessage({
+            id: getTranslation("userDetail.common.liftBan"),
+            defaultMessage: "Lift ban",
+          })}
+          message={formatMessage({
+            id: getTranslation("userDetail.confirm.unban.message"),
+            defaultMessage:
+              "Are you sure you want to lift the ban on this user? They will be able to sign in again.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.common.liftBan"),
+            defaultMessage: "Lift ban",
+          })}
           variant="default"
           loading={unbanMutation.isLoading}
           onConfirm={() => unbanMutation.mutate()}
@@ -1372,9 +2097,22 @@ export function UserDetailDrawer({
 
       {confirmUnlinkAccountId && (
         <ConfirmDialog
-          title="Unlink account"
-          message={`Are you sure you want to unlink the "${confirmUnlinkAccountId}" provider from this user?`}
-          confirmLabel="Unlink"
+          title={formatMessage({
+            id: getTranslation("userDetail.confirm.unlink.title"),
+            defaultMessage: "Unlink account",
+          })}
+          message={formatMessage(
+            {
+              id: getTranslation("userDetail.confirm.unlink.message"),
+              defaultMessage:
+                'Are you sure you want to unlink the "{provider}" provider from this user?',
+            },
+            { provider: confirmUnlinkAccountId },
+          )}
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.common.unlink"),
+            defaultMessage: "Unlink",
+          })}
           loading={unlinkAccountMutation.isLoading}
           onConfirm={() => unlinkAccountMutation.mutate(confirmUnlinkAccountId)}
           onCancel={() => setConfirmUnlinkAccountId(null)}
@@ -1383,9 +2121,19 @@ export function UserDetailDrawer({
 
       {confirmDisable2FA && (
         <ConfirmDialog
-          title="Disable two-factor authentication"
-          message="Are you sure you want to disable 2FA for this user? They will no longer need a second factor to sign in."
-          confirmLabel="Disable 2FA"
+          title={formatMessage({
+            id: getTranslation("userDetail.common.disableTwoFactorTitle"),
+            defaultMessage: "Disable two-factor authentication",
+          })}
+          message={formatMessage({
+            id: getTranslation("userDetail.confirm.disableTwoFactor.message"),
+            defaultMessage:
+              "Are you sure you want to disable 2FA for this user? They will no longer need a second factor to sign in.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.common.disableTwoFactor"),
+            defaultMessage: "Disable 2FA",
+          })}
           loading={disableTwoFactorMutation.isLoading}
           onConfirm={() => disableTwoFactorMutation.mutate()}
           onCancel={() => setConfirmDisable2FA(false)}
@@ -1394,9 +2142,23 @@ export function UserDetailDrawer({
 
       {confirmRegenerateBackupCodes && (
         <ConfirmDialog
-          title="Regenerate backup codes"
-          message="This will invalidate all existing backup codes. New codes will be shown once after generation. Are you sure?"
-          confirmLabel="Regenerate"
+          title={formatMessage({
+            id: getTranslation(
+              "userDetail.confirm.regenerateBackupCodes.title",
+            ),
+            defaultMessage: "Regenerate backup codes",
+          })}
+          message={formatMessage({
+            id: getTranslation(
+              "userDetail.confirm.regenerateBackupCodes.message",
+            ),
+            defaultMessage:
+              "This will invalidate all existing backup codes. New codes will be shown once after generation. Are you sure?",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.common.regenerate"),
+            defaultMessage: "Regenerate",
+          })}
           loading={generateBackupCodesMutation.isLoading}
           onConfirm={() => generateBackupCodesMutation.mutate()}
           onCancel={() => setConfirmRegenerateBackupCodes(false)}
@@ -1410,16 +2172,36 @@ export function UserDetailDrawer({
         >
           <Modal.Content>
             <Modal.Header>
-              <Modal.Title>TOTP authenticator</Modal.Title>
+              <Modal.Title>
+                {formatMessage({
+                  id: getTranslation("userDetail.common.totpAuthenticator"),
+                  defaultMessage: "TOTP authenticator",
+                })}
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <Flex direction="column" alignItems="stretch" gap={4}>
                 <Typography variant="omega" textColor="neutral600">
-                  Share these details with the user to set up their
-                  authenticator app.
+                  {formatMessage({
+                    id: getTranslation("userDetail.totpModal.description"),
+                    defaultMessage:
+                      "Share these details with the user to set up their authenticator app.",
+                  })}
                 </Typography>
-                <ReadOnlyField label="TOTP URI" value={totpUriData.totpURI} />
-                <ReadOnlyField label="Secret key" value={totpUriData.secret} />
+                <ReadOnlyField
+                  label={formatMessage({
+                    id: getTranslation("userDetail.common.totpUri"),
+                    defaultMessage: "TOTP URI",
+                  })}
+                  value={totpUriData.totpURI}
+                />
+                <ReadOnlyField
+                  label={formatMessage({
+                    id: getTranslation("userDetail.common.secretKey"),
+                    defaultMessage: "Secret key",
+                  })}
+                  value={totpUriData.secret}
+                />
               </Flex>
             </Modal.Body>
             <Modal.Footer>
@@ -1427,7 +2209,10 @@ export function UserDetailDrawer({
                 variant="tertiary"
                 onClick={() => setShowTotpModal(false)}
               >
-                Close
+                {formatMessage({
+                  id: getTranslation("userDetail.common.close"),
+                  defaultMessage: "Close",
+                })}
               </Button>
             </Modal.Footer>
           </Modal.Content>
@@ -1443,12 +2228,23 @@ export function UserDetailDrawer({
         >
           <Modal.Content>
             <Modal.Header>
-              <Modal.Title>Backup codes</Modal.Title>
+              <Modal.Title>
+                {formatMessage({
+                  id: getTranslation("userDetail.common.backupCodes"),
+                  defaultMessage: "Backup codes",
+                })}
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <Flex direction="column" alignItems="stretch" gap={4}>
                 <Typography variant="omega" textColor="neutral600">
-                  Each code can only be used once. Store them somewhere safe.
+                  {formatMessage({
+                    id: getTranslation(
+                      "userDetail.backupCodesModal.description",
+                    ),
+                    defaultMessage:
+                      "Each code can only be used once. Store them somewhere safe.",
+                  })}
                 </Typography>
                 <BackupCodes codes={backupCodesData} />
               </Flex>
@@ -1458,7 +2254,10 @@ export function UserDetailDrawer({
                 variant="tertiary"
                 onClick={() => setShowBackupCodesModal(false)}
               >
-                Close
+                {formatMessage({
+                  id: getTranslation("userDetail.common.close"),
+                  defaultMessage: "Close",
+                })}
               </Button>
             </Modal.Footer>
           </Modal.Content>

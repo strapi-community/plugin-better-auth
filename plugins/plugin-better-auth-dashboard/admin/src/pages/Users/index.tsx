@@ -22,6 +22,7 @@ import { Pencil, Plus, Trash } from "@strapi/icons";
 import { Layouts, Page, useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
+import { useIntl } from "react-intl";
 import { useMutation, useQueryClient } from "react-query";
 import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
@@ -35,6 +36,7 @@ import {
 import { useUsers } from "../../hooks/useUsers";
 import { PLUGIN_ID } from "../../pluginId";
 import { withContext } from "../../utils/dashContext";
+import { getTranslation } from "../../utils/getTranslation";
 import { CreateUserDialog } from "./CreateUserDialog";
 import { UserDetailDrawer } from "./UserDetailDrawer";
 
@@ -45,6 +47,7 @@ interface Props {
 }
 
 export function UsersPage({ config }: Props) {
+  const { formatMessage } = useIntl();
   const rbac = useRBAC(PERMISSIONS.user);
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
@@ -81,18 +84,35 @@ export function UsersPage({ config }: Props) {
         withContext({ userId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Delete failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("users.list.errors.deleteFailed"),
+              defaultMessage: "Delete failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmDelete(null);
       qc.invalidateQueries({ queryKey: ["dash-users"] });
       qc.invalidateQueries({ queryKey: ["dash-user-stats"] });
-      toggleNotification({ type: "success", message: "User deleted" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("users.list.notifications.deleted"),
+          defaultMessage: "User deleted",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to delete user",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("users.list.notifications.deleteError"),
+            defaultMessage: "Failed to delete user",
+          }),
       });
     },
   });
@@ -104,7 +124,13 @@ export function UsersPage({ config }: Props) {
         withContext({ userIds } as never, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Delete failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("users.list.errors.deleteFailed"),
+              defaultMessage: "Delete failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: (_data, userIds) => {
@@ -114,13 +140,25 @@ export function UsersPage({ config }: Props) {
       qc.invalidateQueries({ queryKey: ["dash-user-stats"] });
       toggleNotification({
         type: "success",
-        message: `${userIds.length} user${userIds.length !== 1 ? "s" : ""} deleted`,
+        message: formatMessage(
+          {
+            id: getTranslation("users.list.notifications.deletedMany"),
+            defaultMessage:
+              "{count, plural, one {# user} other {# users}} deleted",
+          },
+          { count: userIds.length },
+        ),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to delete users",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("users.list.notifications.deleteManyError"),
+            defaultMessage: "Failed to delete users",
+          }),
       });
     },
   });
@@ -131,7 +169,14 @@ export function UsersPage({ config }: Props) {
         {},
         withContext({ userIds } as never, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Ban failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("users.list.errors.banFailed"),
+              defaultMessage: "Ban failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: (_data, userIds) => {
@@ -140,13 +185,25 @@ export function UsersPage({ config }: Props) {
       qc.invalidateQueries({ queryKey: ["dash-users"] });
       toggleNotification({
         type: "success",
-        message: `${userIds.length} user${userIds.length !== 1 ? "s" : ""} banned`,
+        message: formatMessage(
+          {
+            id: getTranslation("users.list.notifications.bannedMany"),
+            defaultMessage:
+              "{count, plural, one {# user} other {# users}} banned",
+          },
+          { count: userIds.length },
+        ),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to ban users",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("users.list.notifications.banManyError"),
+            defaultMessage: "Failed to ban users",
+          }),
       });
     },
   });
@@ -185,10 +242,27 @@ export function UsersPage({ config }: Props) {
   return (
     <Main data-testid="users-page">
       <Layouts.Header
-        title="Users"
-        subtitle={`${total.toLocaleString()} total${
-          data?.onlineUsers ? ` · ${data.onlineUsers} online` : ""
-        }`}
+        title={formatMessage({
+          id: getTranslation("users.list.header.title"),
+          defaultMessage: "Users",
+        })}
+        subtitle={
+          data?.onlineUsers
+            ? formatMessage(
+                {
+                  id: getTranslation("users.list.header.subtitleWithOnline"),
+                  defaultMessage: "{total} total · {online} online",
+                },
+                { total: total.toLocaleString(), online: data.onlineUsers },
+              )
+            : formatMessage(
+                {
+                  id: getTranslation("users.list.header.subtitle"),
+                  defaultMessage: "{total} total",
+                },
+                { total: total.toLocaleString() },
+              )
+        }
         primaryAction={
           rbac.allowedActions.canCreate && (
             <Button
@@ -196,7 +270,10 @@ export function UsersPage({ config }: Props) {
               onClick={() => setShowCreate(true)}
               data-testid="create-user-btn"
             >
-              Create user
+              {formatMessage({
+                id: getTranslation("users.list.header.create"),
+                defaultMessage: "Create user",
+              })}
             </Button>
           )
         }
@@ -207,9 +284,15 @@ export function UsersPage({ config }: Props) {
           <Flex gap={2}>
             <SearchForm onSubmit={handleSearch}>
               <Searchbar
-                clearLabel="Clear"
+                clearLabel={formatMessage({
+                  id: getTranslation("users.list.search.clear"),
+                  defaultMessage: "Clear",
+                })}
                 name="search"
-                placeholder="Search by email…"
+                placeholder={formatMessage({
+                  id: getTranslation("users.list.search.placeholder"),
+                  defaultMessage: "Search by email…",
+                })}
                 value={searchInput}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setSearchInput(e.target.value)
@@ -221,7 +304,10 @@ export function UsersPage({ config }: Props) {
                 }}
                 data-testid="user-search"
               >
-                Search users
+                {formatMessage({
+                  id: getTranslation("users.list.search.label"),
+                  defaultMessage: "Search users",
+                })}
               </Searchbar>
             </SearchForm>
 
@@ -232,7 +318,13 @@ export function UsersPage({ config }: Props) {
                 onClick={() => setConfirmDeleteMany(true)}
                 data-testid="delete-selected-btn"
               >
-                Delete {selected.size} selected
+                {formatMessage(
+                  {
+                    id: getTranslation("users.list.actions.deleteSelected"),
+                    defaultMessage: "Delete {count} selected",
+                  },
+                  { count: selected.size },
+                )}
               </Button>
             )}
             {someSelected && banEnabled && rbac.allowedActions.canUpdate && (
@@ -241,7 +333,13 @@ export function UsersPage({ config }: Props) {
                 size="S"
                 onClick={() => setConfirmBanMany(true)}
               >
-                Ban {selected.size} selected
+                {formatMessage(
+                  {
+                    id: getTranslation("users.list.actions.banSelected"),
+                    defaultMessage: "Ban {count} selected",
+                  },
+                  { count: selected.size },
+                )}
               </Button>
             )}
           </Flex>
@@ -251,14 +349,29 @@ export function UsersPage({ config }: Props) {
       <Layouts.Content>
         <Flex direction="column" alignItems="stretch" gap={4}>
           {isError && (
-            <Alert closeLabel="Close" title="Error" variant="danger">
+            <Alert
+              closeLabel={formatMessage({
+                id: getTranslation("users.list.alert.close"),
+                defaultMessage: "Close",
+              })}
+              title={formatMessage({
+                id: getTranslation("users.list.alert.error"),
+                defaultMessage: "Error",
+              })}
+              variant="danger"
+            >
               {(error as Error)?.message}
             </Alert>
           )}
 
           {isLoading ? (
             <Flex justifyContent="center" padding={8}>
-              <Loader>Loading users…</Loader>
+              <Loader>
+                {formatMessage({
+                  id: getTranslation("users.list.loading"),
+                  defaultMessage: "Loading users…",
+                })}
+              </Loader>
             </Flex>
           ) : (
             <Table colCount={colCount} rowCount={users.length + 1}>
@@ -275,24 +388,52 @@ export function UsersPage({ config }: Props) {
                               : false
                         }
                         onCheckedChange={handleSelectAll}
-                        aria-label="Select all"
+                        aria-label={formatMessage({
+                          id: getTranslation("users.list.table.selectAll"),
+                          defaultMessage: "Select all",
+                        })}
                       />
                     </Th>
                   )}
                   <Th>
-                    <Typography variant="sigma">Name</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("users.list.table.headers.name"),
+                        defaultMessage: "Name",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <Typography variant="sigma">Email</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("users.list.table.headers.email"),
+                        defaultMessage: "Email",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <Typography variant="sigma">Status</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("users.list.table.headers.status"),
+                        defaultMessage: "Status",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <Typography variant="sigma">Created</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("users.list.table.headers.created"),
+                        defaultMessage: "Created",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <VisuallyHidden>Actions</VisuallyHidden>
+                    <VisuallyHidden>
+                      {formatMessage({
+                        id: getTranslation("users.list.table.headers.actions"),
+                        defaultMessage: "Actions",
+                      })}
+                    </VisuallyHidden>
                   </Th>
                 </Tr>
               </Thead>
@@ -307,8 +448,18 @@ export function UsersPage({ config }: Props) {
                       >
                         <Typography textColor="neutral600">
                           {search
-                            ? `No users matching "${search}"`
-                            : "No users found"}
+                            ? formatMessage(
+                                {
+                                  id: getTranslation("users.list.empty.search"),
+                                  defaultMessage:
+                                    'No users matching "{search}"',
+                                },
+                                { search },
+                              )
+                            : formatMessage({
+                                id: getTranslation("users.list.empty.default"),
+                                defaultMessage: "No users found",
+                              })}
                         </Typography>
                       </Flex>
                     </Td>
@@ -321,7 +472,15 @@ export function UsersPage({ config }: Props) {
                           <Checkbox
                             checked={selected.has(user.id)}
                             onCheckedChange={() => toggleSelect(user.id)}
-                            aria-label={`Select ${user.name}`}
+                            aria-label={formatMessage(
+                              {
+                                id: getTranslation(
+                                  "users.list.table.selectRow",
+                                ),
+                                defaultMessage: "Select {name}",
+                              },
+                              { name: user.name },
+                            )}
                           />
                         </Td>
                       )}
@@ -349,16 +508,29 @@ export function UsersPage({ config }: Props) {
                         <Flex gap={1}>
                           {user.emailVerified ? (
                             <Badge variant="success" size="S">
-                              Verified
+                              {formatMessage({
+                                id: getTranslation(
+                                  "users.list.status.verified",
+                                ),
+                                defaultMessage: "Verified",
+                              })}
                             </Badge>
                           ) : (
                             <Badge variant="neutral" size="S">
-                              Unverified
+                              {formatMessage({
+                                id: getTranslation(
+                                  "users.list.status.unverified",
+                                ),
+                                defaultMessage: "Unverified",
+                              })}
                             </Badge>
                           )}
                           {user.banned && (
                             <Badge variant="danger" size="S">
-                              Banned
+                              {formatMessage({
+                                id: getTranslation("users.list.status.banned"),
+                                defaultMessage: "Banned",
+                              })}
                             </Badge>
                           )}
                         </Flex>
@@ -372,7 +544,10 @@ export function UsersPage({ config }: Props) {
                         <Flex gap={1} justifyContent="flex-end">
                           {rbac.allowedActions.canUpdate && (
                             <IconButton
-                              label="Edit user"
+                              label={formatMessage({
+                                id: getTranslation("users.list.table.editUser"),
+                                defaultMessage: "Edit user",
+                              })}
                               variant="ghost"
                               onClick={() => setDetailUserId(user.id)}
                               data-testid="edit-user-btn"
@@ -382,7 +557,12 @@ export function UsersPage({ config }: Props) {
                           )}
                           {rbac.allowedActions.canDelete && (
                             <IconButton
-                              label="Delete user"
+                              label={formatMessage({
+                                id: getTranslation(
+                                  "users.list.table.deleteUser",
+                                ),
+                                defaultMessage: "Delete user",
+                              })}
                               variant="ghost"
                               onClick={() => setConfirmDelete(user.id)}
                               data-testid="delete-user-btn"
@@ -407,7 +587,10 @@ export function UsersPage({ config }: Props) {
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
               >
-                Previous
+                {formatMessage({
+                  id: getTranslation("users.list.pagination.previous"),
+                  defaultMessage: "Previous",
+                })}
               </Button>
               <Button
                 variant="tertiary"
@@ -415,7 +598,10 @@ export function UsersPage({ config }: Props) {
                 disabled={page >= pageCount}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Next
+                {formatMessage({
+                  id: getTranslation("users.list.pagination.next"),
+                  defaultMessage: "Next",
+                })}
               </Button>
             </Flex>
           )}
@@ -438,9 +624,19 @@ export function UsersPage({ config }: Props) {
 
       {rbac.allowedActions.canDelete && confirmDelete && (
         <ConfirmDialog
-          title="Delete user"
-          message="Are you sure you want to delete this user? This action cannot be undone."
-          confirmLabel="Delete"
+          title={formatMessage({
+            id: getTranslation("users.list.confirmDelete.title"),
+            defaultMessage: "Delete user",
+          })}
+          message={formatMessage({
+            id: getTranslation("users.list.confirmDelete.message"),
+            defaultMessage:
+              "Are you sure you want to delete this user? This action cannot be undone.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("users.list.confirmDelete.confirm"),
+            defaultMessage: "Delete",
+          })}
           loading={deleteMutation.isLoading}
           onConfirm={() => deleteMutation.mutate(confirmDelete)}
           onCancel={() => setConfirmDelete(null)}
@@ -449,9 +645,26 @@ export function UsersPage({ config }: Props) {
 
       {rbac.allowedActions.canDelete && confirmDeleteMany && (
         <ConfirmDialog
-          title={`Delete ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
-          message={`Are you sure you want to delete ${selected.size} user${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
-          confirmLabel="Delete all"
+          title={formatMessage(
+            {
+              id: getTranslation("users.list.confirmDeleteMany.title"),
+              defaultMessage:
+                "Delete {count, plural, one {# user} other {# users}}",
+            },
+            { count: selected.size },
+          )}
+          message={formatMessage(
+            {
+              id: getTranslation("users.list.confirmDeleteMany.message"),
+              defaultMessage:
+                "Are you sure you want to delete {count, plural, one {# user} other {# users}}? This action cannot be undone.",
+            },
+            { count: selected.size },
+          )}
+          confirmLabel={formatMessage({
+            id: getTranslation("users.list.confirmDeleteMany.confirm"),
+            defaultMessage: "Delete all",
+          })}
           loading={deleteManyMutation.isLoading}
           onConfirm={() => deleteManyMutation.mutate([...selected])}
           onCancel={() => setConfirmDeleteMany(false)}
@@ -460,9 +673,26 @@ export function UsersPage({ config }: Props) {
 
       {rbac.allowedActions.canUpdate && confirmBanMany && (
         <ConfirmDialog
-          title={`Ban ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
-          message={`Are you sure you want to ban ${selected.size} user${selected.size !== 1 ? "s" : ""}? They will be prevented from signing in.`}
-          confirmLabel="Ban all"
+          title={formatMessage(
+            {
+              id: getTranslation("users.list.confirmBanMany.title"),
+              defaultMessage:
+                "Ban {count, plural, one {# user} other {# users}}",
+            },
+            { count: selected.size },
+          )}
+          message={formatMessage(
+            {
+              id: getTranslation("users.list.confirmBanMany.message"),
+              defaultMessage:
+                "Are you sure you want to ban {count, plural, one {# user} other {# users}}? They will be prevented from signing in.",
+            },
+            { count: selected.size },
+          )}
+          confirmLabel={formatMessage({
+            id: getTranslation("users.list.confirmBanMany.confirm"),
+            defaultMessage: "Ban all",
+          })}
           variant="danger"
           loading={banManyMutation.isLoading}
           onConfirm={() => banManyMutation.mutate([...selected])}
@@ -474,14 +704,21 @@ export function UsersPage({ config }: Props) {
 }
 
 export default function ProtectedUsersPage() {
+  const { formatMessage } = useIntl();
   const { data: config, isError, error } = useDashConfig();
 
   if (isError) {
     return (
       <Flex padding={6}>
         <Alert
-          closeLabel="Close"
-          title="Error loading configuration"
+          closeLabel={formatMessage({
+            id: getTranslation("users.config.close"),
+            defaultMessage: "Close",
+          })}
+          title={formatMessage({
+            id: getTranslation("users.config.errorTitle"),
+            defaultMessage: "Error loading configuration",
+          })}
           variant="danger"
         >
           {error.message}
@@ -493,7 +730,12 @@ export default function ProtectedUsersPage() {
   if (!config) {
     return (
       <Flex justifyContent="center" alignItems="center" padding={12}>
-        <Loader>Loading user configuration…</Loader>
+        <Loader>
+          {formatMessage({
+            id: getTranslation("users.config.loading"),
+            defaultMessage: "Loading user configuration…",
+          })}
+        </Loader>
       </Flex>
     );
   }

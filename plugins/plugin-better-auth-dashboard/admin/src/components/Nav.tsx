@@ -11,6 +11,7 @@ import {
   getDashLinks,
   resolveDashLinkAvailability,
 } from "../utils/dashPages";
+import { getTranslation } from "../utils/getTranslation";
 import { SubNav } from "./SubNav";
 
 type NavProps = {
@@ -25,6 +26,10 @@ const Nav = ({ isFullPage = false }: NavProps) => {
     (state) => state.checkUserHasPermissions,
   );
   const dashLinks = getDashLinks();
+  const headerLabel = formatMessage({
+    id: getTranslation("components.nav.header"),
+    defaultMessage: "Authentication",
+  });
   const [sections, setSections] = useState<DashLinkStore[string][]>([]);
 
   useEffect(() => {
@@ -83,14 +88,14 @@ const Nav = ({ isFullPage = false }: NavProps) => {
     <SubNav.Main>
       {!isFullPage && (
         <>
-          <SubNav.Header label="Authentication" />
+          <SubNav.Header label={headerLabel} />
           <Divider />
         </>
       )}
       <SubNav.Content>
         {isFullPage && (
           <>
-            <SubNav.Header label="Authentication" />
+            <SubNav.Header label={headerLabel} />
             <Divider />
           </>
         )}

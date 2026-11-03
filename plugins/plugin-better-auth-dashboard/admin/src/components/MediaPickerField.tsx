@@ -2,6 +2,8 @@ import { Box, Button, Field, Flex, TextInput } from "@strapi/design-system";
 import { Images } from "@strapi/icons";
 import type React from "react";
 import { useState } from "react";
+import { useIntl } from "react-intl";
+import { getTranslation } from "../utils/getTranslation";
 import {
   getMediaLibraryComponent,
   type StrapiMediaFile,
@@ -26,6 +28,7 @@ export function MediaPickerField({
   name,
   required,
 }: Props) {
+  const { formatMessage } = useIntl();
   const [showMedia, setShowMedia] = useState(false);
   const MediaLibraryDialog = getMediaLibraryComponent();
 
@@ -62,7 +65,10 @@ export function MediaPickerField({
               onClick={() => setShowMedia(true)}
               style={{ flexShrink: 0 }}
             >
-              Browse
+              {formatMessage({
+                id: getTranslation("components.mediaPickerField.browse"),
+                defaultMessage: "Browse",
+              })}
             </Button>
           )}
         </Flex>

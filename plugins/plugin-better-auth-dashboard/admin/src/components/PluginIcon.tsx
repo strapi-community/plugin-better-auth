@@ -1,3 +1,6 @@
+import { useIntl } from "react-intl";
+import { getTranslation } from "../utils/getTranslation";
+
 export const PluginIcon = ({
   size = 16,
   background = "transparent",
@@ -8,6 +11,7 @@ export const PluginIcon = ({
   flipVertical = false,
   padding = 0,
 }) => {
+  const { formatMessage } = useIntl();
   const transforms = [];
   if (rotation !== 0) transforms.push(`rotate(${rotation}deg)`);
   if (flipHorizontal) transforms.push("scaleX(-1)");
@@ -34,7 +38,12 @@ export const PluginIcon = ({
         backgroundColor: background !== "transparent" ? background : undefined,
       }}
     >
-      <title>Better Auth Logo</title>
+      <title>
+        {formatMessage({
+          id: getTranslation("components.pluginIcon.title"),
+          defaultMessage: "Better Auth Logo",
+        })}
+      </title>
       <path
         fill="currentColor"
         d="M0 3.39v17.22h5.783v-5.55h6.434V8.939H5.783V3.39Zm12.217 5.55h5.638v6.122h-5.638v5.548H24V3.391H12.217Z"

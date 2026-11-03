@@ -13,12 +13,14 @@ import {
 import { Trash } from "@strapi/icons";
 import { Layouts } from "@strapi/strapi/admin";
 import { useState } from "react";
+import { useIntl } from "react-intl";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { MonoChip } from "../../components/FormPrimitives";
 import { withContext } from "../../utils/dashContext";
+import { getTranslation } from "../../utils/getTranslation";
 
 const PAGE_SIZE = 25;
 
@@ -38,6 +40,7 @@ type UserWithSessions = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SessionsPage() {
+  const { formatMessage } = useIntl();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -46,13 +49,29 @@ export function SessionsPage() {
   >(null);
   const [confirmRevokeMany, setConfirmRevokeMany] = useState(false);
 
+  const revokeSessionMessage = {
+    id: getTranslation("sessions.common.revokeSession"),
+    defaultMessage: "Revoke session",
+  };
+  const revokeManyTitleMessage = {
+    id: getTranslation("sessions.common.revokeSessionsForUsers"),
+    defaultMessage:
+      "Revoke sessions for {count, plural, one {# user} other {# users}}",
+  };
+
   const sessionsQuery = useQuery({
     queryKey: ["dash-all-sessions", page],
     queryFn: async () => {
       // biome-ignore lint/suspicious/noExplicitAny: listAllSessions is a custom endpoint not in the upstream @better-auth/infra types
       const result = await (client.dash as any).listAllSessions({});
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to load sessions");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("sessions.errors.loadFailed"),
+              defaultMessage: "Failed to load sessions",
+            }),
+        );
       return (result.data ?? []) as UserWithSessions[];
     },
     keepPreviousData: true,
@@ -65,7 +84,13 @@ export function SessionsPage() {
         withContext({ sessionId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Revoke failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("sessions.common.revokeFailed"),
+              defaultMessage: "Revoke failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmRevokeSessionId(null);
@@ -80,7 +105,13 @@ export function SessionsPage() {
         withContext({ userIds } as never, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Revoke failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("sessions.common.revokeFailed"),
+              defaultMessage: "Revoke failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
@@ -113,11 +144,24 @@ export function SessionsPage() {
   return (
     <Main data-testid="sessions-page">
       <Layouts.Header
-        title="Sessions"
+        title={formatMessage({
+          id: getTranslation("sessions.common.sessions"),
+          defaultMessage: "Sessions",
+        })}
         subtitle={
           usersWithSessions.length > 0
-            ? `${usersWithSessions.length} user${usersWithSessions.length !== 1 ? "s" : ""} with active sessions`
-            : "Active sessions across all users"
+            ? formatMessage(
+                {
+                  id: getTranslation("sessions.header.subtitle"),
+                  defaultMessage:
+                    "{count, plural, one {# user} other {# users}} with active sessions",
+                },
+                { count: usersWithSessions.length },
+              )
+            : formatMessage({
+                id: getTranslation("sessions.header.subtitleEmpty"),
+                defaultMessage: "Active sessions across all users",
+              })
         }
         primaryAction={
           someSelected && (
@@ -126,8 +170,9 @@ export function SessionsPage() {
               onClick={() => setConfirmRevokeMany(true)}
               data-testid="revoke-selected-btn"
             >
-              Revoke sessions for {selected.size} user
-              {selected.size !== 1 ? "s" : ""}
+              {formatMessage(revokeManyTitleMessage, {
+                count: selected.size,
+              })}
             </Button>
           )
         }
@@ -136,22 +181,43 @@ export function SessionsPage() {
       <Layouts.Content>
         <Flex direction="column" alignItems="stretch" gap={4}>
           {sessionsQuery.isError && (
-            <Alert closeLabel="Close" title="Error" variant="danger">
+            <Alert
+              closeLabel={formatMessage({
+                id: getTranslation("sessions.alert.close"),
+                defaultMessage: "Close",
+              })}
+              title={formatMessage({
+                id: getTranslation("sessions.alert.title"),
+                defaultMessage: "Error",
+              })}
+              variant="danger"
+            >
               {sessionsQuery.error instanceof Error
                 ? sessionsQuery.error.message
-                : "An error occurred"}
+                : formatMessage({
+                    id: getTranslation("sessions.alert.generic"),
+                    defaultMessage: "An error occurred",
+                  })}
             </Alert>
           )}
 
           <Box background="neutral0" hasRadius shadow="tableShadow">
             {sessionsQuery.isLoading ? (
               <Flex justifyContent="center" padding={8}>
-                <Loader>Loading sessions…</Loader>
+                <Loader>
+                  {formatMessage({
+                    id: getTranslation("sessions.loading"),
+                    defaultMessage: "Loading sessions…",
+                  })}
+                </Loader>
               </Flex>
             ) : usersWithSessions.length === 0 ? (
               <Flex justifyContent="center" padding={8}>
                 <Typography textColor="neutral600">
-                  No active sessions
+                  {formatMessage({
+                    id: getTranslation("sessions.empty"),
+                    defaultMessage: "No active sessions",
+                  })}
                 </Typography>
               </Flex>
             ) : (
@@ -175,14 +241,23 @@ export function SessionsPage() {
                           : false
                     }
                     onCheckedChange={handleSelectAll}
-                    aria-label="Select all users"
+                    aria-label={formatMessage({
+                      id: getTranslation("sessions.table.selectAll"),
+                      defaultMessage: "Select all users",
+                    })}
                   />
                   <Typography variant="sigma" textColor="neutral600">
-                    User / Sessions
+                    {formatMessage({
+                      id: getTranslation("sessions.table.userSessions"),
+                      defaultMessage: "User / Sessions",
+                    })}
                   </Typography>
                   <Box marginLeft="auto">
                     <Typography variant="sigma" textColor="neutral600">
-                      Sessions
+                      {formatMessage({
+                        id: getTranslation("sessions.common.sessions"),
+                        defaultMessage: "Sessions",
+                      })}
                     </Typography>
                   </Box>
                 </Flex>
@@ -207,7 +282,13 @@ export function SessionsPage() {
                       <Checkbox
                         checked={selected.has(userRow.id)}
                         onCheckedChange={() => toggleSelect(userRow.id)}
-                        aria-label={`Select ${userRow.name}`}
+                        aria-label={formatMessage(
+                          {
+                            id: getTranslation("sessions.table.selectUser"),
+                            defaultMessage: "Select {name}",
+                          },
+                          { name: userRow.name },
+                        )}
                       />
                       <Avatar name={userRow.name ?? ""} src={null} size={32} />
                       <Flex
@@ -227,8 +308,14 @@ export function SessionsPage() {
                         </Typography>
                       </Flex>
                       <Badge size="S" variant="primary">
-                        {userRow.sessions.length} session
-                        {userRow.sessions.length !== 1 ? "s" : ""}
+                        {formatMessage(
+                          {
+                            id: getTranslation("sessions.table.sessionCount"),
+                            defaultMessage:
+                              "{count, plural, one {# session} other {# sessions}}",
+                          },
+                          { count: userRow.sessions.length },
+                        )}
                       </Badge>
                     </Flex>
 
@@ -260,10 +347,21 @@ export function SessionsPage() {
                               <MonoChip>{session.ipAddress}</MonoChip>
                             )}
                             <Typography variant="pi" textColor="neutral600">
-                              Created{" "}
-                              {new Date(session.createdAt).toLocaleString()} ·
-                              Expires{" "}
-                              {new Date(session.expiresAt).toLocaleString()}
+                              {formatMessage(
+                                {
+                                  id: getTranslation("sessions.session.dates"),
+                                  defaultMessage:
+                                    "Created {createdAt} · Expires {expiresAt}",
+                                },
+                                {
+                                  createdAt: new Date(
+                                    session.createdAt,
+                                  ).toLocaleString(),
+                                  expiresAt: new Date(
+                                    session.expiresAt,
+                                  ).toLocaleString(),
+                                },
+                              )}
                             </Typography>
                           </Flex>
                           {session.userAgent && (
@@ -278,7 +376,7 @@ export function SessionsPage() {
                           )}
                         </Flex>
                         <IconButton
-                          label="Revoke session"
+                          label={formatMessage(revokeSessionMessage)}
                           variant="ghost"
                           onClick={() => setConfirmRevokeSessionId(session.id)}
                           data-testid="revoke-session-btn"
@@ -301,14 +399,20 @@ export function SessionsPage() {
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
               >
-                Previous
+                {formatMessage({
+                  id: getTranslation("sessions.pagination.previous"),
+                  defaultMessage: "Previous",
+                })}
               </Button>
               <Button
                 variant="tertiary"
                 size="S"
                 onClick={() => setPage((p) => p + 1)}
               >
-                Next
+                {formatMessage({
+                  id: getTranslation("sessions.pagination.next"),
+                  defaultMessage: "Next",
+                })}
               </Button>
             </Flex>
           )}
@@ -317,9 +421,16 @@ export function SessionsPage() {
 
       {confirmRevokeSessionId && (
         <ConfirmDialog
-          title="Revoke session"
-          message="Are you sure you want to revoke this session? The user will be signed out on this device."
-          confirmLabel="Revoke"
+          title={formatMessage(revokeSessionMessage)}
+          message={formatMessage({
+            id: getTranslation("sessions.revokeSession.message"),
+            defaultMessage:
+              "Are you sure you want to revoke this session? The user will be signed out on this device.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("sessions.revokeSession.confirm"),
+            defaultMessage: "Revoke",
+          })}
           loading={revokeSessionMutation.isLoading}
           onConfirm={() => revokeSessionMutation.mutate(confirmRevokeSessionId)}
           onCancel={() => setConfirmRevokeSessionId(null)}
@@ -328,9 +439,21 @@ export function SessionsPage() {
 
       {confirmRevokeMany && (
         <ConfirmDialog
-          title={`Revoke sessions for ${selected.size} user${selected.size !== 1 ? "s" : ""}`}
-          message={`Are you sure you want to revoke all sessions for ${selected.size} user${selected.size !== 1 ? "s" : ""}? They will be signed out on all their devices.`}
-          confirmLabel="Revoke all"
+          title={formatMessage(revokeManyTitleMessage, {
+            count: selected.size,
+          })}
+          message={formatMessage(
+            {
+              id: getTranslation("sessions.revokeMany.message"),
+              defaultMessage:
+                "Are you sure you want to revoke all sessions for {count, plural, one {# user} other {# users}}? They will be signed out on all their devices.",
+            },
+            { count: selected.size },
+          )}
+          confirmLabel={formatMessage({
+            id: getTranslation("sessions.revokeMany.confirm"),
+            defaultMessage: "Revoke all",
+          })}
           loading={revokeManyMutation.isLoading}
           onConfirm={() => revokeManyMutation.mutate([...selected])}
           onCancel={() => setConfirmRevokeMany(false)}

@@ -1,6 +1,8 @@
 import { Modal } from "@strapi/design-system";
 import type { ReactNode } from "react";
+import { useIntl } from "react-intl";
 import styled, { keyframes } from "styled-components";
+import { getTranslation } from "../utils/getTranslation";
 
 // Side-sheet built on the design-system Modal (Radix Dialog), modelled after
 // the `SheetDialog` from strapi-design-extended.
@@ -68,13 +70,20 @@ export function SheetDialog({
   width = "760px",
   "data-testid": testId,
 }: SheetDialogProps) {
+  const { formatMessage } = useIntl();
+
   return (
     <Modal.Root
       defaultOpen
       onOpenChange={(open: boolean) => !open && onClose()}
     >
       <Content $width={width} data-testid={testId}>
-        <Modal.Header closeLabel="Close panel">
+        <Modal.Header
+          closeLabel={formatMessage({
+            id: getTranslation("components.sheet.closeLabel"),
+            defaultMessage: "Close panel",
+          })}
+        >
           <Modal.Title>{title}</Modal.Title>
         </Modal.Header>
         <Body>{children}</Body>
