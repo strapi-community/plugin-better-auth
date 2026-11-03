@@ -10,7 +10,9 @@ import {
   TextInput,
 } from "@strapi/design-system";
 import type React from "react";
+import { useIntl } from "react-intl";
 import type { StrapiAttribute } from "../hooks/useModelSchema";
+import { getTranslation } from "../utils/getTranslation";
 import { FormSection, SectionLabel } from "./FormPrimitives";
 import { RelationField } from "./RelationField";
 
@@ -239,12 +241,18 @@ export function CustomFieldsSection({
   data,
   onChange,
 }: CustomFieldsSectionProps) {
+  const { formatMessage } = useIntl();
   const renderable = fields.filter((f) => !SKIP_TYPES.has(f.attribute.type));
   if (renderable.length === 0) return null;
 
   return (
     <FormSection>
-      <SectionLabel>Custom fields</SectionLabel>
+      <SectionLabel>
+        {formatMessage({
+          id: getTranslation("components.dynamicField.customFields"),
+          defaultMessage: "Custom fields",
+        })}
+      </SectionLabel>
       <Flex direction="column" gap={4} alignItems="stretch">
         {renderable.map((field) => (
           <DynamicField

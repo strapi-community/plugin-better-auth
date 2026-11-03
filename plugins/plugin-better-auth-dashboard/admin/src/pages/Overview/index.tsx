@@ -13,6 +13,7 @@ import {
 } from "@strapi/design-system";
 import { Layouts, Page, useFetchClient } from "@strapi/strapi/admin";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type IntlShape, type MessageDescriptor, useIntl } from "react-intl";
 import { useQuery } from "react-query";
 import styled, { type DefaultTheme, useTheme } from "styled-components";
 import { client } from "../../client";
@@ -20,6 +21,7 @@ import { Avatar } from "../../components/Avatar";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { PERMISSIONS } from "../../constants";
 import { PLUGIN_ID } from "../../pluginId";
+import { getTranslation } from "../../utils/getTranslation";
 
 type ColorToken = keyof DefaultTheme["colors"];
 
@@ -192,11 +194,32 @@ type GraphRow = {
 const ALL_SERIES: {
   key: keyof Omit<GraphRow, "label">;
   color: ColorToken;
-  label: string;
+  label: MessageDescriptor;
 }[] = [
-  { key: "totalUsers", color: "primary600", label: "Total" },
-  { key: "newUsers", color: "success500", label: "New" },
-  { key: "activeUsers", color: "warning500", label: "Active" },
+  {
+    key: "totalUsers",
+    color: "primary600",
+    label: {
+      id: getTranslation("overview.growth.series.total"),
+      defaultMessage: "Total",
+    },
+  },
+  {
+    key: "newUsers",
+    color: "success500",
+    label: {
+      id: getTranslation("overview.growth.series.new"),
+      defaultMessage: "New",
+    },
+  },
+  {
+    key: "activeUsers",
+    color: "warning500",
+    label: {
+      id: getTranslation("overview.growth.series.active"),
+      defaultMessage: "Active",
+    },
+  },
 ];
 
 function GrowthChart({
@@ -211,6 +234,7 @@ function GrowthChart({
   activeSeries: Set<string>;
 }) {
   const { colors } = useTheme();
+  const { formatMessage } = useIntl();
   const W = 600;
   const H = 200;
   const PL = 40;
@@ -221,7 +245,14 @@ function GrowthChart({
   const CH = H - PT - PB;
 
   if (!data.length) {
-    return <Empty>No growth data for this period</Empty>;
+    return (
+      <Empty>
+        {formatMessage({
+          id: getTranslation("overview.growth.empty"),
+          defaultMessage: "No growth data for this period",
+        })}
+      </Empty>
+    );
   }
 
   const active = ALL_SERIES.filter((s) => activeSeries.has(s.key));
@@ -262,7 +293,10 @@ function GrowthChart({
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
       style={{ display: "block" }}
-      aria-label="User growth chart"
+      aria-label={formatMessage({
+        id: getTranslation("overview.growth.chartLabel"),
+        defaultMessage: "User growth chart",
+      })}
       role="img"
     >
       <defs>
@@ -443,14 +477,41 @@ function ProgressRing({
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-function relTime(date: string | Date) {
+function relTime(
+  date: string | Date,
+  formatMessage: IntlShape["formatMessage"],
+) {
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m`;
+  if (mins < 1)
+    return formatMessage({
+      id: getTranslation("overview.relTime.justNow"),
+      defaultMessage: "just now",
+    });
+  if (mins < 60)
+    return formatMessage(
+      {
+        id: getTranslation("overview.relTime.minutes"),
+        defaultMessage: "{count}m",
+      },
+      { count: mins },
+    );
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  return `${Math.floor(hrs / 24)}d`;
+  if (hrs < 24)
+    return formatMessage(
+      {
+        id: getTranslation("overview.relTime.hours"),
+        defaultMessage: "{count}h",
+      },
+      { count: hrs },
+    );
+  return formatMessage(
+    {
+      id: getTranslation("overview.relTime.days"),
+      defaultMessage: "{count}d",
+    },
+    { count: Math.floor(hrs / 24) },
+  );
 }
 
 function rateColor(r: number): ColorToken {
@@ -558,6 +619,23 @@ function StatItem({
 
 export function OverviewPage() {
   const { get } = useFetchClient();
+  const { formatMessage } = useIntl();
+  const failedMessage = formatMessage({
+    id: getTranslation("overview.common.failed"),
+    defaultMessage: "Failed",
+  });
+  const recentSignUpsMessage = {
+    id: getTranslation("overview.feed.recentSignUps"),
+    defaultMessage: "Recent Sign-ups",
+  };
+  const recentlyActiveMessage = {
+    id: getTranslation("overview.feed.recentlyActive"),
+    defaultMessage: "Recently Active",
+  };
+  const loadingMessage = formatMessage({
+    id: getTranslation("overview.common.loading"),
+    defaultMessage: "Loading…",
+  });
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">(
     "weekly",
   );
@@ -581,7 +659,7 @@ export function OverviewPage() {
     queryKey: ["dash-user-stats"],
     queryFn: async () => {
       const r = await client.dash.userStats();
-      if (r.error) throw new Error(r.error.message ?? "Failed");
+      if (r.error) throw new Error(r.error.message ?? failedMessage);
       return r.data;
     },
   });
@@ -590,7 +668,7 @@ export function OverviewPage() {
     queryKey: ["dash-user-graph", period],
     queryFn: async () => {
       const r = await client.dash.userGraphData({ query: { period } });
-      if (r.error) throw new Error(r.error.message ?? "Failed");
+      if (r.error) throw new Error(r.error.message ?? failedMessage);
       return r.data;
     },
   });
@@ -599,7 +677,7 @@ export function OverviewPage() {
     queryKey: ["dash-user-retention", period],
     queryFn: async () => {
       const r = await client.dash.userRetentionData({ query: { period } });
-      if (r.error) throw new Error(r.error.message ?? "Failed");
+      if (r.error) throw new Error(r.error.message ?? failedMessage);
       return r.data;
     },
   });
@@ -610,7 +688,7 @@ export function OverviewPage() {
       const r = await client.dash.listUsers({
         query: { limit: 12, offset: 0, sortBy: "createdAt", sortOrder: "desc" },
       });
-      if (r.error) throw new Error(r.error.message ?? "Failed");
+      if (r.error) throw new Error(r.error.message ?? failedMessage);
       return r.data;
     },
   });
@@ -632,7 +710,7 @@ export function OverviewPage() {
       const r = await (client.dash as any).listOrganizations({
         query: { page: 1, limit: 1 },
       });
-      if (r.error) throw new Error(r.error.message ?? "Failed");
+      if (r.error) throw new Error(r.error.message ?? failedMessage);
       return r.data;
     },
   });
@@ -669,7 +747,7 @@ export function OverviewPage() {
   if (statsQuery.isLoading) {
     return (
       <Flex justifyContent="center" alignItems="center" padding={12}>
-        <Loader>Loading…</Loader>
+        <Loader>{loadingMessage}</Loader>
       </Flex>
     );
   }
@@ -735,7 +813,7 @@ export function OverviewPage() {
           </Typography>
         </Flex>
         <Typography variant="pi" textColor="neutral500" shrink={0}>
-          {relTime(when)}
+          {relTime(when, formatMessage)}
         </Typography>
       </Flex>
       <Typography
@@ -753,7 +831,10 @@ export function OverviewPage() {
   return (
     <Main data-testid="overview-page">
       <Layouts.Header
-        title="Overview"
+        title={formatMessage({
+          id: getTranslation("overview.header.title"),
+          defaultMessage: "Overview",
+        })}
         subtitle={new Date().toLocaleDateString(undefined, {
           weekday: "long",
           year: "numeric",
@@ -762,14 +843,30 @@ export function OverviewPage() {
         })}
         primaryAction={
           <SegmentedControl.Root
-            label="Period"
+            label={formatMessage({
+              id: getTranslation("overview.period.label"),
+              defaultMessage: "Period",
+            })}
             value={period}
             onChange={(v) => setPeriod(v as typeof period)}
           >
-            <SegmentedControl.Item value="daily">Daily</SegmentedControl.Item>
-            <SegmentedControl.Item value="weekly">Weekly</SegmentedControl.Item>
+            <SegmentedControl.Item value="daily">
+              {formatMessage({
+                id: getTranslation("overview.period.daily"),
+                defaultMessage: "Daily",
+              })}
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="weekly">
+              {formatMessage({
+                id: getTranslation("overview.period.weekly"),
+                defaultMessage: "Weekly",
+              })}
+            </SegmentedControl.Item>
             <SegmentedControl.Item value="monthly">
-              Monthly
+              {formatMessage({
+                id: getTranslation("overview.period.monthly"),
+                defaultMessage: "Monthly",
+              })}
             </SegmentedControl.Item>
           </SegmentedControl.Root>
         }
@@ -783,7 +880,12 @@ export function OverviewPage() {
           paddingBottom={10}
         >
           {/* ── Metrics ── */}
-          <SectionDivider label="Metrics" />
+          <SectionDivider
+            label={formatMessage({
+              id: getTranslation("overview.sections.metrics"),
+              defaultMessage: "Metrics",
+            })}
+          />
 
           <Grid.Root
             gap={4}
@@ -793,14 +895,20 @@ export function OverviewPage() {
           >
             <StatItem
               id="total"
-              label="Total Users"
+              label={formatMessage({
+                id: getTranslation("overview.stats.totalUsers"),
+                defaultMessage: "Total Users",
+              })}
               value={stats.total ?? 0}
               sparkline={totalSpark}
               color="primary600"
             />
             <StatItem
               id="d-sig"
-              label="Daily Sign-ups"
+              label={formatMessage({
+                id: getTranslation("overview.stats.dailySignUps"),
+                defaultMessage: "Daily Sign-ups",
+              })}
               value={stats.daily.signUps ?? 0}
               pct={stats.daily.percentage ?? undefined}
               sparkline={newSpark}
@@ -808,7 +916,10 @@ export function OverviewPage() {
             />
             <StatItem
               id="w-sig"
-              label="Weekly Sign-ups"
+              label={formatMessage({
+                id: getTranslation("overview.stats.weeklySignUps"),
+                defaultMessage: "Weekly Sign-ups",
+              })}
               value={stats.weekly.signUps ?? 0}
               pct={stats.weekly.percentage ?? undefined}
               sparkline={newSpark}
@@ -816,7 +927,10 @@ export function OverviewPage() {
             />
             <StatItem
               id="m-sig"
-              label="Monthly Sign-ups"
+              label={formatMessage({
+                id: getTranslation("overview.stats.monthlySignUps"),
+                defaultMessage: "Monthly Sign-ups",
+              })}
               value={stats.monthly.signUps ?? 0}
               pct={stats.monthly.percentage ?? undefined}
               sparkline={newSpark}
@@ -824,14 +938,22 @@ export function OverviewPage() {
             />
             <StatItem
               id="orgs"
-              label="Organizations"
+              label={formatMessage({
+                id: getTranslation("overview.stats.organizations"),
+                defaultMessage: "Organizations",
+              })}
               value={orgCount}
               color="alternative600"
             />
           </Grid.Root>
 
           {/* ── Growth ── */}
-          <SectionDivider label="Growth" />
+          <SectionDivider
+            label={formatMessage({
+              id: getTranslation("overview.sections.growth"),
+              defaultMessage: "Growth",
+            })}
+          />
 
           <TwoPanel>
             <Flex
@@ -843,7 +965,10 @@ export function OverviewPage() {
             >
               <Flex justifyContent="space-between" gap={3}>
                 <Typography variant="delta" tag="h2">
-                  User Growth
+                  {formatMessage({
+                    id: getTranslation("overview.growth.title"),
+                    defaultMessage: "User Growth",
+                  })}
                 </Typography>
                 <Flex gap={2}>
                   {ALL_SERIES.map((s) => {
@@ -857,7 +982,7 @@ export function OverviewPage() {
                         startIcon={<Dot color={on ? s.color : "neutral300"} />}
                         onClick={() => toggleSeries(s.key)}
                       >
-                        {s.label}
+                        {formatMessage(s.label)}
                       </Button>
                     );
                   })}
@@ -865,8 +990,23 @@ export function OverviewPage() {
               </Flex>
               <Typography variant="pi" textColor="neutral600" tag="p">
                 {hovRow
-                  ? `${hovRow.label}  ·  ${hovRow.totalUsers.toLocaleString()} total  ·  +${hovRow.newUsers.toLocaleString()} new  ·  ${hovRow.activeUsers.toLocaleString()} active`
-                  : "Hover the chart to inspect a data point"}
+                  ? formatMessage(
+                      {
+                        id: getTranslation("overview.growth.hoverDetails"),
+                        defaultMessage:
+                          "{label}  ·  {total} total  ·  +{new} new  ·  {active} active",
+                      },
+                      {
+                        label: hovRow.label,
+                        total: hovRow.totalUsers.toLocaleString(),
+                        new: hovRow.newUsers.toLocaleString(),
+                        active: hovRow.activeUsers.toLocaleString(),
+                      },
+                    )
+                  : formatMessage({
+                      id: getTranslation("overview.growth.hoverHint"),
+                      defaultMessage: "Hover the chart to inspect a data point",
+                    })}
               </Typography>
               {graphQuery.isLoading ? (
                 <Flex
@@ -874,7 +1014,7 @@ export function OverviewPage() {
                   alignItems="center"
                   minHeight="17rem"
                 >
-                  <Loader>Loading…</Loader>
+                  <Loader>{loadingMessage}</Loader>
                 </Flex>
               ) : (
                 <GrowthChart
@@ -903,23 +1043,26 @@ export function OverviewPage() {
                 >
                   <Typography variant="pi" fontWeight="bold">
                     {feedMode === "signups"
-                      ? "Recent Sign-ups"
-                      : "Recently Active"}
+                      ? formatMessage(recentSignUpsMessage)
+                      : formatMessage(recentlyActiveMessage)}
                   </Typography>
                   <Box width="15rem">
                     <SingleSelect
                       size="S"
-                      aria-label="Feed"
+                      aria-label={formatMessage({
+                        id: getTranslation("overview.feed.label"),
+                        defaultMessage: "Feed",
+                      })}
                       value={feedMode}
                       onChange={(v: string | number) =>
                         setFeedMode(v as "signups" | "active")
                       }
                     >
                       <SingleSelectOption value="signups">
-                        Recent Sign-ups
+                        {formatMessage(recentSignUpsMessage)}
                       </SingleSelectOption>
                       <SingleSelectOption value="active">
-                        Recently Active
+                        {formatMessage(recentlyActiveMessage)}
                       </SingleSelectOption>
                     </SingleSelect>
                   </Box>
@@ -928,10 +1071,15 @@ export function OverviewPage() {
                   {feedMode === "signups" ? (
                     usersQuery.isLoading ? (
                       <Flex justifyContent="center" padding={4}>
-                        <Loader small>Loading…</Loader>
+                        <Loader small>{loadingMessage}</Loader>
                       </Flex>
                     ) : users.length === 0 ? (
-                      <Empty>No users yet</Empty>
+                      <Empty>
+                        {formatMessage({
+                          id: getTranslation("overview.feed.noUsers"),
+                          defaultMessage: "No users yet",
+                        })}
+                      </Empty>
                     ) : (
                       users.map((u) =>
                         renderFeedItem(
@@ -945,10 +1093,15 @@ export function OverviewPage() {
                     )
                   ) : activeUsersQuery.isLoading || sessionsQuery.isLoading ? (
                     <Flex justifyContent="center" padding={4}>
-                      <Loader small>Loading…</Loader>
+                      <Loader small>{loadingMessage}</Loader>
                     </Flex>
                   ) : sortedActiveUsers.length === 0 ? (
-                    <Empty>No recent activity</Empty>
+                    <Empty>
+                      {formatMessage({
+                        id: getTranslation("overview.feed.noActivity"),
+                        defaultMessage: "No recent activity",
+                      })}
+                    </Empty>
                   ) : (
                     sortedActiveUsers.map((u) =>
                       renderFeedItem(
@@ -966,7 +1119,12 @@ export function OverviewPage() {
           </TwoPanel>
 
           {/* ── Retention & Activity ── */}
-          <SectionDivider label="Retention & Activity" />
+          <SectionDivider
+            label={formatMessage({
+              id: getTranslation("overview.sections.retentionActivity"),
+              defaultMessage: "Retention & Activity",
+            })}
+          />
 
           <TwoPanel>
             <Flex
@@ -978,7 +1136,10 @@ export function OverviewPage() {
             >
               <Flex justifyContent="space-between" gap={3}>
                 <Typography variant="delta" tag="h2">
-                  Cohort Retention
+                  {formatMessage({
+                    id: getTranslation("overview.retention.title"),
+                    defaultMessage: "Cohort Retention",
+                  })}
                 </Typography>
                 <Flex gap={3}>
                   {(
@@ -1000,8 +1161,23 @@ export function OverviewPage() {
 
               <Typography variant="pi" textColor="neutral600" tag="p">
                 {rtnHovRow
-                  ? `Cohort ${rtnHovRow.label} · ${rtnHovRow.cohortSize.toLocaleString()} users · active ${rtnHovRow.activeStart} – ${rtnHovRow.activeEnd}`
-                  : "Hover a row to see cohort details"}
+                  ? formatMessage(
+                      {
+                        id: getTranslation("overview.retention.hoverDetails"),
+                        defaultMessage:
+                          "Cohort {label} · {cohortSize} users · active {activeStart} – {activeEnd}",
+                      },
+                      {
+                        label: rtnHovRow.label,
+                        cohortSize: rtnHovRow.cohortSize.toLocaleString(),
+                        activeStart: rtnHovRow.activeStart,
+                        activeEnd: rtnHovRow.activeEnd,
+                      },
+                    )
+                  : formatMessage({
+                      id: getTranslation("overview.retention.hoverHint"),
+                      defaultMessage: "Hover a row to see cohort details",
+                    })}
               </Typography>
 
               {retentionQuery.isLoading ? (
@@ -1010,10 +1186,15 @@ export function OverviewPage() {
                   alignItems="center"
                   minHeight="8rem"
                 >
-                  <Loader>Loading…</Loader>
+                  <Loader>{loadingMessage}</Loader>
                 </Flex>
               ) : rtnData.length === 0 ? (
-                <Empty>No retention data for this period</Empty>
+                <Empty>
+                  {formatMessage({
+                    id: getTranslation("overview.retention.empty"),
+                    defaultMessage: "No retention data for this period",
+                  })}
+                </Empty>
               ) : (
                 <Flex direction="column" alignItems="stretch" gap={1}>
                   {rtnData.map((row, i) => {
@@ -1081,19 +1262,28 @@ export function OverviewPage() {
               {(
                 [
                   {
-                    label: "Daily Active",
+                    label: formatMessage({
+                      id: getTranslation("overview.activeUsers.daily"),
+                      defaultMessage: "Daily Active",
+                    }),
                     value: stats.activeUsers.daily.active,
                     pct: stats.activeUsers.daily.percentage,
                     color: "warning500",
                   },
                   {
-                    label: "Weekly Active",
+                    label: formatMessage({
+                      id: getTranslation("overview.activeUsers.weekly"),
+                      defaultMessage: "Weekly Active",
+                    }),
                     value: stats.activeUsers.weekly.active,
                     pct: stats.activeUsers.weekly.percentage,
                     color: "success500",
                   },
                   {
-                    label: "Monthly Active",
+                    label: formatMessage({
+                      id: getTranslation("overview.activeUsers.monthly"),
+                      defaultMessage: "Monthly Active",
+                    }),
                     value: stats.activeUsers.monthly.active,
                     pct: stats.activeUsers.monthly.percentage,
                     color: "primary600",

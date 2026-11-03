@@ -1,8 +1,10 @@
 import { Combobox, ComboboxOption, Field } from "@strapi/design-system";
 import type React from "react";
 import { useState } from "react";
+import { useIntl } from "react-intl";
 import { useQuery } from "react-query";
 import { client } from "../client";
+import { getTranslation } from "../utils/getTranslation";
 
 interface UserComboboxProps {
   label?: string;
@@ -15,14 +17,15 @@ interface UserComboboxProps {
 }
 
 export function UserCombobox({
-  label = "User",
+  label,
   hint,
-  placeholder = "Search users by email or name…",
+  placeholder,
   value,
   onChange,
   error,
   required,
 }: UserComboboxProps) {
+  const { formatMessage } = useIntl();
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
@@ -64,9 +67,21 @@ export function UserCombobox({
 
   return (
     <Field.Root hint={hint} error={error} style={{ width: "100%" }}>
-      <Field.Label>{label}</Field.Label>
+      <Field.Label>
+        {label ??
+          formatMessage({
+            id: getTranslation("components.userCombobox.label"),
+            defaultMessage: "User",
+          })}
+      </Field.Label>
       <Combobox
-        placeholder={placeholder}
+        placeholder={
+          placeholder ??
+          formatMessage({
+            id: getTranslation("components.userCombobox.placeholder"),
+            defaultMessage: "Search users by email or name…",
+          })
+        }
         value={value}
         onChange={(val: string) => onChange(val)}
         onInputChange={(e: React.ChangeEvent<HTMLInputElement>) =>

@@ -1,7 +1,9 @@
 import { Box } from "@strapi/design-system";
 import { BackButton, Layouts, Page } from "@strapi/strapi/admin";
+import { useIntl } from "react-intl";
 import { Outlet } from "react-router-dom";
 import { Nav } from "../components/Nav";
+import { getTranslation } from "../utils/getTranslation";
 
 const RESPONSIVE_DEFAULT_SPACING = {
   initial: 4,
@@ -10,13 +12,20 @@ const RESPONSIVE_DEFAULT_SPACING = {
 };
 
 const App = () => {
+  const { formatMessage } = useIntl();
+
   return (
     <div
       data-testid="dashboard-root"
       style={{ display: "flex", flex: "1 1 auto", minHeight: "100vh" }}
     >
       <Layouts.Root sideNav={<Nav />}>
-        <Page.Title>Authentication</Page.Title>
+        <Page.Title>
+          {formatMessage({
+            id: getTranslation("common.page.title"),
+            defaultMessage: "Authentication",
+          })}
+        </Page.Title>
         <Box
           display={{ initial: "block", medium: "none" }}
           paddingLeft={RESPONSIVE_DEFAULT_SPACING}

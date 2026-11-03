@@ -22,6 +22,7 @@ import { Pencil, Plus, Trash } from "@strapi/icons";
 import { Layouts, Page, useNotification, useRBAC } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
+import { useIntl } from "react-intl";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { client, getAuthHeaders } from "../../client";
 import { Avatar } from "../../components/Avatar";
@@ -31,6 +32,7 @@ import { PERMISSIONS } from "../../constants";
 import { useOrganizationOptions } from "../../hooks/useDashConfig";
 import { PLUGIN_ID } from "../../pluginId";
 import { withContext } from "../../utils/dashContext";
+import { getTranslation } from "../../utils/getTranslation";
 import { CreateOrganizationDialog } from "./CreateOrganizationDialog";
 import { OrganizationDetail } from "./OrganizationDetail";
 
@@ -43,6 +45,7 @@ interface Props {
 }
 
 export function OrganizationsPage({ teamsEnabled }: Props) {
+  const { formatMessage } = useIntl();
   const rbac = useRBAC(PERMISSIONS.organization);
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
@@ -70,7 +73,13 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         },
       });
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to load organizations");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.list.error.load"),
+              defaultMessage: "Failed to load organizations",
+            }),
+        );
       return result.data;
     },
     keepPreviousData: true,
@@ -83,17 +92,34 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Delete failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.deleteFailed"),
+              defaultMessage: "Delete failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmDelete(null);
       qc.invalidateQueries({ queryKey: ["dash-organizations"] });
-      toggleNotification({ type: "success", message: "Organization deleted" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("organizations.list.notification.deleted"),
+          defaultMessage: "Organization deleted",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to delete organization",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("organizations.list.notification.deleteError"),
+            defaultMessage: "Failed to delete organization",
+          }),
       });
     },
   });
@@ -105,7 +131,13 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
         withContext({ organizationIds } as never, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Delete failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.deleteFailed"),
+              defaultMessage: "Delete failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: (_data, organizationIds) => {
@@ -114,13 +146,27 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
       qc.invalidateQueries({ queryKey: ["dash-organizations"] });
       toggleNotification({
         type: "success",
-        message: `${organizationIds.length} organization${organizationIds.length !== 1 ? "s" : ""} deleted`,
+        message: formatMessage(
+          {
+            id: getTranslation("organizations.list.notification.deletedMany"),
+            defaultMessage:
+              "{count, plural, one {# organization} other {# organizations}} deleted",
+          },
+          { count: organizationIds.length },
+        ),
       });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to delete organizations",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.list.notification.deleteManyError",
+            ),
+            defaultMessage: "Failed to delete organizations",
+          }),
       });
     },
   });
@@ -161,8 +207,17 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
   return (
     <Main data-testid="organizations-page">
       <Layouts.Header
-        title="Organizations"
-        subtitle={`${total.toLocaleString()} total`}
+        title={formatMessage({
+          id: getTranslation("organizations.list.header.title"),
+          defaultMessage: "Organizations",
+        })}
+        subtitle={formatMessage(
+          {
+            id: getTranslation("organizations.list.header.subtitle"),
+            defaultMessage: "{total} total",
+          },
+          { total: total.toLocaleString() },
+        )}
         primaryAction={
           rbac.allowedActions.canCreate && (
             <Button
@@ -170,7 +225,10 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
               onClick={() => setShowCreate(true)}
               data-testid="create-org-btn"
             >
-              Create organization
+              {formatMessage({
+                id: getTranslation("organizations.common.createOrganization"),
+                defaultMessage: "Create organization",
+              })}
             </Button>
           )
         }
@@ -181,9 +239,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
           <Flex gap={2}>
             <SearchForm onSubmit={handleSearch}>
               <Searchbar
-                clearLabel="Clear"
+                clearLabel={formatMessage({
+                  id: getTranslation("organizations.list.search.clear"),
+                  defaultMessage: "Clear",
+                })}
                 name="search"
-                placeholder="Search organizations…"
+                placeholder={formatMessage({
+                  id: getTranslation("organizations.list.search.placeholder"),
+                  defaultMessage: "Search organizations…",
+                })}
                 value={searchInput}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setSearchInput(e.target.value)
@@ -194,7 +258,10 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                   setPage(1);
                 }}
               >
-                Search organizations
+                {formatMessage({
+                  id: getTranslation("organizations.list.search.label"),
+                  defaultMessage: "Search organizations",
+                })}
               </Searchbar>
             </SearchForm>
 
@@ -205,7 +272,13 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                 onClick={() => setConfirmDeleteMany(true)}
                 data-testid="delete-selected-orgs-btn"
               >
-                Delete {selected.size} selected
+                {formatMessage(
+                  {
+                    id: getTranslation("organizations.list.deleteSelected"),
+                    defaultMessage: "Delete {count} selected",
+                  },
+                  { count: selected.size },
+                )}
               </Button>
             )}
           </Flex>
@@ -215,16 +288,34 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
       <Layouts.Content>
         <Flex direction="column" alignItems="stretch" gap={4}>
           {orgsQuery.isError && (
-            <Alert closeLabel="Close" title="Error" variant="danger">
+            <Alert
+              closeLabel={formatMessage({
+                id: getTranslation("organizations.common.close"),
+                defaultMessage: "Close",
+              })}
+              title={formatMessage({
+                id: getTranslation("organizations.list.error.title"),
+                defaultMessage: "Error",
+              })}
+              variant="danger"
+            >
               {orgsQuery.error instanceof Error
                 ? orgsQuery.error.message
-                : "An error occurred"}
+                : formatMessage({
+                    id: getTranslation("organizations.common.errorOccurred"),
+                    defaultMessage: "An error occurred",
+                  })}
             </Alert>
           )}
 
           {orgsQuery.isLoading ? (
             <Flex justifyContent="center" padding={8}>
-              <Loader>Loading organizations…</Loader>
+              <Loader>
+                {formatMessage({
+                  id: getTranslation("organizations.list.loading"),
+                  defaultMessage: "Loading organizations…",
+                })}
+              </Loader>
             </Flex>
           ) : (
             <Table colCount={colCount} rowCount={orgs.length + 1}>
@@ -241,24 +332,54 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                               : false
                         }
                         onCheckedChange={handleSelectAll}
-                        aria-label="Select all"
+                        aria-label={formatMessage({
+                          id: getTranslation(
+                            "organizations.list.table.selectAll",
+                          ),
+                          defaultMessage: "Select all",
+                        })}
                       />
                     </Th>
                   )}
                   <Th>
-                    <Typography variant="sigma">Name</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("organizations.common.name"),
+                        defaultMessage: "Name",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <Typography variant="sigma">Slug</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("organizations.common.slug"),
+                        defaultMessage: "Slug",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <Typography variant="sigma">Members</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("organizations.common.members"),
+                        defaultMessage: "Members",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <Typography variant="sigma">Created</Typography>
+                    <Typography variant="sigma">
+                      {formatMessage({
+                        id: getTranslation("organizations.common.created"),
+                        defaultMessage: "Created",
+                      })}
+                    </Typography>
                   </Th>
                   <Th>
-                    <VisuallyHidden>Actions</VisuallyHidden>
+                    <VisuallyHidden>
+                      {formatMessage({
+                        id: getTranslation("organizations.list.table.actions"),
+                        defaultMessage: "Actions",
+                      })}
+                    </VisuallyHidden>
                   </Th>
                 </Tr>
               </Thead>
@@ -273,8 +394,22 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                       >
                         <Typography textColor="neutral600">
                           {search
-                            ? `No organizations matching "${search}"`
-                            : "No organizations found"}
+                            ? formatMessage(
+                                {
+                                  id: getTranslation(
+                                    "organizations.list.empty.search",
+                                  ),
+                                  defaultMessage:
+                                    'No organizations matching "{search}"',
+                                },
+                                { search },
+                              )
+                            : formatMessage({
+                                id: getTranslation(
+                                  "organizations.list.empty.default",
+                                ),
+                                defaultMessage: "No organizations found",
+                              })}
                         </Typography>
                       </Flex>
                     </Td>
@@ -287,7 +422,15 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                           <Checkbox
                             checked={selected.has(org.id)}
                             onCheckedChange={() => toggleSelect(org.id)}
-                            aria-label={`Select ${org.name}`}
+                            aria-label={formatMessage(
+                              {
+                                id: getTranslation(
+                                  "organizations.list.table.selectRow",
+                                ),
+                                defaultMessage: "Select {name}",
+                              },
+                              { name: org.name },
+                            )}
                           />
                         </Td>
                       )}
@@ -319,7 +462,12 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                         <Flex gap={1} justifyContent="flex-end">
                           {rbac.allowedActions.canUpdate && (
                             <IconButton
-                              label="Edit organization"
+                              label={formatMessage({
+                                id: getTranslation(
+                                  "organizations.list.table.edit",
+                                ),
+                                defaultMessage: "Edit organization",
+                              })}
                               variant="ghost"
                               onClick={() => setDetailOrgId(org.id)}
                               data-testid="edit-org-btn"
@@ -329,7 +477,12 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                           )}
                           {rbac.allowedActions.canDelete && (
                             <IconButton
-                              label="Delete organization"
+                              label={formatMessage({
+                                id: getTranslation(
+                                  "organizations.common.deleteOrganization",
+                                ),
+                                defaultMessage: "Delete organization",
+                              })}
                               variant="ghost"
                               onClick={() => setConfirmDelete(org.id)}
                               data-testid="delete-org-btn"
@@ -354,7 +507,10 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
               >
-                Previous
+                {formatMessage({
+                  id: getTranslation("organizations.list.pagination.previous"),
+                  defaultMessage: "Previous",
+                })}
               </Button>
               <Button
                 variant="tertiary"
@@ -362,7 +518,10 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
                 disabled={page >= pageCount}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Next
+                {formatMessage({
+                  id: getTranslation("organizations.list.pagination.next"),
+                  defaultMessage: "Next",
+                })}
               </Button>
             </Flex>
           )}
@@ -386,9 +545,19 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
 
       {rbac.allowedActions.canDelete && confirmDelete && (
         <ConfirmDialog
-          title="Delete organization"
-          message="Are you sure you want to delete this organization? All members and teams will be removed. This action cannot be undone."
-          confirmLabel="Delete"
+          title={formatMessage({
+            id: getTranslation("organizations.common.deleteOrganization"),
+            defaultMessage: "Delete organization",
+          })}
+          message={formatMessage({
+            id: getTranslation("organizations.list.confirmDelete.message"),
+            defaultMessage:
+              "Are you sure you want to delete this organization? All members and teams will be removed. This action cannot be undone.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("organizations.common.delete"),
+            defaultMessage: "Delete",
+          })}
           loading={deleteMutation.isLoading}
           onConfirm={() => deleteMutation.mutate(confirmDelete)}
           onCancel={() => setConfirmDelete(null)}
@@ -397,9 +566,28 @@ export function OrganizationsPage({ teamsEnabled }: Props) {
 
       {rbac.allowedActions.canDelete && confirmDeleteMany && (
         <ConfirmDialog
-          title={`Delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}`}
-          message={`Are you sure you want to delete ${selected.size} organization${selected.size !== 1 ? "s" : ""}? This action cannot be undone.`}
-          confirmLabel="Delete all"
+          title={formatMessage(
+            {
+              id: getTranslation("organizations.list.confirmDeleteMany.title"),
+              defaultMessage:
+                "Delete {count, plural, one {# organization} other {# organizations}}",
+            },
+            { count: selected.size },
+          )}
+          message={formatMessage(
+            {
+              id: getTranslation(
+                "organizations.list.confirmDeleteMany.message",
+              ),
+              defaultMessage:
+                "Are you sure you want to delete {count, plural, one {# organization} other {# organizations}}? This action cannot be undone.",
+            },
+            { count: selected.size },
+          )}
+          confirmLabel={formatMessage({
+            id: getTranslation("organizations.list.confirmDeleteMany.confirm"),
+            defaultMessage: "Delete all",
+          })}
           loading={deleteManyMutation.isLoading}
           onConfirm={() => deleteManyMutation.mutate([...selected])}
           onCancel={() => setConfirmDeleteMany(false)}

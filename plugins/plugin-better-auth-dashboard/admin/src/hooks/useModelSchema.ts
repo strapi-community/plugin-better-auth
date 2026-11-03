@@ -1,5 +1,7 @@
 import { useFetchClient } from "@strapi/strapi/admin";
+import { useIntl } from "react-intl";
 import { useQuery } from "react-query";
+import { getTranslation } from "../utils/getTranslation";
 
 export interface StrapiAttribute {
   type: string;
@@ -41,6 +43,7 @@ interface ContentTypeDTO {
 
 export function useModelSchema(model: "user" | "organization") {
   const { get } = useFetchClient();
+  const { formatMessage } = useIntl();
 
   return useQuery<ModelSchema, Error>({
     queryKey: ["ba-model-schema", model],
@@ -50,7 +53,16 @@ export function useModelSchema(model: "user" | "organization") {
       );
       const uid = MODEL_UID[model];
       const contentType = data.data.find((ct) => ct.uid === uid);
-      if (!contentType) throw new Error(`Content type ${uid} not found`);
+      if (!contentType)
+        throw new Error(
+          formatMessage(
+            {
+              id: getTranslation("common.errors.contentTypeNotFound"),
+              defaultMessage: "Content type {uid} not found",
+            },
+            { uid },
+          ),
+        );
 
       const attributes: ModelSchema = {};
       for (const [name, attr] of Object.entries(contentType.attributes)) {

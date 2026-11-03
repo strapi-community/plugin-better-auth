@@ -5,6 +5,7 @@ import { getDashConfig, hasPlugin } from "./hooks/useDashConfig";
 import { PLUGIN_ID } from "./pluginId";
 import { initDash, type ReturnInitDash } from "./utils/dashPages";
 import { addEditViewSidePanel } from "./utils/editViewPanelRegistry";
+import { prefixPluginTranslations } from "./utils/prefixPluginTranslations";
 import { captureApp } from "./utils/strapiApp";
 
 const plugin: StrapiApp["appPlugins"][string] = {
@@ -79,6 +80,21 @@ const plugin: StrapiApp["appPlugins"][string] = {
       permissions: PERMISSIONS.organization,
       isAvailable: async () => hasPlugin(await getDashConfig(), "organization"),
     });
+  },
+
+  async registerTrads({ locales }: { locales: string[] }) {
+    return Promise.all(
+      locales.map(async (locale) => {
+        try {
+          const { default: data } = await import(
+            `./translations/${locale}.json`
+          );
+          return { data: prefixPluginTranslations(data), locale };
+        } catch {
+          return { data: {}, locale };
+        }
+      }),
+    );
   },
 };
 

@@ -19,6 +19,7 @@ import { Plus, Trash } from "@strapi/icons";
 import { useFetchClient, useNotification } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
+import { useIntl } from "react-intl";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { client, getAuthHeaders } from "../../client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -41,6 +42,7 @@ import { SheetDialog } from "../../components/Sheet";
 import { UserCombobox } from "../../components/UserCombobox";
 import { useModelSchema } from "../../hooks/useModelSchema";
 import { withContext } from "../../utils/dashContext";
+import { getTranslation } from "../../utils/getTranslation";
 
 const INVITATION_STATUS_VARIANT = {
   pending: "warning",
@@ -49,10 +51,59 @@ const INVITATION_STATUS_VARIANT = {
   canceled: "neutral",
 } as const;
 
+const INVITATION_STATUS_LABEL = {
+  pending: {
+    id: getTranslation("organizations.detail.invitations.status.pending"),
+    defaultMessage: "pending",
+  },
+  accepted: {
+    id: getTranslation("organizations.detail.invitations.status.accepted"),
+    defaultMessage: "accepted",
+  },
+  rejected: {
+    id: getTranslation("organizations.detail.invitations.status.rejected"),
+    defaultMessage: "rejected",
+  },
+  canceled: {
+    id: getTranslation("organizations.detail.invitations.status.canceled"),
+    defaultMessage: "canceled",
+  },
+} as const;
+
+const ROLE_OPTIONS = [
+  {
+    value: "member",
+    label: {
+      id: getTranslation("organizations.common.roles.member"),
+      defaultMessage: "Member",
+    },
+  },
+  {
+    value: "admin",
+    label: {
+      id: getTranslation("organizations.common.roles.admin"),
+      defaultMessage: "Admin",
+    },
+  },
+  {
+    value: "owner",
+    label: {
+      id: getTranslation("organizations.common.roles.owner"),
+      defaultMessage: "Owner",
+    },
+  },
+] as const;
+
 function InlineLoader() {
+  const { formatMessage } = useIntl();
   return (
     <Flex justifyContent="center" padding={4}>
-      <Loader small>Loading…</Loader>
+      <Loader small>
+        {formatMessage({
+          id: getTranslation("organizations.common.loading"),
+          defaultMessage: "Loading…",
+        })}
+      </Loader>
     </Flex>
   );
 }
@@ -79,6 +130,7 @@ export function OrganizationDetail({
   teamsEnabled,
   onClose,
 }: Props) {
+  const { formatMessage } = useIntl();
   const schemaQuery = useModelSchema("organization");
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
@@ -92,7 +144,13 @@ export function OrganizationDetail({
         withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Failed to load org");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.detail.error.loadOrg"),
+              defaultMessage: "Failed to load org",
+            }),
+        );
       return result.data;
     },
   });
@@ -103,7 +161,14 @@ export function OrganizationDetail({
       const result = await client.dash.organization[
         organizationId as ":id"
       ].members({}, withContext({ organizationId }, getAuthHeaders()));
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data ?? [];
     },
   });
@@ -115,7 +180,14 @@ export function OrganizationDetail({
       const result = await client.dash.organization[
         organizationId as ":id"
       ].teams({}, withContext({ organizationId }, getAuthHeaders()));
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return (result.data ?? []) as Array<{
         id: string;
         name: string;
@@ -133,7 +205,14 @@ export function OrganizationDetail({
       const result = await client.dash.organization[
         organizationId as ":id"
       ].ssoProviders({}, withContext({ organizationId }, getAuthHeaders()));
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data ?? [];
     },
   });
@@ -144,7 +223,14 @@ export function OrganizationDetail({
       const result = await client.dash.organization[
         organizationId as ":id"
       ].invitations({}, withContext({ organizationId }, getAuthHeaders()));
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return (result.data ?? []) as Array<{
         id: string;
         organizationId: string;
@@ -219,7 +305,12 @@ export function OrganizationDetail({
 
       const documentId = strapiOrgQuery.data?.documentId as string | undefined;
       if (!documentId)
-        throw new Error("Could not resolve documentId for organization");
+        throw new Error(
+          formatMessage({
+            id: getTranslation("organizations.detail.error.documentId"),
+            defaultMessage: "Could not resolve documentId for organization",
+          }),
+        );
 
       await put(
         `/better-auth-dashboard/db/${documentId}?uid=plugin::better-auth.organization`,
@@ -239,14 +330,22 @@ export function OrganizationDetail({
       setEditExtra({});
       toggleNotification({
         type: "success",
-        message: "Organization updated successfully",
+        message: formatMessage({
+          id: getTranslation("organizations.detail.notification.updated"),
+          defaultMessage: "Organization updated successfully",
+        }),
       });
       onClose();
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Update failed",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("organizations.detail.notification.updateError"),
+            defaultMessage: "Update failed",
+          }),
       });
     },
   });
@@ -261,19 +360,40 @@ export function OrganizationDetail({
         withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Add member failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation(
+                "organizations.detail.members.error.addFailed",
+              ),
+              defaultMessage: "Add member failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dash-org-members", organizationId] });
       setAddUserId("");
       setAddRole("member");
-      toggleNotification({ type: "success", message: "Member added" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("organizations.detail.members.notification.added"),
+          defaultMessage: "Member added",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to add member",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.members.notification.addError",
+            ),
+            defaultMessage: "Failed to add member",
+          }),
       });
     },
   });
@@ -284,17 +404,39 @@ export function OrganizationDetail({
         { memberId },
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmRemoveMemberId(null);
       qc.invalidateQueries({ queryKey: ["dash-org-members", organizationId] });
-      toggleNotification({ type: "success", message: "Member removed" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation(
+            "organizations.detail.members.notification.removed",
+          ),
+          defaultMessage: "Member removed",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to remove member",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.members.notification.removeError",
+            ),
+            defaultMessage: "Failed to remove member",
+          }),
       });
     },
   });
@@ -311,17 +453,39 @@ export function OrganizationDetail({
         { memberId, role },
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dash-org-members", organizationId] });
-      toggleNotification({ type: "success", message: "Role updated" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation(
+            "organizations.detail.members.notification.roleUpdated",
+          ),
+          defaultMessage: "Role updated",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to update role",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.members.notification.roleUpdateError",
+            ),
+            defaultMessage: "Failed to update role",
+          }),
       });
     },
   });
@@ -335,18 +499,39 @@ export function OrganizationDetail({
         withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)
-        throw new Error(result.error.message ?? "Create team failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation(
+                "organizations.detail.teams.error.createFailed",
+              ),
+              defaultMessage: "Create team failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dash-org-teams", organizationId] });
       setNewTeamName("");
-      toggleNotification({ type: "success", message: "Team created" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("organizations.detail.teams.notification.created"),
+          defaultMessage: "Team created",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to create team",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.teams.notification.createError",
+            ),
+            defaultMessage: "Failed to create team",
+          }),
       });
     },
   });
@@ -357,17 +542,37 @@ export function OrganizationDetail({
         { teamId },
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmDeleteTeamId(null);
       qc.invalidateQueries({ queryKey: ["dash-org-teams", organizationId] });
-      toggleNotification({ type: "success", message: "Team deleted" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("organizations.detail.teams.notification.deleted"),
+          defaultMessage: "Team deleted",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to delete team",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.teams.notification.deleteError",
+            ),
+            defaultMessage: "Failed to delete team",
+          }),
       });
     },
   });
@@ -380,17 +585,37 @@ export function OrganizationDetail({
         { providerId },
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmDeleteSsoId(null);
       qc.invalidateQueries({ queryKey: ["dash-org-sso", organizationId] });
-      toggleNotification({ type: "success", message: "SSO provider deleted" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("organizations.detail.sso.notification.deleted"),
+          defaultMessage: "SSO provider deleted",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to delete SSO provider",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.sso.notification.deleteError",
+            ),
+            defaultMessage: "Failed to delete SSO provider",
+          }),
       });
     },
   });
@@ -401,7 +626,14 @@ export function OrganizationDetail({
         { email: inviteEmail, role: inviteRole, invitedBy: "" } as never,
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
@@ -410,12 +642,27 @@ export function OrganizationDetail({
       });
       setInviteEmail("");
       setInviteRole("member");
-      toggleNotification({ type: "success", message: "Invitation sent" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation(
+            "organizations.detail.invitations.notification.sent",
+          ),
+          defaultMessage: "Invitation sent",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to invite",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.invitations.notification.inviteError",
+            ),
+            defaultMessage: "Failed to invite",
+          }),
       });
     },
   });
@@ -426,19 +673,41 @@ export function OrganizationDetail({
         { invitationId } as never,
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmCancelInvitationId(null);
       qc.invalidateQueries({
         queryKey: ["dash-org-invitations", organizationId],
       });
-      toggleNotification({ type: "success", message: "Invitation cancelled" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation(
+            "organizations.detail.invitations.notification.cancelled",
+          ),
+          defaultMessage: "Invitation cancelled",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to cancel",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.invitations.notification.cancelError",
+            ),
+            defaultMessage: "Failed to cancel",
+          }),
       });
     },
   });
@@ -449,15 +718,37 @@ export function OrganizationDetail({
         { invitationId } as never,
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
     },
     onSuccess: () => {
-      toggleNotification({ type: "success", message: "Invitation resent" });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation(
+            "organizations.detail.invitations.notification.resent",
+          ),
+          defaultMessage: "Invitation resent",
+        }),
+      });
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to resend",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation(
+              "organizations.detail.invitations.notification.resendError",
+            ),
+            defaultMessage: "Failed to resend",
+          }),
       });
     },
   });
@@ -490,7 +781,10 @@ export function OrganizationDetail({
             onClose();
           }}
         >
-          Discard
+          {formatMessage({
+            id: getTranslation("organizations.detail.discard"),
+            defaultMessage: "Discard",
+          })}
         </Button>
         <Button
           disabled={!hasOrgEdits}
@@ -498,14 +792,23 @@ export function OrganizationDetail({
           onClick={() => updateOrgMutation.mutate()}
           data-testid="save-org-btn"
         >
-          Save changes
+          {formatMessage({
+            id: getTranslation("organizations.detail.save"),
+            defaultMessage: "Save changes",
+          })}
         </Button>
       </>
     ) : undefined;
 
   return (
     <SheetDialog
-      title={org?.name ?? "Organization"}
+      title={
+        org?.name ??
+        formatMessage({
+          id: getTranslation("organizations.detail.fallbackTitle"),
+          defaultMessage: "Organization",
+        })
+      }
       actionButtons={detailsFooter}
       onClose={onClose}
       data-testid="org-detail-drawer"
@@ -514,28 +817,70 @@ export function OrganizationDetail({
         <InlineLoader />
       ) : orgQuery.isError ? (
         <Alert
-          closeLabel="Close"
-          title="Failed to load organization"
+          closeLabel={formatMessage({
+            id: getTranslation("organizations.common.close"),
+            defaultMessage: "Close",
+          })}
+          title={formatMessage({
+            id: getTranslation("organizations.detail.error.loadTitle"),
+            defaultMessage: "Failed to load organization",
+          })}
           variant="danger"
         >
           {orgQuery.error instanceof Error
             ? orgQuery.error.message
-            : "An error occurred"}
+            : formatMessage({
+                id: getTranslation("organizations.common.errorOccurred"),
+                defaultMessage: "An error occurred",
+              })}
         </Alert>
       ) : (
         <Tabs.Root defaultValue="details" onValueChange={setActiveTab}>
           <Tabs.List>
-            <Tabs.Trigger value="details">Details</Tabs.Trigger>
+            <Tabs.Trigger value="details">
+              {formatMessage({
+                id: getTranslation("organizations.common.details"),
+                defaultMessage: "Details",
+              })}
+            </Tabs.Trigger>
             <Tabs.Trigger value="members" data-testid="org-members-tab">
-              Members ({members.length})
+              {formatMessage(
+                {
+                  id: getTranslation("organizations.detail.tabs.members"),
+                  defaultMessage: "Members ({count})",
+                },
+                { count: members.length },
+              )}
             </Tabs.Trigger>
             {teamsEnabled && (
-              <Tabs.Trigger value="teams">Teams ({teams.length})</Tabs.Trigger>
+              <Tabs.Trigger value="teams">
+                {formatMessage(
+                  {
+                    id: getTranslation("organizations.detail.tabs.teams"),
+                    defaultMessage: "Teams ({count})",
+                  },
+                  { count: teams.length },
+                )}
+              </Tabs.Trigger>
             )}
             <Tabs.Trigger value="invitations">
-              Invitations ({invitations.length})
+              {formatMessage(
+                {
+                  id: getTranslation("organizations.detail.tabs.invitations"),
+                  defaultMessage: "Invitations ({count})",
+                },
+                { count: invitations.length },
+              )}
             </Tabs.Trigger>
-            <Tabs.Trigger value="sso">SSO ({ssoProviders.length})</Tabs.Trigger>
+            <Tabs.Trigger value="sso">
+              {formatMessage(
+                {
+                  id: getTranslation("organizations.detail.tabs.sso"),
+                  defaultMessage: "SSO ({count})",
+                },
+                { count: ssoProviders.length },
+              )}
+            </Tabs.Trigger>
           </Tabs.List>
 
           {/* ── Details ── */}
@@ -544,9 +889,19 @@ export function OrganizationDetail({
               {/* Left: editable fields */}
               <Flex direction="column" gap={5}>
                 <FormSection>
-                  <SectionLabel>Details</SectionLabel>
+                  <SectionLabel>
+                    {formatMessage({
+                      id: getTranslation("organizations.common.details"),
+                      defaultMessage: "Details",
+                    })}
+                  </SectionLabel>
                   <Field.Root style={{ width: "100%" }}>
-                    <Field.Label>Name</Field.Label>
+                    <Field.Label>
+                      {formatMessage({
+                        id: getTranslation("organizations.common.name"),
+                        defaultMessage: "Name",
+                      })}
+                    </Field.Label>
                     <TextInput
                       value={editName ?? org?.name ?? ""}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -555,8 +910,19 @@ export function OrganizationDetail({
                       data-testid="org-name-input"
                     />
                   </Field.Root>
-                  <Field.Root hint="Used in URLs" style={{ width: "100%" }}>
-                    <Field.Label>Slug</Field.Label>
+                  <Field.Root
+                    hint={formatMessage({
+                      id: getTranslation("organizations.common.slugHint"),
+                      defaultMessage: "Used in URLs",
+                    })}
+                    style={{ width: "100%" }}
+                  >
+                    <Field.Label>
+                      {formatMessage({
+                        id: getTranslation("organizations.common.slug"),
+                        defaultMessage: "Slug",
+                      })}
+                    </Field.Label>
                     <TextInput
                       value={editSlug ?? org?.slug ?? ""}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -567,12 +933,24 @@ export function OrganizationDetail({
                     <Field.Hint />
                   </Field.Root>
                   <MediaPickerField
-                    label="Logo URL"
+                    label={formatMessage({
+                      id: getTranslation("organizations.common.logo.label"),
+                      defaultMessage: "Logo URL",
+                    })}
                     name="logo"
                     value={editLogo ?? org?.logo ?? ""}
                     onChange={setEditLogo}
-                    placeholder="https://example.com/logo.png"
-                    hint="Optional — publicly accessible image URL"
+                    placeholder={formatMessage({
+                      id: getTranslation(
+                        "organizations.common.logo.placeholder",
+                      ),
+                      defaultMessage: "https://example.com/logo.png",
+                    })}
+                    hint={formatMessage({
+                      id: getTranslation("organizations.common.logo.hint"),
+                      defaultMessage:
+                        "Optional — publicly accessible image URL",
+                    })}
                   />
                 </FormSection>
 
@@ -586,23 +964,43 @@ export function OrganizationDetail({
               {/* Right: metadata */}
               <EditSidebar>
                 <FormSection>
-                  <SectionLabel>Details</SectionLabel>
+                  <SectionLabel>
+                    {formatMessage({
+                      id: getTranslation("organizations.common.details"),
+                      defaultMessage: "Details",
+                    })}
+                  </SectionLabel>
                   <Grid.Root gap={3} gridCols={2}>
                     <Grid.Item col={2}>
                       <MetaItem>
-                        <MetaKey>Organization ID</MetaKey>
+                        <MetaKey>
+                          {formatMessage({
+                            id: getTranslation("organizations.detail.meta.id"),
+                            defaultMessage: "Organization ID",
+                          })}
+                        </MetaKey>
                         <MonoChip>{org?.id}</MonoChip>
                       </MetaItem>
                     </Grid.Item>
                     <Grid.Item col={1}>
                       <MetaItem>
-                        <MetaKey>Members</MetaKey>
+                        <MetaKey>
+                          {formatMessage({
+                            id: getTranslation("organizations.common.members"),
+                            defaultMessage: "Members",
+                          })}
+                        </MetaKey>
                         <MetaVal>{org?.memberCount ?? 0}</MetaVal>
                       </MetaItem>
                     </Grid.Item>
                     <Grid.Item col={1}>
                       <MetaItem>
-                        <MetaKey>Created</MetaKey>
+                        <MetaKey>
+                          {formatMessage({
+                            id: getTranslation("organizations.common.created"),
+                            defaultMessage: "Created",
+                          })}
+                        </MetaKey>
                         <MetaVal>
                           {org?.createdAt
                             ? new Date(org.createdAt).toLocaleDateString()
@@ -627,34 +1025,51 @@ export function OrganizationDetail({
           <Tabs.Content value="members">
             <Flex direction="column" gap={5} paddingTop={6}>
               <FormSection>
-                <SectionLabel>Add member</SectionLabel>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation("organizations.detail.members.add"),
+                    defaultMessage: "Add member",
+                  })}
+                </SectionLabel>
                 <Grid.Root gap={3}>
                   <Grid.Item col={8}>
                     <UserCombobox
-                      label="User"
+                      label={formatMessage({
+                        id: getTranslation("organizations.detail.members.user"),
+                        defaultMessage: "User",
+                      })}
                       value={addUserId}
                       onChange={setAddUserId}
                     />
                   </Grid.Item>
                   <Grid.Item col={4}>
                     <Field.Root>
-                      <Field.Label>Role</Field.Label>
+                      <Field.Label>
+                        {formatMessage({
+                          id: getTranslation("organizations.common.role"),
+                          defaultMessage: "Role",
+                        })}
+                      </Field.Label>
                       <SingleSelect
                         value={addRole}
                         onChange={(role: string | number) =>
                           setAddRole(String(role))
                         }
-                        aria-label="Member role"
+                        aria-label={formatMessage({
+                          id: getTranslation(
+                            "organizations.detail.members.roleLabel",
+                          ),
+                          defaultMessage: "Member role",
+                        })}
                       >
-                        <SingleSelectOption value="member">
-                          Member
-                        </SingleSelectOption>
-                        <SingleSelectOption value="admin">
-                          Admin
-                        </SingleSelectOption>
-                        <SingleSelectOption value="owner">
-                          Owner
-                        </SingleSelectOption>
+                        {ROLE_OPTIONS.map((option) => (
+                          <SingleSelectOption
+                            key={option.value}
+                            value={option.value}
+                          >
+                            {formatMessage(option.label)}
+                          </SingleSelectOption>
+                        ))}
                       </SingleSelect>
                     </Field.Root>
                   </Grid.Item>
@@ -668,18 +1083,32 @@ export function OrganizationDetail({
                     onClick={() => addMemberMutation.mutate()}
                     data-testid="add-member-btn"
                   >
-                    Add member
+                    {formatMessage({
+                      id: getTranslation("organizations.detail.members.add"),
+                      defaultMessage: "Add member",
+                    })}
                   </Button>
                 </Box>
               </FormSection>
 
               <FormSection>
-                <SectionLabel>Members ({members.length})</SectionLabel>
+                <SectionLabel>
+                  {formatMessage(
+                    {
+                      id: getTranslation("organizations.detail.tabs.members"),
+                      defaultMessage: "Members ({count})",
+                    },
+                    { count: members.length },
+                  )}
+                </SectionLabel>
                 {membersQuery.isLoading ? (
                   <InlineLoader />
                 ) : members.length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
-                    No members yet.
+                    {formatMessage({
+                      id: getTranslation("organizations.detail.members.empty"),
+                      defaultMessage: "No members yet.",
+                    })}
                   </Typography>
                 ) : (
                   <Flex direction="column" gap={2}>
@@ -692,7 +1121,13 @@ export function OrganizationDetail({
                           flex={1}
                         >
                           <Typography variant="omega" fontWeight="semiBold">
-                            {member.user?.name ?? "Unknown"}
+                            {member.user?.name ??
+                              formatMessage({
+                                id: getTranslation(
+                                  "organizations.detail.members.unknown",
+                                ),
+                                defaultMessage: "Unknown",
+                              })}
                           </Typography>
                           <Typography variant="pi" textColor="neutral500">
                             {member.user?.email}
@@ -709,21 +1144,30 @@ export function OrganizationDetail({
                                 })
                               }
                               size="S"
-                              aria-label="Member role"
+                              aria-label={formatMessage({
+                                id: getTranslation(
+                                  "organizations.detail.members.roleLabel",
+                                ),
+                                defaultMessage: "Member role",
+                              })}
                             >
-                              <SingleSelectOption value="member">
-                                Member
-                              </SingleSelectOption>
-                              <SingleSelectOption value="admin">
-                                Admin
-                              </SingleSelectOption>
-                              <SingleSelectOption value="owner">
-                                Owner
-                              </SingleSelectOption>
+                              {ROLE_OPTIONS.map((option) => (
+                                <SingleSelectOption
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {formatMessage(option.label)}
+                                </SingleSelectOption>
+                              ))}
                             </SingleSelect>
                           </Field.Root>
                           <IconButton
-                            label="Remove member"
+                            label={formatMessage({
+                              id: getTranslation(
+                                "organizations.detail.members.remove",
+                              ),
+                              defaultMessage: "Remove member",
+                            })}
                             onClick={() => setConfirmRemoveMemberId(member.id)}
                             data-testid="remove-member-btn"
                           >
@@ -743,17 +1187,34 @@ export function OrganizationDetail({
             <Tabs.Content value="teams">
               <Flex direction="column" gap={5} paddingTop={6}>
                 <FormSection>
-                  <SectionLabel>Create team</SectionLabel>
+                  <SectionLabel>
+                    {formatMessage({
+                      id: getTranslation("organizations.detail.teams.create"),
+                      defaultMessage: "Create team",
+                    })}
+                  </SectionLabel>
                   <Flex gap={2} alignItems="flex-end">
                     <Box flex={1}>
                       <Field.Root>
-                        <Field.Label>Team name</Field.Label>
+                        <Field.Label>
+                          {formatMessage({
+                            id: getTranslation(
+                              "organizations.detail.teams.name.label",
+                            ),
+                            defaultMessage: "Team name",
+                          })}
+                        </Field.Label>
                         <TextInput
                           value={newTeamName}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setNewTeamName(e.target.value)
                           }
-                          placeholder="e.g. Engineering"
+                          placeholder={formatMessage({
+                            id: getTranslation(
+                              "organizations.detail.teams.name.placeholder",
+                            ),
+                            defaultMessage: "e.g. Engineering",
+                          })}
                         />
                       </Field.Root>
                     </Box>
@@ -763,18 +1224,34 @@ export function OrganizationDetail({
                       loading={createTeamMutation.isLoading}
                       onClick={() => createTeamMutation.mutate()}
                     >
-                      Create
+                      {formatMessage({
+                        id: getTranslation(
+                          "organizations.detail.teams.createSubmit",
+                        ),
+                        defaultMessage: "Create",
+                      })}
                     </Button>
                   </Flex>
                 </FormSection>
 
                 <FormSection>
-                  <SectionLabel>Teams ({teams.length})</SectionLabel>
+                  <SectionLabel>
+                    {formatMessage(
+                      {
+                        id: getTranslation("organizations.detail.tabs.teams"),
+                        defaultMessage: "Teams ({count})",
+                      },
+                      { count: teams.length },
+                    )}
+                  </SectionLabel>
                   {teamsQuery.isLoading ? (
                     <InlineLoader />
                   ) : teams.length === 0 ? (
                     <Typography variant="pi" textColor="neutral500">
-                      No teams yet.
+                      {formatMessage({
+                        id: getTranslation("organizations.detail.teams.empty"),
+                        defaultMessage: "No teams yet.",
+                      })}
                     </Typography>
                   ) : (
                     <Flex direction="column" gap={2}>
@@ -797,12 +1274,20 @@ export function OrganizationDetail({
           <Tabs.Content value="sso">
             <Flex direction="column" gap={5} paddingTop={6}>
               <FormSection>
-                <SectionLabel>SSO providers</SectionLabel>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation("organizations.detail.sso.title"),
+                    defaultMessage: "SSO providers",
+                  })}
+                </SectionLabel>
                 {ssoQuery.isLoading ? (
                   <InlineLoader />
                 ) : ssoProviders.length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
-                    No SSO providers configured.
+                    {formatMessage({
+                      id: getTranslation("organizations.detail.sso.empty"),
+                      defaultMessage: "No SSO providers configured.",
+                    })}
                   </Typography>
                 ) : (
                   <Flex direction="column" gap={2}>
@@ -822,11 +1307,24 @@ export function OrganizationDetail({
                             {provider.domain}
                           </Typography>
                           <Typography variant="pi" textColor="neutral500">
-                            Issuer: {provider.issuer}
+                            {formatMessage(
+                              {
+                                id: getTranslation(
+                                  "organizations.detail.sso.issuer",
+                                ),
+                                defaultMessage: "Issuer: {issuer}",
+                              },
+                              { issuer: provider.issuer },
+                            )}
                           </Typography>
                         </Flex>
                         <IconButton
-                          label="Delete SSO provider"
+                          label={formatMessage({
+                            id: getTranslation(
+                              "organizations.detail.sso.delete",
+                            ),
+                            defaultMessage: "Delete SSO provider",
+                          })}
                           onClick={() =>
                             setConfirmDeleteSsoId(provider.providerId)
                           }
@@ -845,40 +1343,68 @@ export function OrganizationDetail({
           <Tabs.Content value="invitations">
             <Flex direction="column" gap={5} paddingTop={6}>
               <FormSection>
-                <SectionLabel>Invite member by email</SectionLabel>
+                <SectionLabel>
+                  {formatMessage({
+                    id: getTranslation(
+                      "organizations.detail.invitations.invite",
+                    ),
+                    defaultMessage: "Invite member by email",
+                  })}
+                </SectionLabel>
                 <Grid.Root gap={3}>
                   <Grid.Item col={8}>
                     <Field.Root>
-                      <Field.Label>Email address</Field.Label>
+                      <Field.Label>
+                        {formatMessage({
+                          id: getTranslation(
+                            "organizations.detail.invitations.email.label",
+                          ),
+                          defaultMessage: "Email address",
+                        })}
+                      </Field.Label>
                       <TextInput
                         type="email"
                         value={inviteEmail}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setInviteEmail(e.target.value)
                         }
-                        placeholder="user@example.com"
+                        placeholder={formatMessage({
+                          id: getTranslation(
+                            "organizations.detail.invitations.email.placeholder",
+                          ),
+                          defaultMessage: "user@example.com",
+                        })}
                       />
                     </Field.Root>
                   </Grid.Item>
                   <Grid.Item col={4}>
                     <Field.Root>
-                      <Field.Label>Role</Field.Label>
+                      <Field.Label>
+                        {formatMessage({
+                          id: getTranslation("organizations.common.role"),
+                          defaultMessage: "Role",
+                        })}
+                      </Field.Label>
                       <SingleSelect
                         value={inviteRole}
                         onChange={(v: string | number) =>
                           setInviteRole(String(v))
                         }
-                        aria-label="Invite role"
+                        aria-label={formatMessage({
+                          id: getTranslation(
+                            "organizations.detail.invitations.roleLabel",
+                          ),
+                          defaultMessage: "Invite role",
+                        })}
                       >
-                        <SingleSelectOption value="member">
-                          Member
-                        </SingleSelectOption>
-                        <SingleSelectOption value="admin">
-                          Admin
-                        </SingleSelectOption>
-                        <SingleSelectOption value="owner">
-                          Owner
-                        </SingleSelectOption>
+                        {ROLE_OPTIONS.map((option) => (
+                          <SingleSelectOption
+                            key={option.value}
+                            value={option.value}
+                          >
+                            {formatMessage(option.label)}
+                          </SingleSelectOption>
+                        ))}
                       </SingleSelect>
                     </Field.Root>
                   </Grid.Item>
@@ -891,18 +1417,38 @@ export function OrganizationDetail({
                     loading={inviteMemberMutation.isLoading}
                     onClick={() => inviteMemberMutation.mutate()}
                   >
-                    Send invitation
+                    {formatMessage({
+                      id: getTranslation(
+                        "organizations.detail.invitations.send",
+                      ),
+                      defaultMessage: "Send invitation",
+                    })}
                   </Button>
                 </Box>
               </FormSection>
 
               <FormSection>
-                <SectionLabel>Invitations ({invitations.length})</SectionLabel>
+                <SectionLabel>
+                  {formatMessage(
+                    {
+                      id: getTranslation(
+                        "organizations.detail.tabs.invitations",
+                      ),
+                      defaultMessage: "Invitations ({count})",
+                    },
+                    { count: invitations.length },
+                  )}
+                </SectionLabel>
                 {invitationsQuery.isLoading ? (
                   <InlineLoader />
                 ) : invitations.length === 0 ? (
                   <Typography variant="pi" textColor="neutral500">
-                    No invitations yet.
+                    {formatMessage({
+                      id: getTranslation(
+                        "organizations.detail.invitations.empty",
+                      ),
+                      defaultMessage: "No invitations yet.",
+                    })}
                   </Typography>
                 ) : (
                   <Flex direction="column" gap={2}>
@@ -920,11 +1466,30 @@ export function OrganizationDetail({
                               {inv.user?.name ?? inv.email}
                             </Typography>
                             <Typography variant="pi" textColor="neutral500">
-                              {inv.email} · role: {inv.role}
+                              {formatMessage(
+                                {
+                                  id: getTranslation(
+                                    "organizations.detail.invitations.emailRole",
+                                  ),
+                                  defaultMessage: "{email} · role: {role}",
+                                },
+                                { email: inv.email, role: inv.role },
+                              )}
                             </Typography>
                             <Typography variant="pi" textColor="neutral500">
-                              Expires{" "}
-                              {new Date(inv.expiresAt).toLocaleDateString()}
+                              {formatMessage(
+                                {
+                                  id: getTranslation(
+                                    "organizations.detail.invitations.expires",
+                                  ),
+                                  defaultMessage: "Expires {date}",
+                                },
+                                {
+                                  date: new Date(
+                                    inv.expiresAt,
+                                  ).toLocaleDateString(),
+                                },
+                              )}
                             </Typography>
                           </Flex>
                           <Flex gap={2} alignItems="center">
@@ -935,7 +1500,11 @@ export function OrganizationDetail({
                                 "neutral"
                               }
                             >
-                              {inv.status}
+                              {INVITATION_STATUS_LABEL[inv.status]
+                                ? formatMessage(
+                                    INVITATION_STATUS_LABEL[inv.status],
+                                  )
+                                : inv.status}
                             </Badge>
                             {isPending && (
                               <>
@@ -947,10 +1516,20 @@ export function OrganizationDetail({
                                     resendInvitationMutation.mutate(inv.id)
                                   }
                                 >
-                                  Resend
+                                  {formatMessage({
+                                    id: getTranslation(
+                                      "organizations.detail.invitations.resend",
+                                    ),
+                                    defaultMessage: "Resend",
+                                  })}
                                 </Button>
                                 <IconButton
-                                  label="Cancel invitation"
+                                  label={formatMessage({
+                                    id: getTranslation(
+                                      "organizations.detail.invitations.cancel",
+                                    ),
+                                    defaultMessage: "Cancel invitation",
+                                  })}
                                   onClick={() =>
                                     setConfirmCancelInvitationId(inv.id)
                                   }
@@ -973,9 +1552,21 @@ export function OrganizationDetail({
 
       {confirmRemoveMemberId && (
         <ConfirmDialog
-          title="Remove member"
-          message="Are you sure you want to remove this member from the organization?"
-          confirmLabel="Remove"
+          title={formatMessage({
+            id: getTranslation("organizations.detail.members.remove"),
+            defaultMessage: "Remove member",
+          })}
+          message={formatMessage({
+            id: getTranslation(
+              "organizations.detail.members.confirmRemove.message",
+            ),
+            defaultMessage:
+              "Are you sure you want to remove this member from the organization?",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("organizations.common.remove"),
+            defaultMessage: "Remove",
+          })}
           loading={removeMemberMutation.isLoading}
           onConfirm={() => removeMemberMutation.mutate(confirmRemoveMemberId)}
           onCancel={() => setConfirmRemoveMemberId(null)}
@@ -984,9 +1575,21 @@ export function OrganizationDetail({
 
       {confirmDeleteTeamId && (
         <ConfirmDialog
-          title="Delete team"
-          message="Are you sure you want to delete this team? All team members will be removed. This action cannot be undone."
-          confirmLabel="Delete"
+          title={formatMessage({
+            id: getTranslation("organizations.detail.teams.delete"),
+            defaultMessage: "Delete team",
+          })}
+          message={formatMessage({
+            id: getTranslation(
+              "organizations.detail.teams.confirmDelete.message",
+            ),
+            defaultMessage:
+              "Are you sure you want to delete this team? All team members will be removed. This action cannot be undone.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("organizations.common.delete"),
+            defaultMessage: "Delete",
+          })}
           loading={deleteTeamMutation.isLoading}
           onConfirm={() => deleteTeamMutation.mutate(confirmDeleteTeamId)}
           onCancel={() => setConfirmDeleteTeamId(null)}
@@ -995,9 +1598,21 @@ export function OrganizationDetail({
 
       {confirmDeleteSsoId && (
         <ConfirmDialog
-          title="Delete SSO provider"
-          message="Are you sure you want to delete this SSO provider? Members using this provider will need to authenticate differently."
-          confirmLabel="Delete"
+          title={formatMessage({
+            id: getTranslation("organizations.detail.sso.delete"),
+            defaultMessage: "Delete SSO provider",
+          })}
+          message={formatMessage({
+            id: getTranslation(
+              "organizations.detail.sso.confirmDelete.message",
+            ),
+            defaultMessage:
+              "Are you sure you want to delete this SSO provider? Members using this provider will need to authenticate differently.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("organizations.common.delete"),
+            defaultMessage: "Delete",
+          })}
           loading={deleteSsoMutation.isLoading}
           onConfirm={() => deleteSsoMutation.mutate(confirmDeleteSsoId)}
           onCancel={() => setConfirmDeleteSsoId(null)}
@@ -1006,9 +1621,21 @@ export function OrganizationDetail({
 
       {confirmCancelInvitationId && (
         <ConfirmDialog
-          title="Cancel invitation"
-          message="Are you sure you want to cancel this invitation? The invite link will no longer work."
-          confirmLabel="Cancel invitation"
+          title={formatMessage({
+            id: getTranslation("organizations.detail.invitations.cancel"),
+            defaultMessage: "Cancel invitation",
+          })}
+          message={formatMessage({
+            id: getTranslation(
+              "organizations.detail.invitations.confirmCancel.message",
+            ),
+            defaultMessage:
+              "Are you sure you want to cancel this invitation? The invite link will no longer work.",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("organizations.detail.invitations.cancel"),
+            defaultMessage: "Cancel invitation",
+          })}
           loading={cancelInvitationMutation.isLoading}
           onConfirm={() =>
             cancelInvitationMutation.mutate(confirmCancelInvitationId)
@@ -1029,6 +1656,7 @@ function TeamRow({
   organizationId: string;
   onDelete: () => void;
 }) {
+  const { formatMessage } = useIntl();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [confirmRemoveTeamMemberId, setConfirmRemoveTeamMemberId] = useState<
@@ -1045,7 +1673,14 @@ function TeamRow({
         { params: { orgId: organizationId, teamId: team.id } },
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data ?? [];
     },
     enabled: expanded,
@@ -1059,7 +1694,14 @@ function TeamRow({
         { teamId: team.id, userId: addUserId },
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
@@ -1076,7 +1718,14 @@ function TeamRow({
         { teamId: team.id, userId },
         withContext({ organizationId }, getAuthHeaders()),
       );
-      if (result.error) throw new Error(result.error.message ?? "Failed");
+      if (result.error)
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("organizations.common.failed"),
+              defaultMessage: "Failed",
+            }),
+        );
     },
     onSuccess: () => {
       setConfirmRemoveTeamMemberId(null);
@@ -1096,13 +1745,23 @@ function TeamRow({
         <Accordion.Item value={team.id} data-testid="team-row">
           <Accordion.Header>
             <Accordion.Trigger
-              description={`${teamMembersQuery.data?.length ?? "—"} members`}
+              description={formatMessage(
+                {
+                  id: getTranslation("organizations.detail.teams.memberCount"),
+                  defaultMessage:
+                    "{count, plural, =-1 {— members} one {# member} other {# members}}",
+                },
+                { count: teamMembersQuery.data?.length ?? -1 },
+              )}
             >
               {team.name}
             </Accordion.Trigger>
             <Accordion.Actions>
               <IconButton
-                label="Delete team"
+                label={formatMessage({
+                  id: getTranslation("organizations.detail.teams.delete"),
+                  defaultMessage: "Delete team",
+                })}
                 variant="ghost"
                 onClick={onDelete}
               >
@@ -1115,7 +1774,12 @@ function TeamRow({
               <Flex gap={2} alignItems="flex-end">
                 <Box flex={1}>
                   <UserCombobox
-                    label="Add member to team"
+                    label={formatMessage({
+                      id: getTranslation(
+                        "organizations.detail.teams.addMember",
+                      ),
+                      defaultMessage: "Add member to team",
+                    })}
                     value={addUserId}
                     onChange={setAddUserId}
                   />
@@ -1127,7 +1791,12 @@ function TeamRow({
                   loading={addTeamMemberMutation.isLoading}
                   onClick={() => addTeamMemberMutation.mutate()}
                 >
-                  Add
+                  {formatMessage({
+                    id: getTranslation(
+                      "organizations.detail.teams.addMemberSubmit",
+                    ),
+                    defaultMessage: "Add",
+                  })}
                 </Button>
               </Flex>
 
@@ -1135,7 +1804,12 @@ function TeamRow({
                 <InlineLoader />
               ) : (teamMembersQuery.data ?? []).length === 0 ? (
                 <Typography variant="pi" textColor="neutral500">
-                  No members in this team.
+                  {formatMessage({
+                    id: getTranslation(
+                      "organizations.detail.teams.membersEmpty",
+                    ),
+                    defaultMessage: "No members in this team.",
+                  })}
                 </Typography>
               ) : (
                 <Flex direction="column" alignItems="stretch" gap={2}>
@@ -1158,7 +1832,12 @@ function TeamRow({
                         )}
                       </Flex>
                       <IconButton
-                        label="Remove from team"
+                        label={formatMessage({
+                          id: getTranslation(
+                            "organizations.detail.teams.removeMember",
+                          ),
+                          defaultMessage: "Remove from team",
+                        })}
                         onClick={() => setConfirmRemoveTeamMemberId(tm.userId)}
                       >
                         <Trash />
@@ -1174,9 +1853,21 @@ function TeamRow({
 
       {confirmRemoveTeamMemberId && (
         <ConfirmDialog
-          title="Remove from team"
-          message="Are you sure you want to remove this member from the team?"
-          confirmLabel="Remove"
+          title={formatMessage({
+            id: getTranslation("organizations.detail.teams.removeMember"),
+            defaultMessage: "Remove from team",
+          })}
+          message={formatMessage({
+            id: getTranslation(
+              "organizations.detail.teams.confirmRemoveMember.message",
+            ),
+            defaultMessage:
+              "Are you sure you want to remove this member from the team?",
+          })}
+          confirmLabel={formatMessage({
+            id: getTranslation("organizations.common.remove"),
+            defaultMessage: "Remove",
+          })}
           loading={removeTeamMemberMutation.isLoading}
           onConfirm={() =>
             removeTeamMemberMutation.mutate(confirmRemoveTeamMemberId)

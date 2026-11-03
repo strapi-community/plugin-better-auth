@@ -10,17 +10,20 @@ import {
 import { useNotification } from "@strapi/strapi/admin";
 import type React from "react";
 import { useState } from "react";
+import { useIntl } from "react-intl";
 import { useMutation, useQueryClient } from "react-query";
 import { client } from "../../client";
 import { FormSection, SectionLabel } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
 import { SheetDialog } from "../../components/Sheet";
+import { getTranslation } from "../../utils/getTranslation";
 
 interface Props {
   onClose: () => void;
 }
 
 export function CreateUserDialog({ onClose }: Props) {
+  const { formatMessage } = useIntl();
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
 
@@ -47,7 +50,13 @@ export function CreateUserDialog({ onClose }: Props) {
         sendVerificationEmail,
       });
       if (result.error)
-        throw new Error(result.error.message ?? "Create failed");
+        throw new Error(
+          result.error.message ??
+            formatMessage({
+              id: getTranslation("users.create.errors.createFailed"),
+              defaultMessage: "Create failed",
+            }),
+        );
       return result.data;
     },
     onSuccess: () => {
@@ -55,14 +64,22 @@ export function CreateUserDialog({ onClose }: Props) {
       qc.invalidateQueries({ queryKey: ["dash-user-stats"] });
       toggleNotification({
         type: "success",
-        message: "User created successfully",
+        message: formatMessage({
+          id: getTranslation("users.create.notifications.success"),
+          defaultMessage: "User created successfully",
+        }),
       });
       onClose();
     },
     onError: (err: Error) => {
       toggleNotification({
         type: "danger",
-        message: err.message ?? "Failed to create user",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("users.create.notifications.error"),
+            defaultMessage: "Failed to create user",
+          }),
       });
     },
   });
@@ -70,7 +87,10 @@ export function CreateUserDialog({ onClose }: Props) {
   const footer = (
     <>
       <Button variant="tertiary" onClick={onClose}>
-        Cancel
+        {formatMessage({
+          id: getTranslation("users.create.cancel"),
+          defaultMessage: "Cancel",
+        })}
       </Button>
       <Button
         loading={createMutation.isLoading}
@@ -78,14 +98,20 @@ export function CreateUserDialog({ onClose }: Props) {
         disabled={!name || !email}
         data-testid="create-user-submit"
       >
-        Create user
+        {formatMessage({
+          id: getTranslation("users.create.submit"),
+          defaultMessage: "Create user",
+        })}
       </Button>
     </>
   );
 
   return (
     <SheetDialog
-      title="Create user"
+      title={formatMessage({
+        id: getTranslation("users.create.title"),
+        defaultMessage: "Create user",
+      })}
       actionButtons={footer}
       onClose={onClose}
       data-testid="create-user-drawer"
@@ -93,21 +119,39 @@ export function CreateUserDialog({ onClose }: Props) {
       <Flex direction="column" gap={5}>
         {/* Personal information */}
         <FormSection>
-          <SectionLabel>Personal information</SectionLabel>
+          <SectionLabel>
+            {formatMessage({
+              id: getTranslation("users.create.sections.personal"),
+              defaultMessage: "Personal information",
+            })}
+          </SectionLabel>
           <Field.Root style={{ width: "100%" }} required>
-            <Field.Label>Full name</Field.Label>
+            <Field.Label>
+              {formatMessage({
+                id: getTranslation("users.create.fields.name.label"),
+                defaultMessage: "Full name",
+              })}
+            </Field.Label>
             <TextInput
               name="name"
               value={name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setName(e.target.value)
               }
-              placeholder="Jane Smith"
+              placeholder={formatMessage({
+                id: getTranslation("users.create.fields.name.placeholder"),
+                defaultMessage: "Jane Smith",
+              })}
               data-testid="new-user-name"
             />
           </Field.Root>
           <Field.Root style={{ width: "100%" }} required>
-            <Field.Label>Email address</Field.Label>
+            <Field.Label>
+              {formatMessage({
+                id: getTranslation("users.create.fields.email.label"),
+                defaultMessage: "Email address",
+              })}
+            </Field.Label>
             <TextInput
               name="email"
               type="email"
@@ -115,23 +159,40 @@ export function CreateUserDialog({ onClose }: Props) {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setEmail(e.target.value)
               }
-              placeholder="jane@example.com"
+              placeholder={formatMessage({
+                id: getTranslation("users.create.fields.email.placeholder"),
+                defaultMessage: "jane@example.com",
+              })}
               data-testid="new-user-email"
             />
           </Field.Root>
           <MediaPickerField
-            label="Avatar URL"
+            label={formatMessage({
+              id: getTranslation("users.create.fields.image.label"),
+              defaultMessage: "Avatar URL",
+            })}
             name="image"
             value={image}
             onChange={setImage}
-            placeholder="https://example.com/avatar.png"
-            hint="Optional — publicly accessible image URL"
+            placeholder={formatMessage({
+              id: getTranslation("users.create.fields.image.placeholder"),
+              defaultMessage: "https://example.com/avatar.png",
+            })}
+            hint={formatMessage({
+              id: getTranslation("users.create.fields.image.hint"),
+              defaultMessage: "Optional — publicly accessible image URL",
+            })}
           />
         </FormSection>
 
         {/* Password section */}
         <FormSection>
-          <SectionLabel>Password</SectionLabel>
+          <SectionLabel>
+            {formatMessage({
+              id: getTranslation("users.create.sections.password"),
+              defaultMessage: "Password",
+            })}
+          </SectionLabel>
           <Checkbox
             name="generatePassword"
             checked={generatePassword}
@@ -140,11 +201,19 @@ export function CreateUserDialog({ onClose }: Props) {
               if (checked) setPassword("");
             }}
           >
-            Generate a random password
+            {formatMessage({
+              id: getTranslation("users.create.fields.generatePassword"),
+              defaultMessage: "Generate a random password",
+            })}
           </Checkbox>
           {!generatePassword && (
             <Field.Root style={{ width: "100%" }}>
-              <Field.Label>Password</Field.Label>
+              <Field.Label>
+                {formatMessage({
+                  id: getTranslation("users.create.fields.password.label"),
+                  defaultMessage: "Password",
+                })}
+              </Field.Label>
               <TextInput
                 name="password"
                 type="password"
@@ -152,7 +221,12 @@ export function CreateUserDialog({ onClose }: Props) {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setPassword(e.target.value)
                 }
-                placeholder="Leave blank for a passwordless account"
+                placeholder={formatMessage({
+                  id: getTranslation(
+                    "users.create.fields.password.placeholder",
+                  ),
+                  defaultMessage: "Leave blank for a passwordless account",
+                })}
               />
             </Field.Root>
           )}
@@ -160,7 +234,12 @@ export function CreateUserDialog({ onClose }: Props) {
 
         {/* Email verification */}
         <FormSection>
-          <SectionLabel>Email verification</SectionLabel>
+          <SectionLabel>
+            {formatMessage({
+              id: getTranslation("users.create.sections.emailVerification"),
+              defaultMessage: "Email verification",
+            })}
+          </SectionLabel>
           <Checkbox
             name="emailVerified"
             checked={emailVerified}
@@ -169,7 +248,10 @@ export function CreateUserDialog({ onClose }: Props) {
               if (checked) setSendVerificationEmail(false);
             }}
           >
-            Mark email as already verified
+            {formatMessage({
+              id: getTranslation("users.create.fields.emailVerified"),
+              defaultMessage: "Mark email as already verified",
+            })}
           </Checkbox>
           {!emailVerified && (
             <Checkbox
@@ -179,14 +261,20 @@ export function CreateUserDialog({ onClose }: Props) {
                 setSendVerificationEmail(checked)
               }
             >
-              Send a verification email to the user
+              {formatMessage({
+                id: getTranslation("users.create.fields.sendVerificationEmail"),
+                defaultMessage: "Send a verification email to the user",
+              })}
             </Checkbox>
           )}
           {emailVerified && (
             <Box>
               <Typography variant="pi" textColor="success600">
-                The user will be able to sign in immediately without verifying
-                their email.
+                {formatMessage({
+                  id: getTranslation("users.create.fields.emailVerifiedHint"),
+                  defaultMessage:
+                    "The user will be able to sign in immediately without verifying their email.",
+                })}
               </Typography>
             </Box>
           )}

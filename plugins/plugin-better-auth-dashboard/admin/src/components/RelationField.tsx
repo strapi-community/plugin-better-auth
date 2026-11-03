@@ -10,8 +10,10 @@ import { Trash } from "@strapi/icons";
 import { useFetchClient } from "@strapi/strapi/admin";
 import type React from "react";
 import { useRef, useState } from "react";
+import { useIntl } from "react-intl";
 import { useQuery } from "react-query";
 import type { StrapiAttribute } from "../hooks/useModelSchema";
+import { getTranslation } from "../utils/getTranslation";
 
 function getDisplayLabel(doc: Record<string, unknown>): string {
   for (const key of ["name", "title", "email", "username", "label", "slug"]) {
@@ -80,6 +82,7 @@ export function RelationField({
   onChange,
   readOnly = false,
 }: RelationFieldProps) {
+  const { formatMessage } = useIntl();
   const { get } = useFetchClient();
   const cache = useRef(new Map<string, string>());
   const [search, setSearch] = useState("");
@@ -168,7 +171,10 @@ export function RelationField({
             setSearch(e.target.value)
           }
           loading={isLoading}
-          placeholder="Search…"
+          placeholder={formatMessage({
+            id: getTranslation("components.relationField.searchPlaceholder"),
+            defaultMessage: "Search…",
+          })}
         >
           {availableOptions.map((opt) => (
             <ComboboxOption key={opt.documentId} value={opt.documentId}>
@@ -210,7 +216,10 @@ export function RelationField({
               </Typography>
               {!readOnly && (
                 <IconButton
-                  label="Remove"
+                  label={formatMessage({
+                    id: getTranslation("components.relationField.remove"),
+                    defaultMessage: "Remove",
+                  })}
                   size="S"
                   onClick={() => handleRemove(doc.documentId)}
                 >

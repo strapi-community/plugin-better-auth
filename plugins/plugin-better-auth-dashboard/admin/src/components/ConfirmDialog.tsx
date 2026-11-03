@@ -1,5 +1,7 @@
 import { Button, Dialog } from "@strapi/design-system";
 import { WarningCircle } from "@strapi/icons";
+import { useIntl } from "react-intl";
+import { getTranslation } from "../utils/getTranslation";
 
 interface ConfirmDialogProps {
   title: string;
@@ -14,12 +16,14 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = "Confirm",
+  confirmLabel,
   variant = "danger",
   loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { formatMessage } = useIntl();
+
   return (
     <Dialog.Root
       defaultOpen
@@ -39,7 +43,10 @@ export function ConfirmDialog({
         <Dialog.Footer>
           <Dialog.Cancel>
             <Button fullWidth variant="tertiary" disabled={loading}>
-              Cancel
+              {formatMessage({
+                id: getTranslation("components.confirmDialog.cancel"),
+                defaultMessage: "Cancel",
+              })}
             </Button>
           </Dialog.Cancel>
           <Button
@@ -48,7 +55,11 @@ export function ConfirmDialog({
             loading={loading}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {confirmLabel ??
+              formatMessage({
+                id: getTranslation("components.confirmDialog.confirm"),
+                defaultMessage: "Confirm",
+              })}
           </Button>
         </Dialog.Footer>
       </Dialog.Content>
