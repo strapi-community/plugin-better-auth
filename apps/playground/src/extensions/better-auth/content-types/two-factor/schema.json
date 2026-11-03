@@ -46,7 +46,10 @@
           "managed": true
         }
       },
-      "required": true
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
     },
     "verified": {
       "type": "boolean",
@@ -58,5 +61,14 @@
       },
       "default": true
     }
-  }
+  },
+  "foreignKeys": [
+    {
+      "name": "ba_two_factor_user_id_fk",
+      "columns": ["user_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_user",
+      "onDelete": "CASCADE"
+    }
+  ]
 }

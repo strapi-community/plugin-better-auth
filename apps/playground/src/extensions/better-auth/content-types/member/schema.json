@@ -26,7 +26,10 @@
           "managed": true
         }
       },
-      "required": true
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
     },
     "userId": {
       "type": "integer",
@@ -36,7 +39,10 @@
           "managed": true
         }
       },
-      "required": true
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
     },
     "role": {
       "type": "text",
@@ -49,5 +55,21 @@
       "required": true,
       "default": "member"
     }
-  }
+  },
+  "foreignKeys": [
+    {
+      "name": "ba_member_organization_id_fk",
+      "columns": ["organization_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_organization",
+      "onDelete": "CASCADE"
+    },
+    {
+      "name": "ba_member_user_id_fk",
+      "columns": ["user_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_user",
+      "onDelete": "CASCADE"
+    }
+  ]
 }

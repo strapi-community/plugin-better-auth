@@ -26,7 +26,10 @@
           "managed": true
         }
       },
-      "required": true
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
     },
     "userId": {
       "type": "integer",
@@ -36,7 +39,26 @@
           "managed": true
         }
       },
-      "required": true
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
     }
-  }
+  },
+  "foreignKeys": [
+    {
+      "name": "ba_team_member_team_id_fk",
+      "columns": ["team_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_team",
+      "onDelete": "CASCADE"
+    },
+    {
+      "name": "ba_team_member_user_id_fk",
+      "columns": ["user_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_user",
+      "onDelete": "CASCADE"
+    }
+  ]
 }

@@ -40,6 +40,8 @@ export async function setupStrapi() {
   process.env.ENCRYPTION_KEY ??= "test-encryption-key-1234567890";
   process.env.JWT_SECRET ??= "test-jwt-secret";
   process.env.BETTER_AUTH_URL = `http://localhost:${port}`;
+  // Read by the @better-auth/infra dash() plugin in the playground's auth config.
+  process.env.STRAPI_URL = `http://localhost:${port}`;
   process.env.PORT = String(port);
 
   setupDb(instanceId);

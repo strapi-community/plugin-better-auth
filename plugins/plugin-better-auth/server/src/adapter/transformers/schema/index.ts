@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Core } from "@strapi/strapi";
 import type { BetterAuthDBSchema } from "better-auth/db";
 import { PLUGIN_ID } from "../../../utils";
+import { getForeignKeys, writeForeignKeys } from "./foreign-keys";
 import { transformSchema } from "./transformer";
 import type { UpdateSchemaResult } from "./types";
 
@@ -18,6 +19,7 @@ export * from "./utils";
  * - Deletes orphaned content types when plugins are disabled
  * - Deletes orphaned fields when removed from schema
  * - Preserves user-added custom fields
+ * - Declares a foreign key for every Better Auth reference
  */
 export async function updateStrapiSchema(
   strapi: Core.Strapi,
@@ -80,6 +82,12 @@ export async function updateStrapiSchema(
       { recursive: true, force: true },
     );
   }
+
+  await writeForeignKeys(
+    strapi,
+    schema.contentTypes,
+    getForeignKeys(strapi, tables),
+  );
 
   return { changeDetails: allChangeDetails };
 }

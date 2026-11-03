@@ -26,7 +26,10 @@
           "managed": true
         }
       },
-      "required": true
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
     },
     "email": {
       "type": "email",
@@ -85,7 +88,26 @@
           "managed": true
         }
       },
-      "required": true
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
     }
-  }
+  },
+  "foreignKeys": [
+    {
+      "name": "ba_invitation_organization_id_fk",
+      "columns": ["organization_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_organization",
+      "onDelete": "CASCADE"
+    },
+    {
+      "name": "ba_invitation_inviter_id_fk",
+      "columns": ["inviter_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_user",
+      "onDelete": "CASCADE"
+    }
+  ]
 }
