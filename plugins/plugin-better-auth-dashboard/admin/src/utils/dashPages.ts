@@ -14,9 +14,12 @@ type DashSection = Exclude<
   string
 > & { priority?: number };
 
-export type DashLink = Parameters<
-  StrapiApp["router"]["addSettingsLink"]
->[1][number] & {
+// addSettingsLink accepts a single link or an array of links.
+type ElementOf<T> = T extends readonly (infer U)[] ? U : T;
+
+export type DashLink = ElementOf<
+  Parameters<StrapiApp["router"]["addSettingsLink"]>[1]
+> & {
   isAvailable?: () => boolean | Promise<boolean>;
 };
 

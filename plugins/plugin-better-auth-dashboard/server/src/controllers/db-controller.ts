@@ -74,9 +74,7 @@ const dbController = () => ({
         start: (page - 1) * pageSize,
         ...(populateArg ? { populate: populateArg } : {}),
       }),
-      strapi
-        .documents(uid as UID.CollectionType)
-        .count({ filters: filters ?? {} }),
+      service.count({ filters: filters ?? {} }),
     ]);
 
     ctx.body = {
