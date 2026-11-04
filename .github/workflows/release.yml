@@ -4,6 +4,7 @@ permissions:
   id-token: write
   contents: write
   pull-requests: write
+  actions: write
 
 on:
   push:
@@ -38,13 +39,18 @@ jobs:
 
       - name: Create Release Pull Request or Publish
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           # Builds the plugins and calls changeset publish
-          publish: pnpm release:publish
-          version: pnpm release:prepare
+          publish-script: pnpm release:publish
+          version-script: pnpm release:prepare
+
+      # PRs created with GITHUB_TOKEN don't trigger the Tests workflow, so dispatch it manually
+      - name: Run tests on the Version Packages PR
+        if: steps.changesets.outputs.has-changesets == 'true'
+        run: gh workflow run tests.yml --ref changeset-release/main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-docs:
     name: Deploy docs

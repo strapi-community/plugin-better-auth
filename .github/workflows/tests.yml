@@ -1,6 +1,8 @@
 name: Tests
 
 on:
+  # Dispatched by the release workflow for the Version Packages PR
+  workflow_dispatch:
   push:
     branches:
       - main
