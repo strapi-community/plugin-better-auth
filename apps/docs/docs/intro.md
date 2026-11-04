@@ -8,10 +8,6 @@ sidebar_position: 1
 
 A collection of Strapi v5 plugins that bring [Better Auth](https://better-auth.com) authentication and fine-grained Content API permissions to your Strapi application.
 
-:::caution Beta Software
-Both plugins are in **BETA** state. They are not considered stable and should not be used in production. If you want to contribute, please contact the maintainers.
-:::
-
 ## Packages
 
 ### [Better Auth](./better-auth)
@@ -41,5 +37,5 @@ The two plugins are designed to complement each other but can be used independen
 ## Requirements
 
 - Node.js >= 20
-- Strapi v5 (experimental)
+- Strapi v5
 - `better-auth >= 1.4.0` (only required for plugin-better-auth)

@@ -1,8 +1,5 @@
 # 🔐 Strapi + Better Auth
 
-> [!CAUTION]
-> These plugins are in **beta**. Do not use in production.
-
 A monorepo of Strapi v5 plugins for modern authentication and Content API authorization.
 
 | Package | Description |
