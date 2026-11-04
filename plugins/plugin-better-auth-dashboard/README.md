@@ -2,9 +2,6 @@
 
 An admin panel dashboard plugin for [Strapi](https://strapi.io) that provides user management, session monitoring, and analytics for [Better Auth](https://better-auth.com) authentication.
 
-> [!CAUTION]
-> This plugin is in BETA state. It is by no means considered stable and should not be used in production. If you want to contribute to its development, please contact any of the maintainers.
-
 ## Features
 
 - Overview page with user metrics, growth charts, and cohort retention analysis

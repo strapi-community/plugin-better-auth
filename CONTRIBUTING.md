@@ -1,6 +1,6 @@
 # Contributing to Strapi + Better Auth
 
-Thank you for your interest in contributing! This project is in early beta, so contributions of all kinds — bug reports, feature ideas, documentation improvements, and code — are especially valuable.
+Thank you for your interest in contributing! Contributions of all kinds — bug reports, feature ideas, documentation improvements, and code — are welcome.
 
 ## Getting started
 
@@ -71,6 +71,14 @@ pnpm build
 pnpm test:e2e
 pnpm test:e2e:postgres
 pnpm test:e2e:mysql
+```
+
+### Changesets
+
+Releases are managed with [Changesets](https://github.com/changesets/changesets). If your change affects a published plugin, add a changeset describing it:
+
+```bash
+pnpm changeset
 ```
 
 ## Pull requests

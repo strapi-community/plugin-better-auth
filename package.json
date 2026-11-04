@@ -15,9 +15,14 @@
     "test:e2e:postgres": "DATABASE_CLIENT=postgres with-db turbo test:e2e",
     "test:e2e:mysql": "DATABASE_CLIENT=mysql with-db turbo test:e2e",
     "update-dependencies": "pnpm --recursive --interactive --latest update",
-    "prepare": "husky"
+    "prepare": "husky",
+    "changeset": "changeset",
+    "release:prepare": "changeset version && pnpm install --lockfile-only",
+    "release:publish": "turbo build --filter=./plugins/* && changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@strapi-community/dev-utils": "workspace:*",
     "@types/node": "^22.0.0",
     "husky": "9.1.7",

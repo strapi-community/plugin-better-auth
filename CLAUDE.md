@@ -15,7 +15,7 @@ A pnpm/Turborepo monorepo of three companion Strapi v5 plugins, developed agains
 | `@strapi-community/dev-utils` | `packages/dev-utils` | Internal dev tooling (dev server, DB, Playwright/Vitest helpers), not published |
 
 `apps/playground` is the Strapi app all three plugins run and are tested against. `apps/docs` is
-the documentation site. All plugins are beta — not production-ready.
+the documentation site.
 
 Requires Node.js >= 22 and pnpm >= 10.
 

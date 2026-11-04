@@ -2,8 +2,11 @@ name: Deploy Docs
 
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  workflow_call:
+
+concurrency:
+  group: deploy-docs
+  cancel-in-progress: false
 
 jobs:
   deploy:

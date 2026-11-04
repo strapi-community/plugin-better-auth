@@ -2,9 +2,6 @@
 
 Content API RBAC for [Strapi](https://strapi.io) — auth-provider agnostic roles and permissions. This plugin gives you a role management UI in the Strapi admin and a pluggable session resolver so any authentication provider can drive your Content API access control.
 
-> [!CAUTION]
-> This plugin is in BETA state. It is by no means considered stable and should not be used in production. If you want to contribute to its development, please contact any of the maintainers.
-
 ## Features
 
 - ✅ Role management UI in the Strapi admin panel
