@@ -1,5 +1,16 @@
 # @strapi-community/plugin-better-auth-dashboard
 
+## 1.1.2
+
+### Patch Changes
+
+- [`1fa1996`](https://github.com/strapi-community/plugin-better-auth/commit/1fa19967cd5a0bbe5b9c1d4d016c21b5f9eafc8b) Thanks [@boazpoolman](https://github.com/boazpoolman)! - fix(dashboard): link relation custom field values to their Content Manager item
+  
+  Relation custom fields in the user and organization edit panels now render each
+  assigned value as a link to that item's Content Manager edit view, instead of
+  plain text. The target's content-type kind is resolved so single types and
+  collection types get the correct route.
+
 ## 1.1.1
 
 ### Patch Changes
