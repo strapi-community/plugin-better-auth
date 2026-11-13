@@ -19,7 +19,7 @@ const contentApiRoutes: Core.Router = {
   routes: HTTP_METHODS.map((method) => ({
     method,
     path: "/better-auth-dashboard/dash/:path*",
-    handler: "dash-api-controller.handleDashRequest",
+    handler: "dash-controller.handleDashRequest",
     info: { pluginName: "better-auth-dashboard" },
     config: {
       policies: [],

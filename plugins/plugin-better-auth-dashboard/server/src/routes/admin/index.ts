@@ -3,8 +3,8 @@ export default () => ({
   routes: [
     {
       method: "GET",
-      path: "/auth/:path*",
-      handler: "auth-controller.handleAuthRequest",
+      path: "/auth/dash/:path*",
+      handler: "dash-controller.handleDashRequest",
       config: {
         policies: ["has-permission"],
         prefix: "",
@@ -12,8 +12,8 @@ export default () => ({
     },
     {
       method: "POST",
-      path: "/auth/:path*",
-      handler: "auth-controller.handleAuthRequest",
+      path: "/auth/dash/:path*",
+      handler: "dash-controller.handleDashRequest",
       config: {
         policies: ["has-permission"],
         prefix: "",
@@ -21,8 +21,8 @@ export default () => ({
     },
     {
       method: "PUT",
-      path: "/auth/:path*",
-      handler: "auth-controller.handleAuthRequest",
+      path: "/auth/dash/:path*",
+      handler: "dash-controller.handleDashRequest",
       config: {
         policies: ["has-permission"],
         prefix: "",
@@ -30,8 +30,8 @@ export default () => ({
     },
     {
       method: "PATCH",
-      path: "/auth/:path*",
-      handler: "auth-controller.handleAuthRequest",
+      path: "/auth/dash/:path*",
+      handler: "dash-controller.handleDashRequest",
       config: {
         policies: ["has-permission"],
         prefix: "",
@@ -39,8 +39,8 @@ export default () => ({
     },
     {
       method: "DELETE",
-      path: "/auth/:path*",
-      handler: "auth-controller.handleAuthRequest",
+      path: "/auth/dash/:path*",
+      handler: "dash-controller.handleDashRequest",
       config: {
         policies: ["has-permission"],
         prefix: "",

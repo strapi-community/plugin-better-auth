@@ -1,11 +1,9 @@
-import authController from "./auth-controller";
-import dashApiController from "./dash-api-controller";
+import dashController from "./dash-controller";
 import dbController from "./db-controller";
 import settingsController from "./settings-controller";
 
 export default {
-  "auth-controller": authController,
-  "dash-api-controller": dashApiController,
+  "dash-controller": dashController,
   "db-controller": dbController,
   "settings-controller": settingsController,
 };

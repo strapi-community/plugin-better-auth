@@ -1,5 +1,4 @@
 import type { Core } from "@strapi/types";
-import type { Context } from "koa";
 import type { Auth } from "../../types/better-auth";
 
 /**
@@ -65,7 +64,11 @@ export async function signDashToken(
   return token;
 }
 
-function getAuth(strapi: Core.Strapi): Auth {
+/**
+ * Resolve the consumer's Better Auth instance and assert it can mint dash JWTs.
+ * Throws if no Better Auth config is found or the `jwt()` plugin is missing.
+ */
+export function getAuth(strapi: Core.Strapi): Auth {
   const auth = strapi
     .service("plugin::better-auth.auth-service")
     .getAuth() as Auth | null;
@@ -106,71 +109,4 @@ export async function getDashApi(
   const auth = getAuth(strapi);
   const token = await signDashToken(auth, context);
   return { auth, headers: new Headers({ Authorization: `Bearer ${token}` }) };
-}
-
-/**
- * Proxy an incoming Koa request to a Better Auth endpoint and copy the full
- * response back onto `ctx` (status, headers — including `Set-Cookie` — and body).
- *
- * This is the shared passthrough behind both proxies: the admin panel proxy
- * (`auth-controller`, generic `/auth/*`) and the third-party dash gateway
- * (`dash-api-controller`, scoped to `dash/*`). The two differ only in their route
- * auth and the `targetPath` they forward to. Dash context is taken from the
- * `X-Dash-Context` header, and the Authorization header is replaced with the
- * signed dash JWT.
- *
- * `targetPath` is the path under `/api/auth/` to forward to (e.g. `"dash/list-users"`
- * or `"get-session"`); the original query string is preserved.
- */
-export async function proxyDashRequest(
-  strapi: Core.Strapi,
-  ctx: Context,
-  targetPath: string,
-): Promise<void> {
-  const auth = getAuth(strapi);
-  const token = await signDashToken(
-    auth,
-    decodeDashContextHeader(ctx.request.headers[DASH_CONTEXT_HEADER]),
-  );
-
-  // Preserve the original query string; only swap the path to the Better Auth one.
-  const url = new URL(
-    ctx.request.url,
-    `${ctx.request.protocol}://${ctx.request.host}`,
-  );
-  url.pathname = `/api/auth/${targetPath}`;
-
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(ctx.request.headers)) {
-    if (value)
-      headers.set(key, Array.isArray(value) ? value[0] : String(value));
-  }
-  headers.set("Authorization", `Bearer ${token}`);
-
-  const hasBody = ctx.request.method !== "GET" && ctx.request.method !== "HEAD";
-
-  const response = await auth.handler(
-    new Request(url.toString(), {
-      method: ctx.request.method,
-      headers,
-      body: hasBody ? JSON.stringify(ctx.request.body) : undefined,
-    }),
-  );
-
-  ctx.status = response.status;
-  response.headers.forEach((value: string, key: string) => {
-    ctx.set(key, value);
-  });
-
-  // Read as text first to avoid JSON.parse errors on empty bodies (e.g. deleteUser
-  // returns no body with content-type: application/json).
-  const contentType = response.headers.get("content-type");
-  const text = await response.text();
-  if (!text) {
-    ctx.body = {};
-  } else if (contentType?.includes("application/json")) {
-    ctx.body = JSON.parse(text);
-  } else {
-    ctx.body = text;
-  }
 }
