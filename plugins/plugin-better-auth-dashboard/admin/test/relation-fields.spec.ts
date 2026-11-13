@@ -33,9 +33,19 @@ test("USER panel shows an assigned relation custom field value", async ({
 
   // Re-open: the assigned relation value must be visible after a fresh load.
   await openUserDetail(page, userEmail);
-  await expect(
-    page.getByTestId("user-detail-drawer").getByText("Authenticated"),
-  ).toBeVisible({ timeout: 10_000 });
+  const userDrawer = page.getByTestId("user-detail-drawer");
+  await expect(userDrawer.getByText("Authenticated")).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // The value links to the related item's Content Manager edit view.
+  const userRelationLink = userDrawer
+    .getByTestId("relation-link")
+    .filter({ hasText: "Authenticated" });
+  await expect(userRelationLink).toHaveAttribute(
+    "href",
+    /\/content-manager\/collection-types\/plugin::api-permissions\.role\/[^/]+$/,
+  );
 });
 
 test("ORGANIZATION panel shows an assigned relation custom field value", async ({
@@ -81,7 +91,17 @@ test("ORGANIZATION panel shows an assigned relation custom field value", async (
 
   // Re-open: the assigned relation value must be visible after a fresh load.
   await openOrgDetail();
-  await expect(
-    page.getByTestId("org-detail-drawer").getByText("Authenticated"),
-  ).toBeVisible({ timeout: 10_000 });
+  const orgDrawer = page.getByTestId("org-detail-drawer");
+  await expect(orgDrawer.getByText("Authenticated")).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // The value links to the related item's Content Manager edit view.
+  const orgRelationLink = orgDrawer
+    .getByTestId("relation-link")
+    .filter({ hasText: "Authenticated" });
+  await expect(orgRelationLink).toHaveAttribute(
+    "href",
+    /\/content-manager\/collection-types\/plugin::api-permissions\.role\/[^/]+$/,
+  );
 });

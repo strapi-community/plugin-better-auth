@@ -12,8 +12,40 @@ import type React from "react";
 import { useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { useQuery } from "react-query";
+import { NavLink } from "react-router-dom";
+import styled from "styled-components";
 import type { StrapiAttribute } from "../hooks/useModelSchema";
 import { getTranslation } from "../utils/getTranslation";
+
+interface ContentTypeMeta {
+  uid: string;
+  kind: "collectionType" | "singleType";
+}
+
+// The dashboard renders inside the admin router, so a leading-slash path is
+// resolved against the configured admin base path. The content-type lookup only
+// picks the right route shape (single types have no documentId); when it is
+// unknown we default to a collection type, which covers nearly every relation.
+function getContentManagerLink(
+  target: string,
+  documentId: string,
+  meta: ContentTypeMeta | null | undefined,
+): string {
+  if (meta?.kind === "singleType") {
+    return `/content-manager/single-types/${target}`;
+  }
+  return `/content-manager/collection-types/${target}/${documentId}`;
+}
+
+const RelationLink = styled(NavLink)`
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
 
 function getDisplayLabel(doc: Record<string, unknown>): string {
   for (const key of ["name", "title", "email", "username", "label", "slug"]) {
@@ -92,6 +124,22 @@ export function RelationField({
   const target = attribute.target ?? "";
   const relationType = attribute.relation ?? "manyToOne";
   const isMulti = relationType === "oneToMany" || relationType === "manyToMany";
+
+  // Resolve the target's content-type kind so each selected document links to
+  // the right Content Manager route. Shared query key → one request regardless
+  // of how many relation fields are on screen.
+  const { data: targetMeta } = useQuery({
+    queryKey: ["cm-content-types"],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await get<{ data: ContentTypeMeta[] }>(
+        "/content-manager/content-types",
+      );
+      return data.data;
+    },
+    select: (types) => types.find((ct) => ct.uid === target) ?? null,
+    enabled: !!target,
+  });
 
   const currentDocs = normalizeValue(value, cache.current);
   const selectedIds = new Set(currentDocs.map((d) => d.documentId));
@@ -206,14 +254,30 @@ export function RelationField({
               borderWidth="1px"
               hasRadius
             >
-              <Typography
-                variant="omega"
-                textColor="neutral800"
-                ellipsis
-                style={{ flex: 1, minWidth: 0 }}
-              >
-                {doc.label}
-              </Typography>
+              {target ? (
+                <RelationLink
+                  to={getContentManagerLink(target, doc.documentId, targetMeta)}
+                  data-testid="relation-link"
+                >
+                  <Typography
+                    variant="omega"
+                    textColor="primary600"
+                    ellipsis
+                    style={{ minWidth: 0 }}
+                  >
+                    {doc.label}
+                  </Typography>
+                </RelationLink>
+              ) : (
+                <Typography
+                  variant="omega"
+                  textColor="neutral800"
+                  ellipsis
+                  style={{ flex: 1, minWidth: 0 }}
+                >
+                  {doc.label}
+                </Typography>
+              )}
               {!readOnly && (
                 <IconButton
                   label={formatMessage({
