@@ -34,6 +34,20 @@ async function run(tool: ToolDef, args?: unknown): Promise<any> {
   return handler({ args: args as never });
 }
 
+/**
+ * Validate a tool's `structuredContent` against the output schema it declares —
+ * the same check the MCP runtime performs before returning the result. Running
+ * the handler alone does not exercise this (it just builds the payload), so a
+ * schema mismatch like a `Date` where `string | number` is declared only
+ * surfaces here or over the wire. Returns the parsed value or throws.
+ */
+function expectValidOutput(
+  tool: ToolDef,
+  result: { structuredContent: unknown },
+) {
+  return tool.resolveOutputSchema().parse(result.structuredContent);
+}
+
 let tools: Map<string, ToolDef>;
 let aliceId: string;
 
@@ -99,6 +113,25 @@ describe("better_auth_list_users", () => {
     expect(Array.isArray(res.structuredContent.users)).toBe(true);
   });
 
+  it("returns dates the output schema accepts (dash() hands back Date objects)", async () => {
+    const listUsers = tools.get("better_auth_list_users")!;
+    const res = await run(listUsers, { limit: 100 });
+
+    // Regression: without normalizing the dash() Date fields this throws
+    // ("createdAt: Invalid input"), exactly as the MCP runtime would reject it.
+    expect(() => expectValidOutput(listUsers, res)).not.toThrow();
+
+    const withDate = res.structuredContent.users.find(
+      (u: { createdAt: unknown }) => u.createdAt != null,
+    );
+    expect(
+      withDate,
+      "expected at least one user with a createdAt",
+    ).toBeTruthy();
+    expect(typeof withDate.createdAt).toBe("string");
+    expect(Number.isNaN(Date.parse(withDate.createdAt))).toBe(false);
+  });
+
   it("searches by email", async () => {
     const res = await run(tools.get("better_auth_list_users")!, {
       search: "alice.mcp",
@@ -124,6 +157,17 @@ describe("better_auth_get_user", () => {
     });
     expect(miss.structuredContent.found).toBe(false);
   });
+
+  it("returns a user whose dates pass the output schema", async () => {
+    const getUser = tools.get("better_auth_get_user")!;
+    const hit = await run(getUser, { userId: aliceId });
+
+    expect(() => expectValidOutput(getUser, hit)).not.toThrow();
+    expect(typeof hit.structuredContent.user.createdAt).toBe("string");
+    expect(Number.isNaN(Date.parse(hit.structuredContent.user.createdAt))).toBe(
+      false,
+    );
+  });
 });
 
 describe("better_auth_user_stats", () => {
@@ -143,6 +187,19 @@ describe("better_auth_signups_graph", () => {
     });
     expect(res.structuredContent.period).toBeTruthy();
     expect(Array.isArray(res.structuredContent.points)).toBe(true);
+  });
+
+  it("emits ISO date strings that pass the output schema", async () => {
+    const graph = tools.get("better_auth_signups_graph")!;
+    const res = await run(graph, { period: "monthly" });
+
+    expect(() => expectValidOutput(graph, res)).not.toThrow();
+    expect(res.structuredContent.points.length).toBeGreaterThan(0);
+    for (const point of res.structuredContent.points) {
+      // Machine-readable ISO (2026-06-16T…), not the locale "Tue Jun 16 2026 …"
+      // String(Date) form the dash() Date object produces unnormalized.
+      expect(point.date).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    }
   });
 });
 

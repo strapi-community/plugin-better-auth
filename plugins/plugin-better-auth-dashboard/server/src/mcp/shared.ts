@@ -98,6 +98,28 @@ export const dashUserOutput = z.object({
 
 export type DashUserOut = z.infer<typeof dashUserOutput>;
 
+/**
+ * Normalize a date-ish value from the dash() endpoints to the
+ * `string | number | null` shape {@link dashUserOutput} declares.
+ *
+ * The dash() API returns `createdAt` / `updatedAt` (and `banExpires`) as JS
+ * `Date` objects. A `Date` is neither a string nor a number, so it fails the
+ * output schema's `z.union([z.string(), z.number()])` and the MCP runtime
+ * rejects the whole result with "Invalid input" on every user row. (The old
+ * casts here claimed `as string | number | null`, but that is a compile-time
+ * lie — the value stayed a `Date` at runtime.) `Date`s are serialized to ISO
+ * strings; strings and numbers pass through; anything nullish becomes `null`.
+ */
+export function normalizeDashDate(value: unknown): string | number | null {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string" || typeof value === "number") return value;
+  // Some drivers hand back a date-like wrapper object with toISOString().
+  const maybe = value as { toISOString?: () => string };
+  if (typeof maybe.toISOString === "function") return maybe.toISOString();
+  return String(value);
+}
+
 /** Project a raw dash() user object onto the public {@link dashUserOutput} shape. */
 export function mapDashUser(u: Record<string, unknown>): DashUserOut {
   return {
@@ -109,8 +131,8 @@ export function mapDashUser(u: Record<string, unknown>): DashUserOut {
     role: (u.role as string | null) ?? null,
     banned: (u.banned as boolean | null) ?? null,
     banReason: (u.banReason as string | null) ?? null,
-    banExpires: (u.banExpires as string | number | null) ?? null,
-    createdAt: (u.createdAt as string | number | null) ?? null,
-    updatedAt: (u.updatedAt as string | number | null) ?? null,
+    banExpires: normalizeDashDate(u.banExpires),
+    createdAt: normalizeDashDate(u.createdAt),
+    updatedAt: normalizeDashDate(u.updatedAt),
   };
 }
