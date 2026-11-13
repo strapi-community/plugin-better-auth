@@ -1,7 +1,12 @@
 import { z } from "@strapi/utils";
-import { callDash } from "../../utils/dash";
+import { getDashApi } from "../../utils/dash";
 import { ACTION } from "../constants";
-import { type McpRegistrar, toolError, toolResult } from "../shared";
+import {
+  dashErrorMessage,
+  type McpRegistrar,
+  toolError,
+  toolResult,
+} from "../shared";
 
 /**
  * `better_auth_ban_user` / `better_auth_unban_user` via the dash() plugin.
@@ -33,25 +38,22 @@ export function registerBanTools(mcp: McpRegistrar) {
     createHandler:
       (strapi) =>
       async ({ args }) => {
-        const { userId, banReason, banExpiresInDays } = args;
-
         const body: { banReason?: string; banExpires?: number } = {};
-        if (banReason) body.banReason = banReason;
-        if (banExpiresInDays) {
+        if (args.banReason) body.banReason = args.banReason;
+        if (args.banExpiresInDays) {
           // dash() expects an absolute epoch-ms timestamp (see the dashboard UI).
-          body.banExpires = Date.now() + banExpiresInDays * 86400000;
+          body.banExpires = Date.now() + args.banExpiresInDays * 86400000;
         }
 
-        const { ok, data } = await callDash(strapi, {
-          path: "ban-user",
-          method: "POST",
-          context: { userId },
-          body,
-        });
-
-        if (!ok)
-          return toolError(`Failed to ban user: ${JSON.stringify(data)}`);
-        return toolResult({ banned: true });
+        try {
+          const { auth, headers } = await getDashApi(strapi, {
+            userId: args.userId,
+          });
+          await auth.api.dashBanUser({ body, headers });
+          return toolResult({ banned: true });
+        } catch (e) {
+          return toolError(`Failed to ban user: ${dashErrorMessage(e)}`);
+        }
       },
   });
 
@@ -67,15 +69,15 @@ export function registerBanTools(mcp: McpRegistrar) {
     createHandler:
       (strapi) =>
       async ({ args }) => {
-        const { ok, data } = await callDash(strapi, {
-          path: "unban-user",
-          method: "POST",
-          context: { userId: args.userId },
-        });
-
-        if (!ok)
-          return toolError(`Failed to unban user: ${JSON.stringify(data)}`);
-        return toolResult({ unbanned: true });
+        try {
+          const { auth, headers } = await getDashApi(strapi, {
+            userId: args.userId,
+          });
+          await auth.api.dashUnbanUser({ headers });
+          return toolResult({ unbanned: true });
+        } catch (e) {
+          return toolError(`Failed to unban user: ${dashErrorMessage(e)}`);
+        }
       },
   });
 }

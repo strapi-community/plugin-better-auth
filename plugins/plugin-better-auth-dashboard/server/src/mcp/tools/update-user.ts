@@ -1,7 +1,8 @@
 import { z } from "@strapi/utils";
-import { callDash } from "../../utils/dash";
+import { getDashApi } from "../../utils/dash";
 import { ACTION } from "../constants";
 import {
+  dashErrorMessage,
   dashUserOutput,
   type McpRegistrar,
   mapDashUser,
@@ -36,29 +37,35 @@ export function registerUpdateUser(mcp: McpRegistrar) {
     createHandler:
       (strapi) =>
       async ({ args }) => {
-        const { userId, ...rest } = args as Record<string, unknown>;
-        const body = Object.fromEntries(
-          Object.entries(rest).filter(([, v]) => v !== undefined),
-        );
+        const body: {
+          name?: string;
+          email?: string;
+          image?: string;
+          emailVerified?: boolean;
+        } = {};
+        if (args.name !== undefined) body.name = args.name;
+        if (args.email !== undefined) body.email = args.email;
+        if (args.image !== undefined) body.image = args.image;
+        if (args.emailVerified !== undefined)
+          body.emailVerified = args.emailVerified;
 
         if (Object.keys(body).length === 0) {
           return toolError("No fields to update were provided.");
         }
 
-        const { ok, data } = await callDash(strapi, {
-          path: "update-user",
-          method: "POST",
-          context: { userId },
-          body,
-        });
+        try {
+          const { auth, headers } = await getDashApi(strapi, {
+            userId: args.userId,
+          });
+          const user = await auth.api.updateDashUser({ body, headers });
 
-        if (!ok)
-          return toolError(`Failed to update user: ${JSON.stringify(data)}`);
-
-        return toolResult({
-          updated: true,
-          user: mapDashUser(data as Record<string, unknown>),
-        });
+          return toolResult({
+            updated: true,
+            user: mapDashUser(user as unknown as Record<string, unknown>),
+          });
+        } catch (e) {
+          return toolError(`Failed to update user: ${dashErrorMessage(e)}`);
+        }
       },
   });
 }

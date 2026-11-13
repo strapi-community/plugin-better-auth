@@ -1,7 +1,12 @@
 import { z } from "@strapi/utils";
-import { callDash } from "../../utils/dash";
+import { getDashApi } from "../../utils/dash";
 import { ACTION } from "../constants";
-import { type McpRegistrar, toolError, toolResult } from "../shared";
+import {
+  dashErrorMessage,
+  type McpRegistrar,
+  toolError,
+  toolResult,
+} from "../shared";
 
 const signupPeriod = z.object({
   signUps: z.number().nullable(),
@@ -38,14 +43,13 @@ export function registerUserStats(mcp: McpRegistrar) {
         degraded: z.boolean().optional(),
       }),
     createHandler: (strapi) => async () => {
-      const { ok, data } = await callDash(strapi, {
-        path: "user-stats",
-        method: "GET",
-      });
-
-      if (!ok)
-        return toolError(`Failed to load stats: ${JSON.stringify(data)}`);
-      return toolResult(data);
+      try {
+        const { auth, headers } = await getDashApi(strapi);
+        const stats = await auth.api.dashGetUserStats({ headers });
+        return toolResult(stats);
+      } catch (e) {
+        return toolError(`Failed to load stats: ${dashErrorMessage(e)}`);
+      }
     },
   });
 }

@@ -1,7 +1,12 @@
 import { z } from "@strapi/utils";
-import { callDash } from "../../utils/dash";
+import { getDashApi } from "../../utils/dash";
 import { ACTION } from "../constants";
-import { type McpRegistrar, toolError, toolResult } from "../shared";
+import {
+  dashErrorMessage,
+  type McpRegistrar,
+  toolError,
+  toolResult,
+} from "../shared";
 
 /**
  * `better_auth_signups_graph` — the dashboard Overview's sign-up time series via
@@ -34,30 +39,26 @@ export function registerSignupsGraph(mcp: McpRegistrar) {
     createHandler:
       (strapi) =>
       async ({ args }) => {
-        const { ok, data } = await callDash(strapi, {
-          path: "user-graph-data",
-          method: "GET",
-          query: { period: args.period },
-        });
+        try {
+          const { auth, headers } = await getDashApi(strapi);
+          const graph = await auth.api.dashGetUserGraphData({
+            query: { period: args.period },
+            headers,
+          });
 
-        if (!ok)
-          return toolError(`Failed to load graph: ${JSON.stringify(data)}`);
-
-        const body = data as {
-          period?: string;
-          data?: Record<string, unknown>[];
-        };
-
-        return toolResult({
-          period: body.period ?? args.period,
-          points: (body.data ?? []).map((p) => ({
-            date: String(p.date ?? ""),
-            label: String(p.label ?? ""),
-            totalUsers: Number(p.totalUsers ?? 0),
-            newUsers: Number(p.newUsers ?? 0),
-            activeUsers: Number(p.activeUsers ?? 0),
-          })),
-        });
+          return toolResult({
+            period: graph.period ?? args.period,
+            points: (graph.data ?? []).map((p) => ({
+              date: String(p.date ?? ""),
+              label: String(p.label ?? ""),
+              totalUsers: Number(p.totalUsers ?? 0),
+              newUsers: Number(p.newUsers ?? 0),
+              activeUsers: Number(p.activeUsers ?? 0),
+            })),
+          });
+        } catch (e) {
+          return toolError(`Failed to load graph: ${dashErrorMessage(e)}`);
+        }
       },
   });
 }

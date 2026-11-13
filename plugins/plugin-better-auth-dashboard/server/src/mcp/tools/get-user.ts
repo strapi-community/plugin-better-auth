@@ -1,10 +1,13 @@
 import { z } from "@strapi/utils";
-import { callDash } from "../../utils/dash";
+import { getDashApi } from "../../utils/dash";
 import { ACTION } from "../constants";
 import {
+  dashErrorMessage,
   dashUserOutput,
+  isNotFoundError,
   type McpRegistrar,
   mapDashUser,
+  toolError,
   toolResult,
 } from "../shared";
 
@@ -33,31 +36,33 @@ export function registerGetUser(mcp: McpRegistrar) {
     createHandler:
       (strapi) =>
       async ({ args }) => {
-        const { ok, data } = await callDash(strapi, {
-          path: "user",
-          method: "GET",
-          context: { userId: args.userId },
-        });
+        try {
+          const { auth, headers } = await getDashApi(strapi, {
+            userId: args.userId,
+          });
+          const user = await auth.api.getDashUser({ query: {}, headers });
 
-        if (!ok) {
-          return toolResult({ found: false, user: null });
+          const raw = user as unknown as {
+            session?: unknown[];
+            account?: unknown[];
+          };
+
+          return toolResult({
+            found: true,
+            user: mapDashUser(user as unknown as Record<string, unknown>),
+            sessionsCount: Array.isArray(raw.session)
+              ? raw.session.length
+              : undefined,
+            accountsCount: Array.isArray(raw.account)
+              ? raw.account.length
+              : undefined,
+          });
+        } catch (e) {
+          if (isNotFoundError(e)) {
+            return toolResult({ found: false, user: null });
+          }
+          return toolError(`Failed to get user: ${dashErrorMessage(e)}`);
         }
-
-        const body = data as Record<string, unknown> & {
-          session?: unknown[];
-          account?: unknown[];
-        };
-
-        return toolResult({
-          found: true,
-          user: mapDashUser(body),
-          sessionsCount: Array.isArray(body.session)
-            ? body.session.length
-            : undefined,
-          accountsCount: Array.isArray(body.account)
-            ? body.account.length
-            : undefined,
-        });
       },
   });
 }

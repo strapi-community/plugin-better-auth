@@ -1,7 +1,8 @@
 import { z } from "@strapi/utils";
-import { callDash } from "../../utils/dash";
+import { getDashApi } from "../../utils/dash";
 import { ACTION } from "../constants";
 import {
+  dashErrorMessage,
   dashUserOutput,
   type McpRegistrar,
   mapDashUser,
@@ -59,34 +60,32 @@ export function registerListUsers(mcp: McpRegistrar) {
             ])
           : undefined;
 
-        const { ok, data } = await callDash(strapi, {
-          path: "list-users",
-          method: "GET",
-          query: {
-            limit,
-            offset,
-            sortBy: "createdAt",
-            sortOrder: "desc",
-            where,
-          },
-        });
+        try {
+          const { auth, headers } = await getDashApi(strapi);
+          const result = await auth.api.getDashUsers({
+            query: {
+              limit,
+              offset,
+              sortBy: "createdAt",
+              sortOrder: "desc",
+              ...(where ? { where } : {}),
+            },
+            headers,
+          });
 
-        if (!ok)
-          return toolError(`Failed to list users: ${JSON.stringify(data)}`);
+          const users = (result.users ?? []).map((u) =>
+            mapDashUser(u as unknown as Record<string, unknown>),
+          );
 
-        const body = data as {
-          users?: Record<string, unknown>[];
-          total?: number;
-          onlineUsers?: number;
-        };
-        const users = (body.users ?? []).map(mapDashUser);
-
-        return toolResult({
-          total: body.total ?? users.length,
-          count: users.length,
-          onlineUsers: body.onlineUsers,
-          users,
-        });
+          return toolResult({
+            total: result.total ?? users.length,
+            count: users.length,
+            onlineUsers: result.onlineUsers,
+            users,
+          });
+        } catch (e) {
+          return toolError(`Failed to list users: ${dashErrorMessage(e)}`);
+        }
       },
   });
 }

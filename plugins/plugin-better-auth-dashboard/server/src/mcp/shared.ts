@@ -65,6 +65,22 @@ export function toolError(message: string): McpToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
+/** Best-effort message from a Better Auth `APIError` (or any thrown value). */
+export function dashErrorMessage(e: unknown): string {
+  if (e && typeof e === "object") {
+    const anyE = e as { message?: unknown; body?: { message?: unknown } };
+    if (anyE.body?.message) return String(anyE.body.message);
+    if (anyE.message) return String(anyE.message);
+  }
+  return String(e);
+}
+
+/** True when a thrown Better Auth error represents a 404 / not-found. */
+export function isNotFoundError(e: unknown): boolean {
+  const anyE = e as { statusCode?: number; status?: unknown };
+  return anyE?.statusCode === 404 || anyE?.status === "NOT_FOUND";
+}
+
 /** Zod shape of a Better Auth user as returned by the dash() endpoints. */
 export const dashUserOutput = z.object({
   id: z.union([z.string(), z.number()]),

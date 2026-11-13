@@ -1,4 +1,5 @@
 import type { Core } from "@strapi/types";
+import type { Context } from "koa";
 import type { Auth } from "../../types/better-auth";
 
 /**
@@ -82,59 +83,94 @@ function getAuth(strapi: Core.Strapi): Auth {
 }
 
 /**
- * Server-side call to a Better Auth `dash()` endpoint — the same mechanism the
- * dashboard admin proxy uses, without an incoming HTTP request. Signs the dash
- * JWT (api-key hash + `context`) and invokes `auth.handler` at
- * `/api/auth/dash/<path>`, returning the parsed JSON response.
+ * Server-side access to the Better Auth `dash()` endpoints for code that has no
+ * incoming HTTP request (e.g. the MCP tools).
  *
- * This is the single entry point the MCP tools use so they go through Better
- * Auth's own business logic (validation, ban side-effects, stats aggregation)
- * rather than touching the document service directly.
+ * Returns the Better Auth instance together with the headers that authorize a
+ * dash call: a short-lived JWT carrying the api-key hash plus any `context`
+ * (e.g. `{ userId }`) the target endpoint reads from its payload. Callers then
+ * invoke the typed dash methods directly, for example:
+ *
+ * ```ts
+ * const { auth, headers } = await getDashApi(strapi, { userId });
+ * await auth.api.dashBanUser({ body: { banReason }, headers });
+ * ```
+ *
+ * The dash endpoints are the only ones callable without a user session (they use
+ * the shared api-key instead), which is why server-side callers go through them.
  */
-export async function callDash(
+export async function getDashApi(
   strapi: Core.Strapi,
-  opts: {
-    path: string;
-    method?: "GET" | "POST";
-    query?: Record<string, string | number | undefined>;
-    body?: Record<string, unknown>;
-    context?: Record<string, unknown>;
-  },
-): Promise<{ ok: boolean; status: number; data: unknown }> {
-  const { path, method = "GET", query, body, context } = opts;
+  context: Record<string, unknown> = {},
+): Promise<{ auth: Auth; headers: Headers }> {
   const auth = getAuth(strapi);
+  const token = await signDashToken(auth, context);
+  return { auth, headers: new Headers({ Authorization: `Bearer ${token}` }) };
+}
 
-  const token = await signDashToken(auth, context ?? {});
+/**
+ * Proxy an incoming Koa request to a Better Auth endpoint and copy the full
+ * response back onto `ctx` (status, headers — including `Set-Cookie` — and body).
+ *
+ * This is the shared passthrough behind both proxies: the admin panel proxy
+ * (`auth-controller`, generic `/auth/*`) and the third-party dash gateway
+ * (`dash-api-controller`, scoped to `dash/*`). The two differ only in their route
+ * auth and the `targetPath` they forward to. Dash context is taken from the
+ * `X-Dash-Context` header, and the Authorization header is replaced with the
+ * signed dash JWT.
+ *
+ * `targetPath` is the path under `/api/auth/` to forward to (e.g. `"dash/list-users"`
+ * or `"get-session"`); the original query string is preserved.
+ */
+export async function proxyDashRequest(
+  strapi: Core.Strapi,
+  ctx: Context,
+  targetPath: string,
+): Promise<void> {
+  const auth = getAuth(strapi);
+  const token = await signDashToken(
+    auth,
+    decodeDashContextHeader(ctx.request.headers[DASH_CONTEXT_HEADER]),
+  );
 
-  // The dashboard only supports Better Auth's default basePath (/api/auth); the
-  // request host is irrelevant since auth.handler routes by pathname.
-  const base = process.env.STRAPI_URL || "http://127.0.0.1:1337";
-  const url = new URL(`${base}/api/auth/dash/${path}`);
-  if (query) {
-    for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined) url.searchParams.set(key, String(value));
-    }
+  // Preserve the original query string; only swap the path to the Better Auth one.
+  const url = new URL(
+    ctx.request.url,
+    `${ctx.request.protocol}://${ctx.request.host}`,
+  );
+  url.pathname = `/api/auth/${targetPath}`;
+
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(ctx.request.headers)) {
+    if (value)
+      headers.set(key, Array.isArray(value) ? value[0] : String(value));
   }
+  headers.set("Authorization", `Bearer ${token}`);
 
-  const request = new Request(url.toString(), {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: method !== "GET" && body ? JSON.stringify(body) : undefined,
+  const hasBody = ctx.request.method !== "GET" && ctx.request.method !== "HEAD";
+
+  const response = await auth.handler(
+    new Request(url.toString(), {
+      method: ctx.request.method,
+      headers,
+      body: hasBody ? JSON.stringify(ctx.request.body) : undefined,
+    }),
+  );
+
+  ctx.status = response.status;
+  response.headers.forEach((value: string, key: string) => {
+    ctx.set(key, value);
   });
 
-  const response = await auth.handler(request);
+  // Read as text first to avoid JSON.parse errors on empty bodies (e.g. deleteUser
+  // returns no body with content-type: application/json).
+  const contentType = response.headers.get("content-type");
   const text = await response.text();
-  let data: unknown = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
+  if (!text) {
+    ctx.body = {};
+  } else if (contentType?.includes("application/json")) {
+    ctx.body = JSON.parse(text);
+  } else {
+    ctx.body = text;
   }
-
-  return { ok: response.status < 400, status: response.status, data };
 }
