@@ -1,5 +1,15 @@
 export interface Config {
   table_prefix?: string;
+  /**
+   * One-time migration from the `users-permissions` plugin. While `enabled` is
+   * true the boot guard that forbids running alongside `users-permissions` is
+   * relaxed, and the migration runs once at bootstrap. Set `dryRun` to report
+   * what would happen without writing anything.
+   */
+  migration?: {
+    enabled?: boolean;
+    dryRun?: boolean;
+  };
 }
 
 const config: {
@@ -8,6 +18,10 @@ const config: {
 } = {
   default: {
     table_prefix: "ba_",
+    migration: {
+      enabled: false,
+      dryRun: false,
+    },
   },
   validator(config) {
     if (config.table_prefix === undefined) return;

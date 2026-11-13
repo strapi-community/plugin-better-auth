@@ -17,6 +17,13 @@
       "default": "./dist/adapter/index.js"
     },
     "./package.json": "./package.json",
+    "./migration": {
+      "source": "./server/src/migrations/users-permissions/password.ts",
+      "types": "./migration.d.ts",
+      "import": "./dist/migration/index.mjs",
+      "require": "./dist/migration/index.js",
+      "default": "./dist/migration/index.js"
+    },
     "./strapi-server": {
       "source": "./server/src/index.ts",
       "import": "./dist/server/index.mjs",
@@ -25,7 +32,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "migration.d.ts"
   ],
   "scripts": {
     "build": "strapi-plugin build",
@@ -37,6 +45,7 @@
     "lint:ts:server": "tsc --noEmit"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
@@ -48,6 +57,7 @@
     "@strapi/types": "catalog:strapi",
     "@strapi/typescript-utils": "catalog:strapi",
     "@strapi/utils": "catalog:strapi",
+    "@types/bcryptjs": "^2.4.6",
     "@types/koa": "^3.0.1",
     "@types/lodash": "^4.17.21",
     "@types/supertest": "^6.0.0",

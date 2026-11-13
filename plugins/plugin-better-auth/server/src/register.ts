@@ -7,6 +7,7 @@ import {
 import { createContentApiRoutes } from "./routes";
 import {
   getPluginService,
+  isMigrationEnabled,
   isVersionAtLeast,
   MIN_STRAPI_VERSION,
 } from "./utils";
@@ -36,12 +37,24 @@ export default () => {
   }
 
   /**
-   * Throw an error if the users-permissions plugin is installed. Migration path will be provided later.
+   * Better Auth and users-permissions cannot be used together, so normally the
+   * plugin refuses to boot when users-permissions is installed. The exception is
+   * migration mode (see `migration.enabled` config): both are allowed to load so
+   * the bootstrap step can read users-permissions data and migrate it across.
    */
   if (usersPermissionsPlugin) {
-    throw new Error(
-      "[@strapi-community/plugin-better-auth] The 'users-permissions' plugin is installed. " +
-        "Better Auth and users-permissions cannot be used together.",
+    if (!isMigrationEnabled()) {
+      throw new Error(
+        "[@strapi-community/plugin-better-auth] The 'users-permissions' plugin is installed. " +
+          "Better Auth and users-permissions cannot be used together. To migrate, enable " +
+          "the 'migration' option (see the migration guide).",
+      );
+    }
+
+    strapi.log.warn(
+      "[@strapi-community/plugin-better-auth] MIGRATION MODE: running alongside 'users-permissions'. " +
+        "Once the migration has completed, remove the users-permissions plugin and disable the " +
+        "'migration' option.",
     );
   }
 
