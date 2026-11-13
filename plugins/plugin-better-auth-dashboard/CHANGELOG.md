@@ -1,5 +1,17 @@
 # @strapi-community/plugin-better-auth-dashboard
 
+## 1.1.0
+
+### Minor Changes
+
+- [#47](https://github.com/strapi-community/plugin-better-auth/pull/47) [`a07e6c7`](https://github.com/strapi-community/plugin-better-auth/commit/a07e6c70cb7bfcf68f5fb06bbd1122bca37d3e90) Thanks [@boazpoolman](https://github.com/boazpoolman)! - Add an opt-in third-party HTTP gateway to the Better Auth `dash()` endpoints. When enabled via `dashApi: { enabled: true }` in the plugin config, the plugin mounts `/api/better-auth-dashboard/dash/*`, authenticated with a Strapi API token, and forwards each request through the same signed-JWT mechanism the dashboard uses (so Better Auth's own logic runs). This lets external services manage users and read analytics without the admin panel. Disabled by default — when off, the routes are not registered.
+
+- [#47](https://github.com/strapi-community/plugin-better-auth/pull/47) [`a07e6c7`](https://github.com/strapi-community/plugin-better-auth/commit/a07e6c70cb7bfcf68f5fb06bbd1122bca37d3e90) Thanks [@boazpoolman](https://github.com/boazpoolman)! - Add an opt-in integration with Strapi's native MCP server (Strapi >= 5.47). When enabled via `mcp: { enabled: true }` in the plugin config, the dashboard registers Better Auth admin and analytics tools on `strapi.ai.mcp` so AI clients can list, get, update and ban users and read sign-up statistics over `POST /mcp`. Every tool calls the Better Auth `dash()` endpoints — the same calls the dashboard UI makes — and is gated by the same admin permissions as the dashboard, authenticated with an admin API token.
+
+### Patch Changes
+
+- [#45](https://github.com/strapi-community/plugin-better-auth/pull/45) [`32d2e32`](https://github.com/strapi-community/plugin-better-auth/commit/32d2e324ae8e9136eb5d8e0deb814f1a3320ec26) Thanks [@boazpoolman](https://github.com/boazpoolman)! - Fix relation custom fields not showing their value in the organization edit panel. The organization detail view fetched its record without populating relations, so relation custom fields rendered empty. It now populates relation fields from the schema, matching the user detail panel.
+
 ## 1.0.0
 
 ### Major Changes
