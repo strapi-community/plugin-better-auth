@@ -7,6 +7,11 @@ export default ({ env }) => ({
       mcp: {
         enabled: env.bool("STRAPI_MCP", false),
       },
+      // Third-party HTTP gateway to the Better Auth dash() endpoints,
+      // authenticated with a Strapi API token. Set STRAPI_DASH_API=true.
+      dashApi: {
+        enabled: env.bool("STRAPI_DASH_API", false),
+      },
     },
   },
 });

@@ -26,13 +26,29 @@ export interface Config {
   mcp?: {
     enabled?: boolean;
   };
+
+  /**
+   * Opt-in HTTP gateway that lets third-party clients call the Better Auth
+   * `dash()` endpoints directly (not through the admin panel or MCP), under
+   * `/api/better-auth-dashboard/dash/*`.
+   *
+   * Authenticated with a Strapi **API token** (Settings → API Tokens), sent as
+   * `Authorization: Bearer <token>`. When enabled, any valid, non-expired
+   * content-api API token can reach the full dash surface, so treat the token as
+   * privileged — create a dedicated one for the integration.
+   *
+   * Disabled by default.
+   */
+  dashApi?: {
+    enabled?: boolean;
+  };
 }
 
 const config: {
   default: Config;
   validator: (config: Config) => void;
 } = {
-  default: { mcp: { enabled: false } },
+  default: { mcp: { enabled: false }, dashApi: { enabled: false } },
   validator(config) {
     if (
       config.mcp !== undefined &&
@@ -40,6 +56,14 @@ const config: {
       typeof config.mcp.enabled !== "boolean"
     ) {
       throw new Error("mcp.enabled must be a boolean");
+    }
+
+    if (
+      config.dashApi !== undefined &&
+      config.dashApi.enabled !== undefined &&
+      typeof config.dashApi.enabled !== "boolean"
+    ) {
+      throw new Error("dashApi.enabled must be a boolean");
     }
 
     if (config.email_callback_url === undefined) return;

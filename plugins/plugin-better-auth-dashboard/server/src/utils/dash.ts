@@ -15,6 +15,25 @@ export const DASHBOARD_API_KEY =
  */
 export const DASH_CONTEXT_HEADER = "x-dash-context";
 
+/**
+ * Decode the base64(JSON) dash context header (e.g. `{ userId }`). Returns an
+ * empty object when the header is missing or malformed.
+ */
+export function decodeDashContextHeader(
+  value: string | string[] | undefined,
+): Record<string, unknown> {
+  if (typeof value !== "string" || value.length === 0) return {};
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64").toString("utf8"));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Malformed context header — proceed without extra context.
+  }
+  return {};
+}
+
 export async function hashApiKey(value: string): Promise<string> {
   const data = new TextEncoder().encode(value);
   const buf = await crypto.subtle.digest("SHA-256", data);

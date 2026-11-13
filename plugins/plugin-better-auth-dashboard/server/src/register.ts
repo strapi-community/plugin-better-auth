@@ -2,6 +2,7 @@ import type { Core } from "@strapi/types";
 import type { Config } from "./config";
 import { ACTIONS } from "./constants";
 import { registerMcpTools } from "./mcp";
+import contentApiRoutes from "./routes/content-api";
 import { PLUGIN_ID } from "./utils";
 
 export const register = ({ strapi }: { strapi: Core.Strapi }) => {
@@ -15,9 +16,17 @@ export const register = ({ strapi }: { strapi: Core.Strapi }) => {
     actionsToRegister,
   );
 
+  const config = strapi.config.get<Config>(`plugin::${PLUGIN_ID}`, {});
+
+  // Opt-in: mount the third-party dash gateway at /api/better-auth-dashboard/dash/*
+  // (the same way plugin-better-auth mounts /api/auth/*). Registering only when
+  // enabled means the route simply doesn't exist when the feature is off.
+  if (config.dashApi?.enabled) {
+    strapi.server.routes(contentApiRoutes);
+  }
+
   // Opt-in: register Better Auth MCP tools on Strapi's native MCP server.
   // Must happen in register() — the MCP server starts during bootstrap.
-  const config = strapi.config.get<Config>(`plugin::${PLUGIN_ID}`, {});
   if (config.mcp?.enabled) {
     try {
       registerMcpTools(strapi);

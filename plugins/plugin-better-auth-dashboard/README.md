@@ -153,6 +153,58 @@ User tools identify the target by its **Better Auth user id** (as returned by
 ¹ Registered only when the Better Auth [`admin`](https://www.better-auth.com/docs/plugins/admin)
 plugin is configured (the `banned` field it adds must exist on the `user` schema).
 
+## Third-party dash API gateway
+
+If you want to call the Better Auth `dash()` endpoints from a third-party service
+(not the admin panel, not MCP), enable the **opt-in gateway**. It exposes the full
+dash surface under `/api/better-auth-dashboard/dash/*`, authenticated with a
+**Strapi API token**, and forwards each request through the same signed-JWT
+mechanism the dashboard uses — so Better Auth's own logic runs.
+
+```typescript title="config/plugins.ts"
+export default {
+  "better-auth-dashboard": {
+    config: {
+      dashApi: { enabled: true }, // default: false
+    },
+  },
+};
+```
+
+> [!NOTE]
+> Like the MCP integration, this is opt-in at registration: when `dashApi.enabled`
+> is false (the default) the routes are never mounted, so requests to them 404.
+
+Authentication is Strapi's standard content-api token auth: send a Strapi API
+token (Settings → API Tokens) as a Bearer token. Use a **Full access** token, or a
+**Custom** token granted this gateway route's permission. The endpoint path after
+`/dash/` is the dash endpoint; per-user/org context goes in a base64(JSON)
+`X-Dash-Context` header, exactly like the dashboard client:
+
+```bash
+# Analytics
+curl "$STRAPI/api/better-auth-dashboard/dash/user-stats" \
+  -H "Authorization: Bearer $API_TOKEN"
+
+# List users
+curl "$STRAPI/api/better-auth-dashboard/dash/list-users?limit=50" \
+  -H "Authorization: Bearer $API_TOKEN"
+
+# Ban a user (userId passed via X-Dash-Context)
+curl -X POST "$STRAPI/api/better-auth-dashboard/dash/ban-user" \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -H "X-Dash-Context: $(echo -n '{"userId":"42"}' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{"banReason":"abuse"}'
+```
+
+> [!WARNING]
+> This is a **generic passthrough to the whole dash surface** (including user
+> deletion and organization management) exposed as a single route, so granting it
+> grants the entire dash API — the gateway does not scope per dash endpoint. A
+> Full access token reaches everything. Create a **dedicated** token for the
+> integration and treat it as privileged. Leave `dashApi` disabled if unused.
+
 ## Pages
 
 | Tab | Description |

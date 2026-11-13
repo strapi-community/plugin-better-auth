@@ -1,7 +1,11 @@
 import { errors } from "@strapi/utils";
 import type { Context } from "koa";
 import type { Auth } from "../../types/better-auth";
-import { DASH_CONTEXT_HEADER, signDashToken } from "../utils/dash";
+import {
+  DASH_CONTEXT_HEADER,
+  decodeDashContextHeader,
+  signDashToken,
+} from "../utils/dash";
 
 const proxyController = () => ({
   async handleAuthRequest(ctx: Context) {
@@ -22,19 +26,9 @@ const proxyController = () => ({
     // Read JWT context from the dedicated X-Dash-Context header.
     // The admin client base64-encodes the context JSON and sets this header,
     // keeping context fields cleanly separated from the HTTP payload.
-    const contextHeader = ctx.request.headers[DASH_CONTEXT_HEADER];
-    let extra: Record<string, unknown> = {};
-    if (typeof contextHeader === "string" && contextHeader.length > 0) {
-      try {
-        const decoded = Buffer.from(contextHeader, "base64").toString("utf8");
-        const parsed = JSON.parse(decoded);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          extra = parsed as Record<string, unknown>;
-        }
-      } catch {
-        // Malformed context header — proceed without extra context
-      }
-    }
+    const extra = decodeDashContextHeader(
+      ctx.request.headers[DASH_CONTEXT_HEADER],
+    );
 
     const token = await signDashToken(auth, extra);
 
