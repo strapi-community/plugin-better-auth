@@ -11,14 +11,61 @@ export interface Config {
    * `https://app.example.com/login`.
    */
   email_callback_url?: string;
+
+  /**
+   * Opt-in integration with Strapi's native MCP server.
+   *
+   * When `enabled` is true (and Strapi's own MCP server is turned on via
+   * `server.mcp.enabled`), this plugin registers a set of Better Auth admin
+   * and analytics tools on `strapi.ai.mcp`, so AI clients can list/get/update
+   * and ban users and read sign-up analytics. Every tool is still gated by the
+   * admin API token's permissions, exactly like the dashboard UI.
+   *
+   * Disabled by default — mirrors Strapi's own `mcp: { enabled }` switch.
+   */
+  mcp?: {
+    enabled?: boolean;
+  };
+
+  /**
+   * Opt-in HTTP gateway that lets third-party clients call the Better Auth
+   * `dash()` endpoints directly (not through the admin panel or MCP), under
+   * `/api/better-auth-dashboard/dash/*`.
+   *
+   * Authenticated with a Strapi **API token** (Settings → API Tokens), sent as
+   * `Authorization: Bearer <token>`. When enabled, any valid, non-expired
+   * content-api API token can reach the full dash surface, so treat the token as
+   * privileged — create a dedicated one for the integration.
+   *
+   * Disabled by default.
+   */
+  dashApi?: {
+    enabled?: boolean;
+  };
 }
 
 const config: {
   default: Config;
   validator: (config: Config) => void;
 } = {
-  default: {},
+  default: { mcp: { enabled: false }, dashApi: { enabled: false } },
   validator(config) {
+    if (
+      config.mcp !== undefined &&
+      config.mcp.enabled !== undefined &&
+      typeof config.mcp.enabled !== "boolean"
+    ) {
+      throw new Error("mcp.enabled must be a boolean");
+    }
+
+    if (
+      config.dashApi !== undefined &&
+      config.dashApi.enabled !== undefined &&
+      typeof config.dashApi.enabled !== "boolean"
+    ) {
+      throw new Error("dashApi.enabled must be a boolean");
+    }
+
     if (config.email_callback_url === undefined) return;
 
     if (

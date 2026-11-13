@@ -86,6 +86,125 @@ pnpm develop
 
 The dashboard is now available in the Strapi admin panel.
 
+## MCP server integration
+
+This plugin can expose Better Auth **admin and analytics tools** on Strapi's
+native [MCP server](https://docs.strapi.io/cms/features/strapi-mcp-server), so AI
+clients can list, inspect, update and ban users and read sign-up analytics
+through `POST /mcp`. It requires Strapi `>= 5.47`.
+
+Every tool calls the Better Auth `dash()` plugin endpoints — the **same calls the
+dashboard UI makes** — so Better Auth's own business logic runs (validation, ban
+side-effects, stats aggregation). It therefore relies on the same setup the
+dashboard already requires: `dash()` + `jwt()` configured and the default
+`basePath` (`/api/auth`).
+
+The integration is **opt-in** and gated by two switches:
+
+```typescript title="config/server.ts"
+export default ({ env }) => ({
+  // ...existing config
+  mcp: { enabled: true }, // Strapi's own MCP server (serves POST /mcp)
+});
+```
+
+```typescript title="config/plugins.ts"
+export default {
+  "better-auth-dashboard": {
+    config: {
+      mcp: { enabled: true }, // register this plugin's Better Auth tools
+    },
+  },
+};
+```
+
+> [!NOTE]
+> On Strapi versions below 5.47 (no MCP server) the plugin simply skips tool
+> registration — enabling the flag is harmless.
+
+### Authentication & permissions
+
+MCP clients authenticate with an **admin API token** (created in
+_Settings → API Tokens_) sent as `Authorization: Bearer <token>`. Every tool is
+gated by the **same permissions as the dashboard UI** — the token's admin role
+must hold the relevant `Better Auth Dashboard` permissions:
+
+| Permission | Tools it unlocks |
+| ---------- | ---------------- |
+| `user.read` | `better_auth_list_users`, `better_auth_get_user` |
+| `user.update` | `better_auth_update_user`, `better_auth_ban_user`, `better_auth_unban_user` |
+| `overview.read` | `better_auth_user_stats`, `better_auth_signups_graph` |
+
+### Available tools
+
+User tools identify the target by its **Better Auth user id** (as returned by
+`better_auth_list_users`), exactly like the dashboard.
+
+| Tool | Description |
+| ---- | ----------- |
+| `better_auth_list_users` | List and search users (`search` matches name/email); returns users + total |
+| `better_auth_get_user` | Fetch a single user by Better Auth `userId`, with session/account counts |
+| `better_auth_update_user` | Update a user's `name` / `email` / `image` / `emailVerified` |
+| `better_auth_ban_user` | Ban a user (optional reason + expiry in days); Better Auth revokes sessions¹ |
+| `better_auth_unban_user` | Lift a user's ban¹ |
+| `better_auth_user_stats` | Totals + day/week/month sign-ups (with % deltas) + active users |
+| `better_auth_signups_graph` | Sign-up time series (new/active/total users) by `day`/`week`/`month` |
+
+¹ Registered only when the Better Auth [`admin`](https://www.better-auth.com/docs/plugins/admin)
+plugin is configured (the `banned` field it adds must exist on the `user` schema).
+
+## Third-party dash API gateway
+
+If you want to call the Better Auth `dash()` endpoints from a third-party service
+(not the admin panel, not MCP), enable the **opt-in gateway**. It exposes the full
+dash surface under `/api/better-auth-dashboard/dash/*`, authenticated with a
+**Strapi API token**, and forwards each request through the same signed-JWT
+mechanism the dashboard uses — so Better Auth's own logic runs.
+
+```typescript title="config/plugins.ts"
+export default {
+  "better-auth-dashboard": {
+    config: {
+      dashApi: { enabled: true }, // default: false
+    },
+  },
+};
+```
+
+> [!NOTE]
+> Like the MCP integration, this is opt-in at registration: when `dashApi.enabled`
+> is false (the default) the routes are never mounted, so requests to them 404.
+
+Authentication is Strapi's standard content-api token auth: send a Strapi API
+token (Settings → API Tokens) as a Bearer token. Use a **Full access** token, or a
+**Custom** token granted this gateway route's permission. The endpoint path after
+`/dash/` is the dash endpoint; per-user/org context goes in a base64(JSON)
+`X-Dash-Context` header, exactly like the dashboard client:
+
+```bash
+# Analytics
+curl "$STRAPI/api/better-auth-dashboard/dash/user-stats" \
+  -H "Authorization: Bearer $API_TOKEN"
+
+# List users
+curl "$STRAPI/api/better-auth-dashboard/dash/list-users?limit=50" \
+  -H "Authorization: Bearer $API_TOKEN"
+
+# Ban a user (userId passed via X-Dash-Context)
+curl -X POST "$STRAPI/api/better-auth-dashboard/dash/ban-user" \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -H "X-Dash-Context: $(echo -n '{"userId":"42"}' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{"banReason":"abuse"}'
+```
+
+> [!WARNING]
+> This is a **generic passthrough to the whole dash surface** (including user
+> deletion and organization management) exposed as a single route, so granting it
+> grants the entire dash API — the gateway does not scope per dash endpoint. A
+> Full access token reaches everything. Create a **dedicated** token for the
+> integration and treat it as privileged. Leave `dashApi` disabled if unused.
+
 ## Pages
 
 | Tab | Description |
@@ -140,7 +259,7 @@ Available APIs:
 
 `isAvailable` defaults to `true`. Its result is cached for five minutes, combined with permission checks, and applied to both navigation and direct route access. Errors are treated as unavailable.
 
-See the [Dashboard documentation](https://strapi-community.github.io/plugin-better-auth/docs/better-auth/dashboard#dashboard-screen-api) for the complete API reference and extension guidance.
+See the [Dashboard screen API documentation](https://strapi-community.github.io/plugin-better-auth/docs/dashboard/screen-api) for the complete API reference and extension guidance.
 
 ## Requirements
 
@@ -150,7 +269,7 @@ See the [Dashboard documentation](https://strapi-community.github.io/plugin-bett
 
 ## Resources
 
-- [Documentation](https://strapi-community.github.io/plugin-better-auth/docs/better-auth/dashboard)
+- [Documentation](https://strapi-community.github.io/plugin-better-auth/docs/dashboard)
 - [Better Auth Documentation](https://better-auth.com)
 - [Strapi Documentation](https://docs.strapi.io)
 

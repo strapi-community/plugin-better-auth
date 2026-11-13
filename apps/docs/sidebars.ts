@@ -25,7 +25,21 @@ const sidebars: SidebarsConfig = {
         'better-auth/plugins',
         'better-auth/public-api',
         'better-auth/owner-middleware',
-        'better-auth/dashboard',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Dashboard',
+      link: {
+        type: 'doc',
+        id: 'dashboard/dashboard',
+      },
+      items: [
+        'dashboard/installation',
+        'dashboard/mcp',
+        'dashboard/dash-api',
+        'dashboard/screen-api',
+        'dashboard/edit-view-panel',
       ],
     },
     {
