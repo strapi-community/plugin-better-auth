@@ -1,4 +1,5 @@
 export {
+  appsDir,
   cleanupDir,
   getFreePort,
   playgroundDir,

@@ -1,0 +1,74 @@
+{
+  "kind": "collectionType",
+  "collectionName": "ba_two_factor",
+  "info": {
+    "singularName": "two-factor",
+    "pluralName": "two-factors",
+    "displayName": "Two Factors"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": {
+      "visible": false
+    },
+    "content-type-builder": {
+      "visible": false
+    }
+  },
+  "attributes": {
+    "secret": {
+      "type": "text",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "required": true
+    },
+    "backupCodes": {
+      "type": "text",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "required": true
+    },
+    "userId": {
+      "type": "integer",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "required": true,
+      "column": {
+        "unsigned": true
+      }
+    },
+    "verified": {
+      "type": "boolean",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "default": true
+    }
+  },
+  "foreignKeys": [
+    {
+      "name": "ba_two_factor_user_id_fk",
+      "columns": ["user_id"],
+      "referencedColumns": ["id"],
+      "referencedTable": "ba_user",
+      "onDelete": "CASCADE"
+    }
+  ]
+}
