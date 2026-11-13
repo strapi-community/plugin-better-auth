@@ -56,6 +56,16 @@
           "managed": true
         }
       }
+    },
+    "roles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "plugin::api-permissions.role",
+      "writable": true,
+      "configurable": false,
+      "editable": false,
+      "visible": true,
+      "default": null
     }
   }
 }
