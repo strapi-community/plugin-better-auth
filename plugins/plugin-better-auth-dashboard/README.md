@@ -259,7 +259,7 @@ Available APIs:
 
 `isAvailable` defaults to `true`. Its result is cached for five minutes, combined with permission checks, and applied to both navigation and direct route access. Errors are treated as unavailable.
 
-See the [Dashboard documentation](https://strapi-community.github.io/plugin-better-auth/docs/better-auth/dashboard#dashboard-screen-api) for the complete API reference and extension guidance.
+See the [Dashboard screen API documentation](https://strapi-community.github.io/plugin-better-auth/docs/dashboard/screen-api) for the complete API reference and extension guidance.
 
 ## Requirements
 
@@ -269,7 +269,7 @@ See the [Dashboard documentation](https://strapi-community.github.io/plugin-bett
 
 ## Resources
 
-- [Documentation](https://strapi-community.github.io/plugin-better-auth/docs/better-auth/dashboard)
+- [Documentation](https://strapi-community.github.io/plugin-better-auth/docs/dashboard)
 - [Better Auth Documentation](https://better-auth.com)
 - [Strapi Documentation](https://docs.strapi.io)
 
