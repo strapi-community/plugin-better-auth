@@ -11,14 +11,37 @@ export interface Config {
    * `https://app.example.com/login`.
    */
   email_callback_url?: string;
+
+  /**
+   * Opt-in integration with Strapi's native MCP server.
+   *
+   * When `enabled` is true (and Strapi's own MCP server is turned on via
+   * `server.mcp.enabled`), this plugin registers a set of Better Auth admin
+   * and analytics tools on `strapi.ai.mcp`, so AI clients can list/get/update
+   * and ban users and read sign-up analytics. Every tool is still gated by the
+   * admin API token's permissions, exactly like the dashboard UI.
+   *
+   * Disabled by default — mirrors Strapi's own `mcp: { enabled }` switch.
+   */
+  mcp?: {
+    enabled?: boolean;
+  };
 }
 
 const config: {
   default: Config;
   validator: (config: Config) => void;
 } = {
-  default: {},
+  default: { mcp: { enabled: false } },
   validator(config) {
+    if (
+      config.mcp !== undefined &&
+      config.mcp.enabled !== undefined &&
+      typeof config.mcp.enabled !== "boolean"
+    ) {
+      throw new Error("mcp.enabled must be a boolean");
+    }
+
     if (config.email_callback_url === undefined) return;
 
     if (

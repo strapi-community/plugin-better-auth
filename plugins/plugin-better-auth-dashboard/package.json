@@ -46,6 +46,7 @@
     "lint:ts:server": "cd server && tsc --noEmit",
     "lint:ts:admin": "cd admin && tsc --noEmit",
     "lint": "biome check --fix",
+    "test:integration": "vitest run",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
@@ -59,7 +60,8 @@
     "@types/node": "^22",
     "@types/react": "^18.0.0",
     "@types/styled-components": "^5.1.36",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   },
   "peerDependencies": {
     "@better-auth/infra": "^0.2.6",
