@@ -7,7 +7,6 @@ import { PLUGIN_ID } from "../utils";
  * referenced here as string literals and cast to a `UID` type at the call site.
  */
 export const USER_UID = "plugin::better-auth.user";
-export const SESSION_UID = "plugin::better-auth.session";
 
 /**
  * Permission actions that gate each MCP tool. These are the exact admin RBAC

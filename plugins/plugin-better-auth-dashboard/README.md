@@ -93,6 +93,12 @@ native [MCP server](https://docs.strapi.io/cms/features/strapi-mcp-server), so A
 clients can list, inspect, update and ban users and read sign-up analytics
 through `POST /mcp`. It requires Strapi `>= 5.47`.
 
+Every tool calls the Better Auth `dash()` plugin endpoints — the **same calls the
+dashboard UI makes** — so Better Auth's own business logic runs (validation, ban
+side-effects, stats aggregation). It therefore relies on the same setup the
+dashboard already requires: `dash()` + `jwt()` configured and the default
+`basePath` (`/api/auth`).
+
 The integration is **opt-in** and gated by two switches:
 
 ```typescript title="config/server.ts"
@@ -126,25 +132,26 @@ must hold the relevant `Better Auth Dashboard` permissions:
 | Permission | Tools it unlocks |
 | ---------- | ---------------- |
 | `user.read` | `better_auth_list_users`, `better_auth_get_user` |
-| `user.update` | `better_auth_update_user`, `better_auth_ban_user`, `better_auth_unban_user`, `better_auth_set_user_role` |
-| `overview.read` | `better_auth_user_stats`, `better_auth_signups_over_time` |
+| `user.update` | `better_auth_update_user`, `better_auth_ban_user`, `better_auth_unban_user` |
+| `overview.read` | `better_auth_user_stats`, `better_auth_signups_graph` |
 
 ### Available tools
 
+User tools identify the target by its **Better Auth user id** (as returned by
+`better_auth_list_users`), exactly like the dashboard.
+
 | Tool | Description |
 | ---- | ----------- |
-| `better_auth_list_users` | List/search/paginate users, filter by banned status |
-| `better_auth_get_user` | Fetch a single user by `documentId` or `email` |
-| `better_auth_update_user` | Update a user's `name` / `email` / `emailVerified` |
-| `better_auth_ban_user` | Ban a user and revoke their active sessions¹ |
+| `better_auth_list_users` | List and search users (`search` matches name/email); returns users + total |
+| `better_auth_get_user` | Fetch a single user by Better Auth `userId`, with session/account counts |
+| `better_auth_update_user` | Update a user's `name` / `email` / `image` / `emailVerified` |
+| `better_auth_ban_user` | Ban a user (optional reason + expiry in days); Better Auth revokes sessions¹ |
 | `better_auth_unban_user` | Lift a user's ban¹ |
-| `better_auth_set_user_role` | Set a user's Better Auth admin role¹ |
-| `better_auth_user_stats` | Totals: users, verified, banned, active sessions, recent sign-ups |
-| `better_auth_signups_over_time` | Sign-up counts bucketed by day/week/month over a range |
+| `better_auth_user_stats` | Totals + day/week/month sign-ups (with % deltas) + active users |
+| `better_auth_signups_graph` | Sign-up time series (new/active/total users) by `day`/`week`/`month` |
 
 ¹ Registered only when the Better Auth [`admin`](https://www.better-auth.com/docs/plugins/admin)
-plugin is configured (the `banned` / `role` fields it adds must exist on the
-`user` schema).
+plugin is configured (the `banned` field it adds must exist on the `user` schema).
 
 ## Pages
 

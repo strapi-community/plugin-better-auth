@@ -4,18 +4,14 @@ import type { McpRegistrar } from "../src/mcp/shared";
 import { registerBanTools } from "../src/mcp/tools/ban-user";
 import { registerGetUser } from "../src/mcp/tools/get-user";
 import { registerListUsers } from "../src/mcp/tools/list-users";
-import { registerSetUserRole } from "../src/mcp/tools/set-user-role";
-import {
-  buildBuckets,
-  registerSignupsOverTime,
-} from "../src/mcp/tools/signups-over-time";
+import { registerSignupsGraph } from "../src/mcp/tools/signups-graph";
 import { registerUpdateUser } from "../src/mcp/tools/update-user";
 import { registerUserStats } from "../src/mcp/tools/user-stats";
 
 const USER_UID = "plugin::better-auth.user";
 
-// Collects the tool definitions a register function would hand to strapi.ai.mcp,
-// so each tool's handler can be exercised directly against the booted Strapi.
+// Collects the tool definitions each register function hands to strapi.ai.mcp, so
+// the handlers can be exercised directly against the booted Strapi + Better Auth.
 type ToolDef = Parameters<McpRegistrar["registerTool"]>[0];
 
 function collect() {
@@ -26,31 +22,33 @@ function collect() {
   registerListUsers(registrar);
   registerGetUser(registrar);
   registerUpdateUser(registrar);
-  registerUserStats(strapi, registrar);
-  registerSignupsOverTime(registrar);
+  registerUserStats(registrar);
+  registerSignupsGraph(registrar);
   registerBanTools(registrar);
-  registerSetUserRole(registrar);
   return tools;
 }
 
-async function run(tool: ToolDef, args: unknown) {
+// biome-ignore lint/suspicious/noExplicitAny: handler result is intentionally loose in tests
+async function run(tool: ToolDef, args?: unknown): Promise<any> {
   const handler = tool.createHandler(strapi, {});
   return handler({ args: args as never });
 }
 
 let tools: Map<string, ToolDef>;
+let aliceId: string;
 
 beforeAll(async () => {
   await setupStrapi();
 
   const users = strapi.documents(USER_UID);
-  await users.create({
+  const alice = await users.create({
     data: {
       name: "Alice MCP",
       email: "alice.mcp@test.dev",
       emailVerified: true,
     },
   });
+  aliceId = String(alice.id);
   await users.create({
     data: { name: "Bob MCP", email: "bob.mcp@test.dev", emailVerified: false },
   });
@@ -59,7 +57,6 @@ beforeAll(async () => {
       name: "Carol MCP",
       email: "carol.mcp@test.dev",
       emailVerified: true,
-      banned: true,
     },
   });
 
@@ -70,36 +67,14 @@ afterAll(async () => {
   await stopStrapi();
 });
 
-describe("buildBuckets", () => {
-  it("produces one bucket per day across an inclusive range", () => {
-    const from = new Date("2026-01-01T12:00:00Z");
-    const to = new Date("2026-01-07T06:00:00Z");
-    const buckets = buildBuckets(from, to, "day");
-    expect(buckets).toHaveLength(7);
-    expect(buckets[0].toISOString()).toBe("2026-01-01T00:00:00.000Z");
-  });
-
-  it("buckets by calendar month", () => {
-    const from = new Date("2026-01-15T00:00:00Z");
-    const to = new Date("2026-03-02T00:00:00Z");
-    const buckets = buildBuckets(from, to, "month");
-    expect(buckets.map((d) => d.toISOString())).toEqual([
-      "2026-01-01T00:00:00.000Z",
-      "2026-02-01T00:00:00.000Z",
-      "2026-03-01T00:00:00.000Z",
-    ]);
-  });
-});
-
 describe("tool registration", () => {
-  it("registers the full user + analytics tool set", () => {
+  it("registers the user + analytics tools that the dashboard also offers", () => {
     expect([...tools.keys()].sort()).toEqual(
       [
         "better_auth_ban_user",
         "better_auth_get_user",
         "better_auth_list_users",
-        "better_auth_set_user_role",
-        "better_auth_signups_over_time",
+        "better_auth_signups_graph",
         "better_auth_unban_user",
         "better_auth_update_user",
         "better_auth_user_stats",
@@ -118,79 +93,72 @@ describe("tool registration", () => {
 });
 
 describe("better_auth_list_users", () => {
-  it("lists seeded users and filters by banned status", async () => {
-    const all = await run(tools.get("better_auth_list_users")!, { limit: 100 });
-    expect(all.structuredContent.total).toBeGreaterThanOrEqual(3);
+  it("lists seeded users via the dash() plugin", async () => {
+    const res = await run(tools.get("better_auth_list_users")!, { limit: 100 });
+    expect(res.structuredContent.total).toBeGreaterThanOrEqual(3);
+    expect(Array.isArray(res.structuredContent.users)).toBe(true);
+  });
 
-    const banned = await run(tools.get("better_auth_list_users")!, {
+  it("searches by email", async () => {
+    const res = await run(tools.get("better_auth_list_users")!, {
+      search: "alice.mcp",
       limit: 100,
-      banned: true,
     });
-    const emails = banned.structuredContent.users.map(
+    const emails = res.structuredContent.users.map(
       (u: { email: string }) => u.email,
     );
-    expect(emails).toContain("carol.mcp@test.dev");
-    expect(emails).not.toContain("alice.mcp@test.dev");
+    expect(emails).toContain("alice.mcp@test.dev");
   });
 });
 
 describe("better_auth_get_user", () => {
-  it("finds a user by email and reports a miss", async () => {
+  it("finds a user by id and reports a miss", async () => {
     const hit = await run(tools.get("better_auth_get_user")!, {
-      email: "alice.mcp@test.dev",
+      userId: aliceId,
     });
     expect(hit.structuredContent.found).toBe(true);
     expect(hit.structuredContent.user.email).toBe("alice.mcp@test.dev");
 
     const miss = await run(tools.get("better_auth_get_user")!, {
-      email: "nobody@test.dev",
+      userId: "99999999",
     });
     expect(miss.structuredContent.found).toBe(false);
-    expect(miss.structuredContent.user).toBeNull();
   });
 });
 
 describe("better_auth_user_stats", () => {
-  it("returns coherent totals", async () => {
-    const res = await run(tools.get("better_auth_user_stats")!, {});
+  it("returns the dashboard stats shape", async () => {
+    const res = await run(tools.get("better_auth_user_stats")!);
     const s = res.structuredContent;
-    expect(s.totalUsers).toBeGreaterThanOrEqual(3);
-    expect(s.verifiedUsers).toBeGreaterThanOrEqual(2);
-    expect(s.bannedUsers).toBeGreaterThanOrEqual(1);
-    expect(typeof s.activeSessions).toBe("number");
-    expect(s.newUsersLast7Days).toBeGreaterThanOrEqual(3);
+    expect(s).toHaveProperty("weekly");
+    expect(s).toHaveProperty("monthly");
+    expect(s).toHaveProperty("activeUsers");
   });
 });
 
-describe("better_auth_signups_over_time", () => {
-  it("buckets recent sign-ups by day", async () => {
-    const res = await run(tools.get("better_auth_signups_over_time")!, {
-      lastDays: 7,
-      granularity: "day",
+describe("better_auth_signups_graph", () => {
+  it("returns a daily time series", async () => {
+    const res = await run(tools.get("better_auth_signups_graph")!, {
+      period: "daily",
     });
-    const s = res.structuredContent;
-    expect(s.total).toBeGreaterThanOrEqual(3);
-    expect(s.granularity).toBe("day");
-    expect(s.buckets.length).toBeGreaterThanOrEqual(7);
-    const summed = s.buckets.reduce(
-      (acc: number, b: { count: number }) => acc + b.count,
-      0,
-    );
-    expect(summed).toBe(s.total);
-  });
-
-  it("rejects an inverted range", async () => {
-    const res = await run(tools.get("better_auth_signups_over_time")!, {
-      from: "2026-02-01T00:00:00Z",
-      to: "2026-01-01T00:00:00Z",
-      granularity: "day",
-    });
-    expect(res.isError).toBe(true);
+    expect(res.structuredContent.period).toBeTruthy();
+    expect(Array.isArray(res.structuredContent.points)).toBe(true);
   });
 });
 
-describe("better_auth_ban_user", () => {
-  it("bans a user and surfaces the state", async () => {
+describe("better_auth_update_user", () => {
+  it("updates a profile field through the dash() plugin", async () => {
+    const res = await run(tools.get("better_auth_update_user")!, {
+      userId: aliceId,
+      name: "Alice Updated",
+    });
+    expect(res.structuredContent.updated).toBe(true);
+    expect(res.structuredContent.user.name).toBe("Alice Updated");
+  });
+});
+
+describe("better_auth_ban_user / unban", () => {
+  it("bans and unbans a user through the dash() plugin", async () => {
     const created = await strapi.documents(USER_UID).create({
       data: {
         name: "Dave MCP",
@@ -199,16 +167,20 @@ describe("better_auth_ban_user", () => {
       },
     });
 
-    const res = await run(tools.get("better_auth_ban_user")!, {
-      documentId: created.documentId,
+    const ban = await run(tools.get("better_auth_ban_user")!, {
+      userId: String(created.id),
       banReason: "spam",
     });
-    expect(res.structuredContent.banned).toBe(true);
-    expect(typeof res.structuredContent.revokedSessions).toBe("number");
+    expect(ban.structuredContent.banned).toBe(true);
 
     const check = await run(tools.get("better_auth_get_user")!, {
-      documentId: created.documentId,
+      userId: String(created.id),
     });
     expect(check.structuredContent.user.banned).toBe(true);
+
+    const unban = await run(tools.get("better_auth_unban_user")!, {
+      userId: String(created.id),
+    });
+    expect(unban.structuredContent.unbanned).toBe(true);
   });
 });

@@ -1,62 +1,62 @@
 import { z } from "@strapi/utils";
-import { ACTION, USER_UID } from "../constants";
+import { callDash } from "../../utils/dash";
+import { ACTION } from "../constants";
 import {
-  docs,
+  dashUserOutput,
   type McpRegistrar,
-  mapUser,
+  mapDashUser,
   toolResult,
-  type UserOut,
-  userOutput,
 } from "../shared";
 
 /**
- * `better_auth_get_user` — fetch a single Better Auth user by documentId or email.
+ * `better_auth_get_user` — fetch a single Better Auth user by id via the dash()
+ * plugin (the Better Auth user id, as returned by `better_auth_list_users`).
  */
 export function registerGetUser(mcp: McpRegistrar) {
   mcp.registerTool({
     name: "better_auth_get_user",
     title: "Get a Better Auth user",
     description:
-      "Fetch a single Better Auth user by its Strapi documentId or by email address. Provide exactly one of the two.",
+      "Fetch a single Better Auth user by its Better Auth user id (use better_auth_list_users to find the id). Returns the user and its session/account counts.",
     auth: { policies: [{ action: ACTION.USER_READ }] },
     resolveInputSchema: () =>
       z.object({
-        documentId: z
-          .string()
-          .optional()
-          .describe("The Strapi documentId of the user"),
-        email: z
-          .string()
-          .optional()
-          .describe("The email address of the user (exact match)"),
+        userId: z.string().describe("The Better Auth user id"),
       }),
     resolveOutputSchema: () =>
       z.object({
         found: z.boolean(),
-        user: userOutput.nullable(),
-        message: z.string().optional(),
+        user: dashUserOutput.nullable(),
+        sessionsCount: z.number().optional(),
+        accountsCount: z.number().optional(),
       }),
     createHandler:
       (strapi) =>
       async ({ args }) => {
-        const { documentId, email } = args;
+        const { ok, data } = await callDash(strapi, {
+          path: "user",
+          method: "GET",
+          context: { userId: args.userId },
+        });
 
-        if (!documentId && !email) {
-          return toolResult({
-            found: false,
-            user: null as UserOut | null,
-            message: "Provide either documentId or email",
-          });
+        if (!ok) {
+          return toolResult({ found: false, user: null });
         }
 
-        const service = docs(strapi, USER_UID);
-        const user = documentId
-          ? await service.findOne({ documentId })
-          : await service.findFirst({ filters: { email } });
+        const body = data as Record<string, unknown> & {
+          session?: unknown[];
+          account?: unknown[];
+        };
 
         return toolResult({
-          found: Boolean(user),
-          user: user ? mapUser(user) : null,
+          found: true,
+          user: mapDashUser(body),
+          sessionsCount: Array.isArray(body.session)
+            ? body.session.length
+            : undefined,
+          accountsCount: Array.isArray(body.account)
+            ? body.account.length
+            : undefined,
         });
       },
   });

@@ -1,27 +1,7 @@
 import { errors } from "@strapi/utils";
 import type { Context } from "koa";
 import type { Auth } from "../../types/better-auth";
-
-export const DASHBOARD_API_KEY =
-  process.env.BETTER_AUTH_DASHBOARD_SECRET || "strapi-internal-dashboard-key";
-
-/**
- * Header name used to pass dash() JWT context fields separately from the HTTP payload.
- *
- * The admin client encodes the context as base64(JSON) in this header.
- * The auth-controller reads it here and injects the fields into the signed JWT
- * so the dash() jwtMiddleware can validate them — without ever mixing them
- * with the actual request body.
- */
-export const DASH_CONTEXT_HEADER = "x-dash-context";
-
-async function hashApiKey(value: string): Promise<string> {
-  const data = new TextEncoder().encode(value);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
+import { DASH_CONTEXT_HEADER, signDashToken } from "../utils/dash";
 
 const proxyController = () => ({
   async handleAuthRequest(ctx: Context) {
@@ -56,13 +36,7 @@ const proxyController = () => ({
       }
     }
 
-    const apiKeyHash = await hashApiKey(DASHBOARD_API_KEY);
-    const { token } = await auth.api.signJWT({
-      body: {
-        payload: { iat: Math.floor(Date.now() / 1000), apiKeyHash, ...extra },
-        overrideOptions: { jwt: { expirationTime: "5m" } },
-      },
-    });
+    const token = await signDashToken(auth, extra);
 
     // Create a Request object compatible with Better Auth
     const url = new URL(
