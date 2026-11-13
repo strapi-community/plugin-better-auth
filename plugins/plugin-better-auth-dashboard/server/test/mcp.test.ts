@@ -9,6 +9,8 @@ import { registerUpdateUser } from "../src/mcp/tools/update-user";
 import { registerUserStats } from "../src/mcp/tools/user-stats";
 
 const USER_UID = "plugin::better-auth.user";
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 // Collects the tool definitions each register function hands to strapi.ai.mcp, so
 // the handlers can be exercised directly against the booted Strapi + Better Auth.
@@ -73,6 +75,22 @@ beforeAll(async () => {
       emailVerified: true,
     },
   });
+
+  // Two users who signed up earlier, so the sign-up stats and graph have more
+  // than one period with data: one 36 hours ago (the day before the last 24
+  // hours) and one 10 days ago (before the 7-day daily graph starts).
+  for (const [email, ageMs] of [
+    ["erin.mcp@test.dev", 36 * HOUR],
+    ["frank.mcp@test.dev", 10 * DAY],
+  ] as const) {
+    const user = await users.create({
+      data: { name: email, email, emailVerified: true },
+    });
+    await strapi.db.query(USER_UID).update({
+      where: { id: user.id },
+      data: { createdAt: new Date(Date.now() - ageMs) },
+    });
+  }
 
   tools = collect();
 }, 120_000);
@@ -178,6 +196,17 @@ describe("better_auth_user_stats", () => {
     expect(s).toHaveProperty("monthly");
     expect(s).toHaveProperty("activeUsers");
   });
+
+  it("compares daily sign-ups with the sign-ups of the day before", async () => {
+    const res = await run(tools.get("better_auth_user_stats")!);
+    const { daily } = res.structuredContent;
+
+    // Only Erin signed up 24-48 hours ago, so the percentage is relative to 1.
+    // Regression: the "previous day" query lost its lower bound and counted
+    // every user created before the last 24 hours.
+    expect(daily.signUps).toBeGreaterThan(0);
+    expect(daily.percentage).toBe((daily.signUps - 1) * 100);
+  });
 });
 
 describe("better_auth_signups_graph", () => {
@@ -199,6 +228,29 @@ describe("better_auth_signups_graph", () => {
       // Machine-readable ISO (2026-06-16T…), not the locale "Tue Jun 16 2026 …"
       // String(Date) form the dash() Date object produces unnormalized.
       expect(point.date).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    }
+  });
+
+  it("counts the sign-ups in each bucket, not the running total", async () => {
+    const res = await run(tools.get("better_auth_signups_graph")!, {
+      period: "daily",
+    });
+    const points: { newUsers: number; totalUsers: number }[] =
+      res.structuredContent.points;
+    expect(points).toHaveLength(7);
+
+    // Frank (10 days ago) is before the first bucket: part of the total, not new.
+    expect(points[0].totalUsers).toBe(1);
+    expect(points[0].newUsers).toBe(0);
+    // Erin (36 hours ago) is the only sign-up in the second-to-last bucket.
+    expect(points[5].newUsers).toBe(1);
+
+    // Regression: newUsers came back equal to totalUsers in every bucket. The
+    // new users in a bucket are the growth of the running total over it.
+    for (let i = 1; i < points.length; i++) {
+      expect(points[i].newUsers).toBe(
+        points[i].totalUsers - points[i - 1].totalUsers,
+      );
     }
   });
 });

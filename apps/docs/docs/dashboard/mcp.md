@@ -74,12 +74,18 @@ User tools identify the target by its **Better Auth user id** (as returned by
 | `better_auth_update_user` | Update a user's `name` / `email` / `image` / `emailVerified` |
 | `better_auth_ban_user` | Ban a user (optional reason + expiry in days); Better Auth revokes sessions¹ |
 | `better_auth_unban_user` | Lift a user's ban¹ |
-| `better_auth_user_stats` | Totals + day/week/month sign-ups (with % deltas) + active users |
-| `better_auth_signups_graph` | Sign-up time series (new/active/total users) by `day` / `week` / `month` |
+| `better_auth_user_stats` | Totals + day/week/month sign-ups (with % deltas)² + active users |
+| `better_auth_signups_graph` | Sign-up time series by `period` (`daily` / `weekly` / `monthly`)²: per point, the users who signed up in it (`newUsers`), active users and the running total (`totalUsers`) |
 
 ¹ Registered only when the Better Auth [`admin`](https://www.better-auth.com/docs/plugins/admin)
 plugin is configured (the `banned` field it adds must exist on the `user` schema),
 matching the dashboard's adaptive behaviour.
+
+² Periods are rolling windows counted back from the moment of the call, not
+calendar days or months: `daily` is 7 windows of 24 hours, `weekly` 8 windows of
+7 days and `monthly` 6 windows of 30 days. A point's `label` is the day or month
+its window ends in. The stats compare the last 24 hours, 7 days and 30 days with
+the same length of time just before.
 
 ## Trying it out
 

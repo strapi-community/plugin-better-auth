@@ -77,9 +77,14 @@ export const transformFilters = (
       }
     }
 
-    // Build final filters
-    if (andConditions.length > 0) {
-      Object.assign(filters, ...andConditions);
+    // Build final filters. Several AND conditions go in `$and` rather than
+    // being merged into one object: merging would let a later condition on the
+    // same field overwrite an earlier one, so a range such as
+    // `createdAt > start AND createdAt <= end` would lose its lower bound.
+    if (andConditions.length === 1) {
+      Object.assign(filters, andConditions[0]);
+    } else if (andConditions.length > 1) {
+      filters.$and = andConditions;
     }
 
     if (orConditions.length > 0) {
