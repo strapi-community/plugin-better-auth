@@ -253,10 +253,22 @@ export function OrganizationDetail({
 
   const strapiOrgQuery = useQuery({
     queryKey: ["dash-strapi-org", organizationId],
-    enabled: !!orgQuery.data,
+    enabled: !!schemaQuery.data,
     queryFn: async () => {
+      // Populate relation custom fields so their values render in the edit
+      // view; without this they come back as unpopulated ids and the
+      // RelationField shows nothing.
+      const relationFields = Object.entries(schemaQuery.data!)
+        .filter(([, attr]) => attr.type === "relation")
+        .map(([fieldName]) => fieldName);
+
+      const populateParam =
+        relationFields.length > 0
+          ? `&populate=${encodeURIComponent(relationFields.join(","))}`
+          : "";
+
       const { data } = await get<{ results: Record<string, unknown>[] }>(
-        `/better-auth-dashboard/db?uid=plugin::better-auth.organization&filters[id][$eq]=${organizationId}&pagination[pageSize]=1`,
+        `/better-auth-dashboard/db?uid=plugin::better-auth.organization&filters[id][$eq]=${organizationId}&pagination[pageSize]=1${populateParam}`,
       );
       return (
         (data as { results?: Record<string, unknown>[] }).results?.[0] ?? null

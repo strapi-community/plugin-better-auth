@@ -900,6 +900,10 @@ export interface PluginBetterAuthOrganization
         };
       }>;
     publishedAt: Schema.Attribute.DateTime;
+    roles: Schema.Attribute.Relation<
+      'manyToMany',
+      'plugin::api-permissions.role'
+    >;
     slug: Schema.Attribute.Text &
       Schema.Attribute.Required &
       Schema.Attribute.Unique &
