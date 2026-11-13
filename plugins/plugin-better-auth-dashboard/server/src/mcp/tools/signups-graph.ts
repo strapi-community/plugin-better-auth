@@ -4,6 +4,7 @@ import { ACTION } from "../constants";
 import {
   dashErrorMessage,
   type McpRegistrar,
+  normalizeDashDate,
   toolError,
   toolResult,
 } from "../shared";
@@ -49,7 +50,9 @@ export function registerSignupsGraph(mcp: McpRegistrar) {
           return toolResult({
             period: graph.period ?? args.period,
             points: (graph.data ?? []).map((p) => ({
-              date: String(p.date ?? ""),
+              // dash() returns `date` as a JS Date; emit ISO (machine-readable)
+              // rather than the locale `String(Date)` form ("Tue Jun 16 2026 …").
+              date: String(normalizeDashDate(p.date) ?? ""),
               label: String(p.label ?? ""),
               totalUsers: Number(p.totalUsers ?? 0),
               newUsers: Number(p.newUsers ?? 0),
