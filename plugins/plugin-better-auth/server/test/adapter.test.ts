@@ -114,7 +114,7 @@ const { execute } = await testAdapter({
    *                               enabled, so Better Auth delegates joins to
    *                               the adapter instead of emulating them
    * - `caseInsensitiveTestSuite`  `mode: "insensitive"` string comparisons
-   * - `transactionsTestSuite`     self-skips (the adapter has no transactions)
+   * - `transactionsTestSuite`     rollback of a failing `strapi.db.transaction`
    *
    * `normalTestSuite()` and `uuidTestSuite()` are intentionally omitted: both
    * require non-serial / UUID string ids (normal asserts `generateId !==

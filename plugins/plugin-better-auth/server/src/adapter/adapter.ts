@@ -3,7 +3,7 @@ import {
   createAdapterFactory,
   type DBAdapterDebugLogOption,
 } from "better-auth/adapters";
-import type { JoinConfig } from "better-auth/types";
+import type { DBTransactionAdapter, JoinConfig } from "better-auth/types";
 import kebabCase from "lodash/kebabCase";
 import {
   transformFilters,
@@ -35,7 +35,14 @@ interface StrapiAdapterConfig {
 export const strapiAdapter = (config?: StrapiAdapterConfig) => {
   const { debugLogs = false, usePlural = false } = config || {};
 
-  return createAdapterFactory({
+  // The fully-built, transform-aware adapter, captured when the factory is
+  // invoked below. `config.transaction` hands this instance to the transaction
+  // callback: Strapi's document service enlists in the transaction opened by
+  // `strapi.db.transaction` through async-local storage, so the same adapter
+  // operates on the transaction without needing a separate handle.
+  let txAdapter: ReturnType<ReturnType<typeof createAdapterFactory>>;
+
+  const createStrapiAdapter = createAdapterFactory({
     config: {
       adapterId: "strapi-adapter",
       adapterName: "Strapi Adapter",
@@ -45,6 +52,16 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
       supportsDates: true,
       supportsBooleans: true,
       supportsNumericIds: true,
+      /**
+       * Run several operations atomically inside one Strapi database
+       * transaction. Better Auth invokes this with a callback that receives a
+       * transaction-scoped adapter; the callback's result is committed, and any
+       * error it throws rolls the whole transaction back.
+       */
+      transaction: <R>(
+        callback: (trx: DBTransactionAdapter) => Promise<R>,
+      ): Promise<R> =>
+        strapi.db.transaction(() => callback(txAdapter)) as Promise<R>,
     },
     // @ts-expect-error
     // Caused by returning true to opt-out of Better Auth's file writing logic in createSchema method
@@ -412,4 +429,27 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
       };
     },
   });
+
+  return (options: Parameters<typeof createStrapiAdapter>[0]) => {
+    txAdapter = createStrapiAdapter(options);
+
+    // Keep the built-in `transaction` method stable. Better Auth's adapter test
+    // harness assigns `adapter.transaction = undefined` between operations (to
+    // stop its own wrapper from recursing) and then reads it back when opening a
+    // transaction, without rebuilding the adapter first — which would otherwise
+    // drop our transaction support and fall back to a non-atomic path. Guarding
+    // the setter so it ignores nullish writes keeps the capability intact while
+    // still allowing a genuine replacement.
+    let transaction = txAdapter.transaction;
+    Object.defineProperty(txAdapter, "transaction", {
+      configurable: true,
+      enumerable: true,
+      get: () => transaction,
+      set: (value) => {
+        if (value) transaction = value;
+      },
+    });
+
+    return txAdapter;
+  };
 };
