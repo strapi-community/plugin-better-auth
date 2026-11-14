@@ -3,8 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import {
   authFlowTestSuite,
+  caseInsensitiveTestSuite,
+  joinsTestSuite,
   numberIdTestSuite,
   testAdapter,
+  transactionsTestSuite,
 } from "@better-auth/test-utils/adapter";
 import {
   cleanupDir,
@@ -71,6 +74,21 @@ async function resetBetterAuthTables() {
   }
 }
 
+// MySQL's default collation is case-insensitive and Strapi's query API exposes
+// no case-sensitive (binary) equality operator, so a `mode: "sensitive"` string
+// comparison can't be made case-sensitive there. The case-insensitive operators
+// themselves use `LOWER()` and work on every database, so only this one
+// sensitivity assertion is skipped, and only on MySQL (it still runs on SQLite
+// and Postgres, whose `=` is case-sensitive).
+const caseInsensitiveOptions =
+  (process.env.DATABASE_CLIENT ?? "sqlite") === "mysql"
+    ? {
+        disableTests: {
+          "findOne - eq with mode sensitive (default) should not match different case": true,
+        },
+      }
+    : undefined;
+
 const { execute } = await testAdapter({
   adapter: (_options) => {
     return strapiAdapter() as never;
@@ -103,9 +121,32 @@ const { execute } = await testAdapter({
     await setupStrapi();
   },
   /**
-   * @todo Implement normalTestSuite(), uuidTestSuite(), transactionsTestSuite() and joinsTestSuite()
+   * We run every adapter suite that is compatible with Strapi's numeric ids:
+   *
+   * - `authFlowTestSuite`         end-to-end sign up / sign in / session flow
+   * - `numberIdTestSuite`         full CRUD + joins + filters on numeric ids
+   * - `joinsTestSuite`            the same CRUD suite with `experimental.joins`
+   *                               enabled, so Better Auth delegates joins to
+   *                               the adapter instead of emulating them
+   * - `caseInsensitiveTestSuite`  `mode: "insensitive"` string comparisons
+   *                               (one sensitivity assertion is skipped on MySQL,
+   *                               see `caseInsensitiveOptions` above)
+   * - `transactionsTestSuite`     rollback of a failing `strapi.db.transaction`
+   *
+   * `normalTestSuite()` and `uuidTestSuite()` are intentionally omitted: both
+   * require non-serial / UUID string ids (normal asserts `generateId !==
+   * "serial"`, uuid asserts UUID ids), but this adapter is built on Strapi's
+   * numeric auto-increment `id` — foreign keys are generated as integer columns
+   * and `supportsNumericIds` is set. Supporting them would mean mapping Better
+   * Auth's `id` onto Strapi's `documentId`, which is out of scope here.
    */
-  tests: [authFlowTestSuite(), numberIdTestSuite()],
+  tests: [
+    authFlowTestSuite(),
+    numberIdTestSuite(),
+    joinsTestSuite(),
+    caseInsensitiveTestSuite(caseInsensitiveOptions),
+    transactionsTestSuite(),
+  ],
   async onFinish() {
     // Stop Strapi.
     await stopStrapi();

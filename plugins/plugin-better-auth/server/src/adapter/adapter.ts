@@ -3,6 +3,7 @@ import {
   createAdapterFactory,
   type DBAdapterDebugLogOption,
 } from "better-auth/adapters";
+import type { DBTransactionAdapter, JoinConfig } from "better-auth/types";
 import kebabCase from "lodash/kebabCase";
 import {
   transformFilters,
@@ -34,7 +35,14 @@ interface StrapiAdapterConfig {
 export const strapiAdapter = (config?: StrapiAdapterConfig) => {
   const { debugLogs = false, usePlural = false } = config || {};
 
-  return createAdapterFactory({
+  // The fully-built, transform-aware adapter, captured when the factory is
+  // invoked below. `config.transaction` hands this instance to the transaction
+  // callback: Strapi's document service enlists in the transaction opened by
+  // `strapi.db.transaction` through async-local storage, so the same adapter
+  // operates on the transaction without needing a separate handle.
+  let txAdapter: ReturnType<ReturnType<typeof createAdapterFactory>>;
+
+  const createStrapiAdapter = createAdapterFactory({
     config: {
       adapterId: "strapi-adapter",
       adapterName: "Strapi Adapter",
@@ -44,11 +52,35 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
       supportsDates: true,
       supportsBooleans: true,
       supportsNumericIds: true,
+      /**
+       * Run several operations atomically inside one Strapi database
+       * transaction. Better Auth invokes this with a callback that receives a
+       * transaction-scoped adapter; the callback's result is committed, and any
+       * error it throws rolls the whole transaction back.
+       */
+      transaction: <R>(
+        callback: (trx: DBTransactionAdapter) => Promise<R>,
+      ): Promise<R> =>
+        strapi.db.transaction(() => callback(txAdapter)) as Promise<R>,
     },
     // @ts-expect-error
     // Caused by returning true to opt-out of Better Auth's file writing logic in createSchema method
     // https://github.com/better-auth/better-auth/issues/8590
-    adapter: ({ getFieldName, getDefaultModelName, debugLog }) => {
+    adapter: ({ getFieldName, getDefaultModelName, debugLog, options }) => {
+      // The adapter stores records under Strapi's numeric `id` and relies on
+      // integer foreign keys with `ON DELETE CASCADE`, which Better Auth needs
+      // for its cascade deletes (e.g. removing a user clears their sessions and
+      // accounts). Any other id strategy silently breaks relations and cascades,
+      // so require `generateId: "serial"` and fail fast with a clear message.
+      if (options?.advanced?.database?.generateId !== "serial") {
+        throw new Error(
+          'The Strapi Better Auth adapter requires `advanced.database.generateId: "serial"`. ' +
+            "It stores records using Strapi's numeric id and relies on integer foreign keys " +
+            "with ON DELETE CASCADE; UUID, the default random string, and custom id generators " +
+            "are not supported.",
+        );
+      }
+
       /**
        * Get the Strapi UID for a model.
        * The factory passes `model` as the configured name (e.g. "user_table" when
@@ -71,6 +103,64 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
         return select.map((field) =>
           getFieldName({ model, field }),
         ) as Modules.Documents.Params.Fields.Any<UID.ContentType>;
+      };
+
+      /**
+       * Natively resolve Better Auth joins.
+       *
+       * When `experimental.joins` is enabled, Better Auth delegates joins to
+       * the adapter instead of emulating them with extra round-trips. It passes
+       * a `JoinConfig` keyed by the joined model's name, each entry describing
+       * which base column (`on.from`) matches which joined column (`on.to`) and
+       * whether the relation is one-to-one or one-to-many.
+       *
+       * Better Auth's output transformer reads the joined rows straight off the
+       * base record under that same model key, so we attach the resolved rows
+       * there as raw Strapi records (date coercion is applied together with the
+       * base record by the caller's `transformOutput`).
+       */
+      const applyJoins = async (
+        records: Record<string, unknown>[],
+        join: JoinConfig,
+      ): Promise<void> => {
+        const joinEntries = Object.entries(join);
+
+        await Promise.all(
+          records.map((record) =>
+            Promise.all(
+              joinEntries.map(async ([joinModel, joinConfig]) => {
+                const isOneToOne = joinConfig.relation === "one-to-one";
+                const fromValue = record[joinConfig.on.from];
+
+                // A missing foreign key resolves to no related rows.
+                if (fromValue === null || fromValue === undefined) {
+                  record[joinModel] = isOneToOne ? null : [];
+                  return;
+                }
+
+                const joinUid = getModelUid(joinModel);
+                const filters = {
+                  [joinConfig.on.to]: { $eq: fromValue },
+                } as Modules.Documents.Params.Filters.Any<UID.ContentType>;
+
+                if (isOneToOne) {
+                  const joined = await strapi
+                    .documents(joinUid)
+                    .findFirst({ filters, limit: 1 });
+                  record[joinModel] = joined ?? null;
+                } else {
+                  const joined = await strapi.documents(joinUid).findMany({
+                    filters,
+                    ...(joinConfig.limit !== undefined
+                      ? { limit: joinConfig.limit }
+                      : {}),
+                  });
+                  record[joinModel] = joined ?? [];
+                }
+              }),
+            ),
+          ),
+        );
       };
 
       return {
@@ -208,8 +298,8 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
         /**
          * Find a single record
          */
-        findOne: async ({ where, model, select }) => {
-          debugLog("findOne", { model, where, select });
+        findOne: async ({ where, model, select, join }) => {
+          debugLog("findOne", { model, where, select, join });
 
           const uid = getModelUid(model);
           const filters = transformFilters(where, model, getFieldName);
@@ -225,14 +315,29 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             return null;
           }
 
+          if (join && Object.keys(join).length > 0) {
+            await applyJoins(
+              [record] as Record<string, unknown>[],
+              join as JoinConfig,
+            );
+          }
+
           return transformStrapiOutput(record);
         },
 
         /**
          * Find multiple records
          */
-        findMany: async ({ where, model, limit, offset, sortBy, select }) => {
-          debugLog("findMany", { model, where, limit, offset, sortBy });
+        findMany: async ({
+          where,
+          model,
+          limit,
+          offset,
+          sortBy,
+          select,
+          join,
+        }) => {
+          debugLog("findMany", { model, where, limit, offset, sortBy, join });
 
           const uid = getModelUid(model);
           const filters = where
@@ -262,6 +367,13 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           if (!records || records.length === 0) {
             return [];
+          }
+
+          if (join && Object.keys(join).length > 0) {
+            await applyJoins(
+              records as Record<string, unknown>[],
+              join as JoinConfig,
+            );
           }
 
           return Promise.all(
@@ -331,4 +443,27 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
       };
     },
   });
+
+  return (options: Parameters<typeof createStrapiAdapter>[0]) => {
+    txAdapter = createStrapiAdapter(options);
+
+    // Keep the built-in `transaction` method stable. Better Auth's adapter test
+    // harness assigns `adapter.transaction = undefined` between operations (to
+    // stop its own wrapper from recursing) and then reads it back when opening a
+    // transaction, without rebuilding the adapter first — which would otherwise
+    // drop our transaction support and fall back to a non-atomic path. Guarding
+    // the setter so it ignores nullish writes keeps the capability intact while
+    // still allowing a genuine replacement.
+    let transaction = txAdapter.transaction;
+    Object.defineProperty(txAdapter, "transaction", {
+      configurable: true,
+      enumerable: true,
+      get: () => transaction,
+      set: (value) => {
+        if (value) transaction = value;
+      },
+    });
+
+    return txAdapter;
+  };
 };

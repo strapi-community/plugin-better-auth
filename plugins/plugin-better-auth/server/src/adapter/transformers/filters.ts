@@ -25,48 +25,88 @@ export const transformFilters = (
 
     for (const condition of where) {
       const fieldName = getFieldName({ model, field: condition.field });
-      let filterValue = {};
+      const insensitive = condition.mode === "insensitive";
 
-      // Map operator to Strapi operator
+      // Map the Better Auth operator to a Strapi filter condition. When
+      // `mode` is "insensitive" we use Strapi's case-insensitive operator
+      // variants ($eqi, $nei, $containsi, …). `in`/`not_in` have no
+      // case-insensitive Strapi operator, so they are expanded into an
+      // $or/$and group of $eqi/$nei conditions.
+      let conditionFilter: Record<string, unknown>;
+
       switch (condition.operator) {
         case "eq":
-          filterValue = { $eq: condition.value };
+          conditionFilter = {
+            [fieldName]: insensitive
+              ? { $eqi: condition.value }
+              : { $eq: condition.value },
+          };
           break;
         case "ne":
-          filterValue = { $ne: condition.value };
+          conditionFilter = {
+            [fieldName]: insensitive
+              ? { $nei: condition.value }
+              : { $ne: condition.value },
+          };
           break;
         case "in":
-          filterValue = { $in: condition.value };
+          conditionFilter = insensitive
+            ? {
+                $or: (condition.value as unknown[]).map((value) => ({
+                  [fieldName]: { $eqi: value },
+                })),
+              }
+            : { [fieldName]: { $in: condition.value } };
           break;
         case "not_in":
-          filterValue = { $notIn: condition.value };
+          conditionFilter = insensitive
+            ? {
+                $and: (condition.value as unknown[]).map((value) => ({
+                  [fieldName]: { $nei: value },
+                })),
+              }
+            : { [fieldName]: { $notIn: condition.value } };
           break;
         case "gt":
-          filterValue = { $gt: condition.value };
+          conditionFilter = { [fieldName]: { $gt: condition.value } };
           break;
         case "gte":
-          filterValue = { $gte: condition.value };
+          conditionFilter = { [fieldName]: { $gte: condition.value } };
           break;
         case "lt":
-          filterValue = { $lt: condition.value };
+          conditionFilter = { [fieldName]: { $lt: condition.value } };
           break;
         case "lte":
-          filterValue = { $lte: condition.value };
+          conditionFilter = { [fieldName]: { $lte: condition.value } };
           break;
         case "contains":
-          filterValue = { $contains: condition.value };
+          conditionFilter = {
+            [fieldName]: insensitive
+              ? { $containsi: condition.value }
+              : { $contains: condition.value },
+          };
           break;
         case "starts_with":
-          filterValue = { $startsWith: condition.value };
+          conditionFilter = {
+            [fieldName]: insensitive
+              ? { $startsWithi: condition.value }
+              : { $startsWith: condition.value },
+          };
           break;
         case "ends_with":
-          filterValue = { $endsWith: condition.value };
+          conditionFilter = {
+            [fieldName]: insensitive
+              ? { $endsWithi: condition.value }
+              : { $endsWith: condition.value },
+          };
           break;
         default:
-          filterValue = { $eq: condition.value };
+          conditionFilter = {
+            [fieldName]: insensitive
+              ? { $eqi: condition.value }
+              : { $eq: condition.value },
+          };
       }
-
-      const conditionFilter = { [fieldName]: filterValue };
 
       // Handle connector
       if (condition.connector === "OR") {
