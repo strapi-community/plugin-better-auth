@@ -6,12 +6,9 @@ import { threadId } from "node:worker_threads";
 import type { Core } from "@strapi/strapi";
 import { setupDb } from "./db";
 
-// Packages in this monorepo live at packages/<name>; playground is at apps/playground
-export const playgroundDir = path.resolve(process.cwd(), "../../apps/playground");
-
-const _require = createRequire(playgroundDir + "/package.json");
-const { compileStrapi, createStrapi } =
-  _require("@strapi/strapi") as typeof import("@strapi/strapi");
+// Packages in this monorepo live at packages/<name>; apps at apps/<name>.
+export const appsDir = path.resolve(process.cwd(), "../../apps");
+export const playgroundDir = path.join(appsDir, "playground");
 
 export function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -29,7 +26,12 @@ const instanceId = `${process.pid}_${threadId}`;
 
 let instance: Core.Strapi | undefined;
 
-export async function setupStrapi() {
+/**
+ * Boot a Strapi app for tests. Defaults to apps/playground; pass `appDir` to
+ * boot a different app (e.g. the users-permissions migration playground).
+ */
+export async function setupStrapi(options: { appDir?: string } = {}) {
+  const appDir = options.appDir ?? playgroundDir;
   const port = await getFreePort();
 
   process.env.APP_KEYS ??=
@@ -47,14 +49,20 @@ export async function setupStrapi() {
   setupDb(instanceId);
 
   if (!instance) {
+    const _require = createRequire(`${appDir}/package.json`);
+    const { compileStrapi, createStrapi } = _require(
+      "@strapi/strapi",
+    ) as typeof import("@strapi/strapi");
     const appContext = await compileStrapi({
-      appDir: playgroundDir,
+      appDir,
       ignoreDiagnostics: true,
     });
     const strapi = await createStrapi(appContext).load();
     await strapi.start();
     instance = strapi;
   }
+
+  return instance;
 }
 
 export async function stopStrapi() {

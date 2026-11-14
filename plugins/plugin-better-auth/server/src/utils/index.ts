@@ -11,6 +11,15 @@ export const POSSIBLE_CONFIG_LOCATIONS = [
 
 export const MIN_STRAPI_VERSION = "5.45.0";
 
+/**
+ * Whether the one-time migration from `users-permissions` is enabled, via the
+ * `migration.enabled` plugin config or the `BETTER_AUTH_MIGRATE_FROM_USERS_PERMISSIONS`
+ * env var. While enabled, the plugin is allowed to boot alongside users-permissions.
+ */
+export const isMigrationEnabled = (): boolean =>
+  Boolean(strapi.config.get(`plugin::${PLUGIN_ID}.migration.enabled`, false)) ||
+  process.env.BETTER_AUTH_MIGRATE_FROM_USERS_PERMISSIONS === "true";
+
 export function isVersionAtLeast(version: string, minimum: string): boolean {
   // Experimental builds (e.g. 0.0.0-experimental.<hash>) are always treated as satisfying
   if (version.includes("-experimental.")) return true;
