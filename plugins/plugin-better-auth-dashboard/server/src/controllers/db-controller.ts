@@ -9,6 +9,38 @@ import type { Context } from "koa";
  * reach them, which is the same access level as the built-in content manager.
  */
 
+const BETTER_AUTH_UID_PREFIX = "plugin::better-auth.";
+
+/**
+ * The dashboard addresses Better Auth entities by their Better Auth id. With the
+ * default "native" id strategy that id is stored as Strapi's string `document_id`
+ * (not the numeric auto-increment `id`), so a client filter on `id` must target
+ * `documentId` instead — otherwise it matches nothing (and errors on Postgres,
+ * which refuses a string compared against an integer column).
+ *
+ * This rewrites a top-level `id` filter to `documentId` for Better Auth content
+ * types whenever the Better Auth plugin reports the native strategy, preserving
+ * the operator object so `$eq`, `$in`, etc. keep working. In serial mode the
+ * Better Auth id is the numeric `id`, so the filter is left untouched.
+ */
+function resolveBetterAuthIdFilter(
+  uid: string,
+  filters: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!filters || !("id" in filters)) return filters;
+  if (!uid.startsWith(BETTER_AUTH_UID_PREFIX)) return filters;
+
+  const authService = strapi.plugin("better-auth")?.service("auth-service") as
+    | { usesDocumentId?: () => boolean }
+    | undefined;
+  // Default to the native strategy (documentId) when the plugin can't be reached.
+  const useDocumentId = authService?.usesDocumentId?.() ?? true;
+  if (!useDocumentId) return filters;
+
+  const { id, ...rest } = filters;
+  return { ...rest, documentId: id };
+}
+
 function assertValidUid(ctx: Context, uid: unknown): uid is string {
   if (
     typeof uid !== "string" ||
@@ -48,6 +80,8 @@ const dbController = () => ({
 
     if (!assertValidUid(ctx, uid)) return;
 
+    const resolvedFilters = resolveBetterAuthIdFilter(uid, filters);
+
     const page = Math.max(1, parseInt(pagination?.page ?? "1", 10));
     const pageSize = Math.min(
       200,
@@ -68,13 +102,13 @@ const dbController = () => ({
 
     const [results, total] = await Promise.all([
       service.findMany({
-        filters: filters ?? {},
+        filters: resolvedFilters ?? {},
         sort: "createdAt:desc",
         limit: pageSize,
         start: (page - 1) * pageSize,
         ...(populateArg ? { populate: populateArg } : {}),
       }),
-      service.count({ filters: filters ?? {} }),
+      service.count({ filters: resolvedFilters ?? {} }),
     ]);
 
     ctx.body = {
