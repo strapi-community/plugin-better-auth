@@ -30,8 +30,10 @@ export const transformFilters = (
     }
 
     const filters: Modules.Documents.Params.Filters.Any<UID.ContentType> = {};
-    const andConditions = [];
-    const orConditions = [];
+    const andConditions: Modules.Documents.Params.Filters.Any<UID.ContentType>[] =
+      [];
+    const orConditions: Modules.Documents.Params.Filters.Any<UID.ContentType>[] =
+      [];
 
     for (const condition of where) {
       const fieldName = resolveField(condition.field);
@@ -119,11 +121,13 @@ export const transformFilters = (
       }
 
       // Handle connector
+      const filter =
+        conditionFilter as Modules.Documents.Params.Filters.Any<UID.ContentType>;
       if (condition.connector === "OR") {
-        orConditions.push(conditionFilter);
+        orConditions.push(filter);
       } else {
         // Default to AND
-        andConditions.push(conditionFilter);
+        andConditions.push(filter);
       }
     }
 
