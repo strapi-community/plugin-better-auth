@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   authFlowTestSuite,
+  caseInsensitiveTestSuite,
   numberIdTestSuite,
   testAdapter,
 } from "@better-auth/test-utils/adapter";
@@ -103,9 +104,11 @@ const { execute } = await testAdapter({
     await setupStrapi();
   },
   /**
-   * @todo Implement normalTestSuite(), uuidTestSuite(), transactionsTestSuite() and joinsTestSuite()
+   * @todo Wire up joinsTestSuite() and transactionsTestSuite(). normalTestSuite()
+   * and uuidTestSuite() need non-serial / UUID string ids, which the numeric-id
+   * adapter can't model.
    */
-  tests: [authFlowTestSuite(), numberIdTestSuite()],
+  tests: [authFlowTestSuite(), numberIdTestSuite(), caseInsensitiveTestSuite()],
   async onFinish() {
     // Stop Strapi.
     await stopStrapi();
