@@ -66,7 +66,21 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
     // @ts-expect-error
     // Caused by returning true to opt-out of Better Auth's file writing logic in createSchema method
     // https://github.com/better-auth/better-auth/issues/8590
-    adapter: ({ getFieldName, getDefaultModelName, debugLog }) => {
+    adapter: ({ getFieldName, getDefaultModelName, debugLog, options }) => {
+      // The adapter stores records under Strapi's numeric `id` and relies on
+      // integer foreign keys with `ON DELETE CASCADE`, which Better Auth needs
+      // for its cascade deletes (e.g. removing a user clears their sessions and
+      // accounts). Any other id strategy silently breaks relations and cascades,
+      // so require `generateId: "serial"` and fail fast with a clear message.
+      if (options?.advanced?.database?.generateId !== "serial") {
+        throw new Error(
+          'The Strapi Better Auth adapter requires `advanced.database.generateId: "serial"`. ' +
+            "It stores records using Strapi's numeric id and relies on integer foreign keys " +
+            "with ON DELETE CASCADE; UUID, the default random string, and custom id generators " +
+            "are not supported.",
+        );
+      }
+
       /**
        * Get the Strapi UID for a model.
        * The factory passes `model` as the configured name (e.g. "user_table" when
