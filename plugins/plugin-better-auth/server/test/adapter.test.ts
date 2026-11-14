@@ -4,8 +4,10 @@ import path from "node:path";
 import {
   authFlowTestSuite,
   caseInsensitiveTestSuite,
+  joinsTestSuite,
   numberIdTestSuite,
   testAdapter,
+  transactionsTestSuite,
 } from "@better-auth/test-utils/adapter";
 import {
   cleanupDir,
@@ -104,11 +106,30 @@ const { execute } = await testAdapter({
     await setupStrapi();
   },
   /**
-   * @todo Wire up joinsTestSuite() and transactionsTestSuite(). normalTestSuite()
-   * and uuidTestSuite() need non-serial / UUID string ids, which the numeric-id
-   * adapter can't model.
+   * We run every adapter suite that is compatible with Strapi's numeric ids:
+   *
+   * - `authFlowTestSuite`         end-to-end sign up / sign in / session flow
+   * - `numberIdTestSuite`         full CRUD + joins + filters on numeric ids
+   * - `joinsTestSuite`            the same CRUD suite with `experimental.joins`
+   *                               enabled, so Better Auth delegates joins to
+   *                               the adapter instead of emulating them
+   * - `caseInsensitiveTestSuite`  `mode: "insensitive"` string comparisons
+   * - `transactionsTestSuite`     self-skips (the adapter has no transactions)
+   *
+   * `normalTestSuite()` and `uuidTestSuite()` are intentionally omitted: both
+   * require non-serial / UUID string ids (normal asserts `generateId !==
+   * "serial"`, uuid asserts UUID ids), but this adapter is built on Strapi's
+   * numeric auto-increment `id` — foreign keys are generated as integer columns
+   * and `supportsNumericIds` is set. Supporting them would mean mapping Better
+   * Auth's `id` onto Strapi's `documentId`, which is out of scope here.
    */
-  tests: [authFlowTestSuite(), numberIdTestSuite(), caseInsensitiveTestSuite()],
+  tests: [
+    authFlowTestSuite(),
+    numberIdTestSuite(),
+    joinsTestSuite(),
+    caseInsensitiveTestSuite(),
+    transactionsTestSuite(),
+  ],
   async onFinish() {
     // Stop Strapi.
     await stopStrapi();

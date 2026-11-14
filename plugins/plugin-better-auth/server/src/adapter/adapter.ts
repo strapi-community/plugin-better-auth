@@ -3,6 +3,7 @@ import {
   createAdapterFactory,
   type DBAdapterDebugLogOption,
 } from "better-auth/adapters";
+import type { JoinConfig } from "better-auth/types";
 import kebabCase from "lodash/kebabCase";
 import {
   transformFilters,
@@ -71,6 +72,64 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
         return select.map((field) =>
           getFieldName({ model, field }),
         ) as Modules.Documents.Params.Fields.Any<UID.ContentType>;
+      };
+
+      /**
+       * Natively resolve Better Auth joins.
+       *
+       * When `experimental.joins` is enabled, Better Auth delegates joins to
+       * the adapter instead of emulating them with extra round-trips. It passes
+       * a `JoinConfig` keyed by the joined model's name, each entry describing
+       * which base column (`on.from`) matches which joined column (`on.to`) and
+       * whether the relation is one-to-one or one-to-many.
+       *
+       * Better Auth's output transformer reads the joined rows straight off the
+       * base record under that same model key, so we attach the resolved rows
+       * there as raw Strapi records (date coercion is applied together with the
+       * base record by the caller's `transformOutput`).
+       */
+      const applyJoins = async (
+        records: Record<string, unknown>[],
+        join: JoinConfig,
+      ): Promise<void> => {
+        const joinEntries = Object.entries(join);
+
+        await Promise.all(
+          records.map((record) =>
+            Promise.all(
+              joinEntries.map(async ([joinModel, joinConfig]) => {
+                const isOneToOne = joinConfig.relation === "one-to-one";
+                const fromValue = record[joinConfig.on.from];
+
+                // A missing foreign key resolves to no related rows.
+                if (fromValue === null || fromValue === undefined) {
+                  record[joinModel] = isOneToOne ? null : [];
+                  return;
+                }
+
+                const joinUid = getModelUid(joinModel);
+                const filters = {
+                  [joinConfig.on.to]: { $eq: fromValue },
+                } as Modules.Documents.Params.Filters.Any<UID.ContentType>;
+
+                if (isOneToOne) {
+                  const joined = await strapi
+                    .documents(joinUid)
+                    .findFirst({ filters, limit: 1 });
+                  record[joinModel] = joined ?? null;
+                } else {
+                  const joined = await strapi.documents(joinUid).findMany({
+                    filters,
+                    ...(joinConfig.limit !== undefined
+                      ? { limit: joinConfig.limit }
+                      : {}),
+                  });
+                  record[joinModel] = joined ?? [];
+                }
+              }),
+            ),
+          ),
+        );
       };
 
       return {
@@ -208,8 +267,8 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
         /**
          * Find a single record
          */
-        findOne: async ({ where, model, select }) => {
-          debugLog("findOne", { model, where, select });
+        findOne: async ({ where, model, select, join }) => {
+          debugLog("findOne", { model, where, select, join });
 
           const uid = getModelUid(model);
           const filters = transformFilters(where, model, getFieldName);
@@ -225,14 +284,29 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             return null;
           }
 
+          if (join && Object.keys(join).length > 0) {
+            await applyJoins(
+              [record] as Record<string, unknown>[],
+              join as JoinConfig,
+            );
+          }
+
           return transformStrapiOutput(record);
         },
 
         /**
          * Find multiple records
          */
-        findMany: async ({ where, model, limit, offset, sortBy, select }) => {
-          debugLog("findMany", { model, where, limit, offset, sortBy });
+        findMany: async ({
+          where,
+          model,
+          limit,
+          offset,
+          sortBy,
+          select,
+          join,
+        }) => {
+          debugLog("findMany", { model, where, limit, offset, sortBy, join });
 
           const uid = getModelUid(model);
           const filters = where
@@ -262,6 +336,13 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           if (!records || records.length === 0) {
             return [];
+          }
+
+          if (join && Object.keys(join).length > 0) {
+            await applyJoins(
+              records as Record<string, unknown>[],
+              join as JoinConfig,
+            );
           }
 
           return Promise.all(
