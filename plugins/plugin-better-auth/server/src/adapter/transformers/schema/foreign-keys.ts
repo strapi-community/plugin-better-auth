@@ -175,10 +175,14 @@ export async function writeForeignKeys(
       for (const attributeName of entry.attributes) {
         const attribute = schema.attributes?.[attributeName];
         if (!attribute) continue;
+        // Force the column type (the content-type-builder won't change the type
+        // of an already-managed attribute, so switching id strategies — e.g.
+        // regenerating a documentId schema as serial — relies on this patch).
         if (useDocumentId) {
           attribute.type = "string";
           delete attribute.column;
         } else {
+          attribute.type = "integer";
           attribute.column = { ...attribute.column, unsigned: true };
         }
       }
