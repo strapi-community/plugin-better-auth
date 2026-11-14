@@ -47,5 +47,12 @@
         }
       }
     }
-  }
+  },
+  "indexes": [
+    {
+      "name": "ba_jwks_document_id_uq",
+      "columns": ["document_id"],
+      "type": "unique"
+    }
+  ]
 }

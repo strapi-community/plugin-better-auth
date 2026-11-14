@@ -86,7 +86,7 @@ async function createOrganizationFixture() {
     },
   });
 
-  const organizationId = Number(organization.id);
+  const organizationId = organization.id;
 
   await strapi.documents(UIDS.invitation).create({
     data: {
@@ -95,7 +95,7 @@ async function createOrganizationFixture() {
       role: "member",
       status: "pending",
       expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-      inviterId: Number(owner.id),
+      inviterId: owner.id,
     },
   });
 
@@ -103,13 +103,13 @@ async function createOrganizationFixture() {
     data: { name: `Team ${suffix}`, organizationId },
   });
   await strapi.documents(UIDS.teamMember).create({
-    data: { teamId: team.id, userId: Number(member.id) },
+    data: { teamId: team.documentId, userId: member.id },
   });
 
   return {
     organizationId,
-    teamId: team.id as number,
-    userIds: [Number(owner.id), Number(member.id)],
+    teamId: team.documentId,
+    userIds: [owner.id, member.id],
   };
 }
 
@@ -119,16 +119,18 @@ async function expectOrganizationFixture(fixture: Fixture, exists: boolean) {
   const { organizationId, teamId } = fixture;
   const expected = (n: number) => (exists ? n : 0);
 
-  expect(await count(UIDS.organization, { id: organizationId })).toBe(
+  expect(await count(UIDS.organization, { documentId: organizationId })).toBe(
     expected(1),
   );
   expect(await count(UIDS.member, { organizationId })).toBe(expected(2));
   expect(await count(UIDS.invitation, { organizationId })).toBe(expected(1));
-  expect(await count(UIDS.team, { id: teamId })).toBe(expected(1));
+  expect(await count(UIDS.team, { documentId: teamId })).toBe(expected(1));
   expect(await count(UIDS.teamMember, { teamId })).toBe(expected(1));
 
   // Users are referenced by members, never the other way around.
-  expect(await count(UIDS.user, { id: { $in: fixture.userIds } })).toBe(2);
+  expect(await count(UIDS.user, { documentId: { $in: fixture.userIds } })).toBe(
+    2,
+  );
 }
 
 /**
@@ -205,12 +207,9 @@ describe("foreign keys — cascading deletes", () => {
     const fixture = await createOrganizationFixture();
     await expectOrganizationFixture(fixture, true);
 
-    const organization = await strapi
-      .documents(UIDS.organization)
-      .findFirst({ filters: { id: fixture.organizationId } });
     await strapi
       .documents(UIDS.organization)
-      .delete({ documentId: organization!.documentId });
+      .delete({ documentId: fixture.organizationId });
 
     await expectOrganizationFixture(fixture, false);
   });
@@ -252,7 +251,7 @@ describe("foreign keys — cascading deletes", () => {
 describe("foreign keys — orphan cleanup migration", () => {
   const MIGRATION_NAME = "better-auth::1.0.0-remove-orphaned-rows";
   const MIGRATIONS_TABLE = "strapi_migrations_internal";
-  const MISSING_ID = 999_999;
+  const MISSING_ID = "missing-organization-document-id";
 
   const isMigrationRecorded = async () =>
     (await strapi.db
@@ -297,7 +296,7 @@ describe("foreign keys — orphan cleanup migration", () => {
     });
     // Only orphaned once its team is removed, so this needs a second pass.
     await strapi.documents(UIDS.teamMember).create({
-      data: { teamId: orphanedTeam.id, userId: intact.userIds[1] },
+      data: { teamId: orphanedTeam.documentId, userId: intact.userIds[1] },
     });
 
     // Make the migration pending again, as it is on the first boot after upgrading.
@@ -312,7 +311,9 @@ describe("foreign keys — orphan cleanup migration", () => {
     expect(await isMigrationRecorded()).toBe(true);
     expect(await count(UIDS.member, { organizationId: MISSING_ID })).toBe(0);
     expect(await count(UIDS.team, { organizationId: MISSING_ID })).toBe(0);
-    expect(await count(UIDS.teamMember, { teamId: orphanedTeam.id })).toBe(0);
+    expect(
+      await count(UIDS.teamMember, { teamId: orphanedTeam.documentId }),
+    ).toBe(0);
 
     // Rows with an existing parent are untouched.
     await expectOrganizationFixture(intact, true);

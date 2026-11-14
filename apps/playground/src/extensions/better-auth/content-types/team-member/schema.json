@@ -19,46 +19,47 @@
   },
   "attributes": {
     "teamId": {
-      "type": "integer",
+      "type": "string",
       "configurable": false,
       "pluginOptions": {
         "better-auth": {
           "managed": true
         }
       },
-      "required": true,
-      "column": {
-        "unsigned": true
-      }
+      "required": true
     },
     "userId": {
-      "type": "integer",
+      "type": "string",
       "configurable": false,
       "pluginOptions": {
         "better-auth": {
           "managed": true
         }
       },
-      "required": true,
-      "column": {
-        "unsigned": true
-      }
+      "required": true
     }
   },
   "foreignKeys": [
     {
       "name": "ba_team_member_team_id_fk",
       "columns": ["team_id"],
-      "referencedColumns": ["id"],
+      "referencedColumns": ["document_id"],
       "referencedTable": "ba_team",
       "onDelete": "CASCADE"
     },
     {
       "name": "ba_team_member_user_id_fk",
       "columns": ["user_id"],
-      "referencedColumns": ["id"],
+      "referencedColumns": ["document_id"],
       "referencedTable": "ba_user",
       "onDelete": "CASCADE"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "ba_team_member_document_id_uq",
+      "columns": ["document_id"],
+      "type": "unique"
     }
   ]
 }

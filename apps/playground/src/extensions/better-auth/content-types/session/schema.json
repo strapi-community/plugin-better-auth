@@ -58,17 +58,14 @@
       }
     },
     "userId": {
-      "type": "integer",
+      "type": "string",
       "configurable": false,
       "pluginOptions": {
         "better-auth": {
           "managed": true
         }
       },
-      "required": true,
-      "column": {
-        "unsigned": true
-      }
+      "required": true
     },
     "activeOrganizationId": {
       "type": "text",
@@ -102,9 +99,16 @@
     {
       "name": "ba_session_user_id_fk",
       "columns": ["user_id"],
-      "referencedColumns": ["id"],
+      "referencedColumns": ["document_id"],
       "referencedTable": "ba_user",
       "onDelete": "CASCADE"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "ba_session_document_id_uq",
+      "columns": ["document_id"],
+      "type": "unique"
     }
   ]
 }

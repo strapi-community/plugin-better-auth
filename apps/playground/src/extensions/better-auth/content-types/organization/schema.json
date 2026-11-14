@@ -67,5 +67,12 @@
       "visible": true,
       "default": null
     }
-  }
+  },
+  "indexes": [
+    {
+      "name": "ba_organization_document_id_uq",
+      "columns": ["document_id"],
+      "type": "unique"
+    }
+  ]
 }
