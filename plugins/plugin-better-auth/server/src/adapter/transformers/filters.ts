@@ -8,10 +8,20 @@ export const transformFilters = (
   where: Where[],
   model: string,
   getFieldName: (args: { model: string; field: string }) => string,
+  useDocumentId = false,
 ) => {
   if (!where) {
     return {};
   }
+
+  // In documentId mode Better Auth's `id` is stored as Strapi's `documentId`,
+  // so a filter on `id` must target `documentId` instead. Foreign-key fields
+  // (e.g. `userId`) keep their name — they hold the referenced `documentId`
+  // value, which is matched as a plain string column.
+  const resolveField = (field: string) =>
+    useDocumentId && field === "id"
+      ? "documentId"
+      : getFieldName({ model, field });
 
   // Handle array format: [{ field, operator, value, connector }]
   if (Array.isArray(where)) {
@@ -24,7 +34,7 @@ export const transformFilters = (
     const orConditions = [];
 
     for (const condition of where) {
-      const fieldName = getFieldName({ model, field: condition.field });
+      const fieldName = resolveField(condition.field);
       const insensitive = condition.mode === "insensitive";
 
       // Map the Better Auth operator to a Strapi filter condition. When
@@ -142,7 +152,7 @@ export const transformFilters = (
   const filters: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(where)) {
-    const fieldName = getFieldName({ model, field: key });
+    const fieldName = resolveField(key);
 
     if (value && typeof value === "object") {
       // Handle operators like $eq, $ne, $in, etc.

@@ -24,8 +24,14 @@ export * from "./utils";
 export async function updateStrapiSchema(
   strapi: Core.Strapi,
   tables: BetterAuthDBSchema,
+  options: { useDocumentId?: boolean } = {},
 ): Promise<UpdateSchemaResult> {
-  const { schema, allChangeDetails } = transformSchema(strapi, tables);
+  const { useDocumentId = false } = options;
+  const { schema, allChangeDetails } = transformSchema(
+    strapi,
+    tables,
+    useDocumentId,
+  );
 
   // Since Strapi 5.60 the CTB only deletes `api::` content types, so deletions
   // are handled below instead of being sent to the CTB.
@@ -83,10 +89,16 @@ export async function updateStrapiSchema(
     );
   }
 
+  // Declare the database foreign keys (with ON DELETE CASCADE) and the
+  // single-row lock (a UNIQUE index on document_id for every content type).
+  // In documentId mode the foreign keys reference `document_id` (string); in
+  // serial mode they reference the numeric `id`.
+  const foreignKeys = getForeignKeys(strapi, tables, useDocumentId);
   await writeForeignKeys(
     strapi,
     schema.contentTypes,
-    getForeignKeys(strapi, tables),
+    foreignKeys,
+    useDocumentId,
   );
 
   return { changeDetails: allChangeDetails };

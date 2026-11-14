@@ -33,7 +33,23 @@ function coerceDateValues<T>(value: T): T {
   return coerced as T;
 }
 
-export function transformOutput<T>(record: T): T {
-  // For now, we only need to coerce date values, but this is where any future output transformations would go.
-  return coerceDateValues(record);
+export function transformOutput<T>(record: T, useDocumentId = false): T {
+  const coerced = coerceDateValues(record);
+
+  // When Better Auth ids are not serial, the adapter maps them onto Strapi's
+  // `documentId` (Strapi's `id` stays a numeric auto-increment that Better Auth
+  // never sees). Expose `documentId` back as `id` so Better Auth reads the value
+  // it stored.
+  if (
+    useDocumentId &&
+    coerced &&
+    typeof coerced === "object" &&
+    "documentId" in coerced
+  ) {
+    (coerced as Record<string, unknown>).id = (
+      coerced as Record<string, unknown>
+    ).documentId;
+  }
+
+  return coerced;
 }

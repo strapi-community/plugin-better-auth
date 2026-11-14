@@ -17,22 +17,44 @@ import { strapiAdapter } from '@strapi-community/plugin-better-auth';
 export const auth = betterAuth({
   database: strapiAdapter(),
   trustedOrigins: ['http://localhost:3000'],
-  advanced: {
-    database: {
-      generateId: 'serial',
-    },
-  },
   emailAndPassword: {
     enabled: true,
   },
 });
 ```
 
-### Required options
+## ID strategy
 
-The following options are fixed and **must not be changed**:
+The adapter works with Better Auth's native id strategy out of the box — no
+configuration required. Better Auth generates the id (its default random string,
+or a UUID if you set `generateId: 'uuid'`) and the adapter stores it as Strapi's
+`documentId`.
 
-- **`advanced.database.generateId: 'serial'`** — Tells Better Auth to use auto-incremented integer IDs, which aligns with Strapi's default ID strategy. Changing this will break the Strapi adapter.
+If you prefer numeric, auto-incremented ids, set `generateId: 'serial'` and the
+adapter stores records under Strapi's numeric `id` instead:
+
+```typescript title="src/lib/auth.ts"
+export const auth = betterAuth({
+  // ...
+  advanced: {
+    database: {
+      generateId: 'serial',
+    },
+  },
+});
+```
+
+Both strategies declare database foreign keys with `ON DELETE CASCADE`, so Better
+Auth's cascade deletes work (deleting a user removes its sessions and accounts,
+deleting an organization removes its members, and so on).
+
+:::caution One row per document
+Better Auth content types must be exactly **one database row per document**. Do
+not enable **Draft & Publish** or **internationalization (i18n)** on them — both
+store multiple rows per document, which breaks Better Auth's model and its cascade
+deletes. The plugin disables these and the app will fail to start with a clear
+error if it finds them enabled on a Better Auth content type.
+:::
 
 ## Trusted origins
 
@@ -73,9 +95,6 @@ export const auth = betterAuth({
   // ...
   trustedOrigins: ['http://localhost:3000'],
   advanced: {
-    database: {
-      generateId: 'serial',
-    },
     defaultCookieAttributes: {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -109,10 +128,5 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: ['http://localhost:3000'],
-  advanced: {
-    database: {
-      generateId: 'serial',
-    },
-  },
 });
 ```
