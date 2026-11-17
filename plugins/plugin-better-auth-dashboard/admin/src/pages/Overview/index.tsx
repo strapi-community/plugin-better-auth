@@ -514,6 +514,16 @@ function relTime(
   );
 }
 
+// Retention windows are UTC day/week/month boundaries, so format them in UTC
+// to avoid shifting the date by a day in negative-offset timezones.
+function fmtUtcDate(date: string | Date) {
+  return new Date(date).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function rateColor(r: number): ColorToken {
   return r >= 70 ? "success500" : r >= 40 ? "warning500" : "danger500";
 }
@@ -553,10 +563,12 @@ type ActiveUser = {
 type RetentionRow = {
   n: number;
   label: string;
-  cohortStart: string;
-  cohortEnd: string;
-  activeStart: string;
-  activeEnd: string;
+  // ISO strings on the wire, but the Better Auth client parses ISO date
+  // strings into Date objects — so these arrive as Dates at runtime.
+  cohortStart: string | Date;
+  cohortEnd: string | Date;
+  activeStart: string | Date;
+  activeEnd: string | Date;
   cohortSize: number;
   retentionRate: number;
 };
@@ -1170,8 +1182,8 @@ export function OverviewPage() {
                       {
                         label: rtnHovRow.label,
                         cohortSize: rtnHovRow.cohortSize.toLocaleString(),
-                        activeStart: rtnHovRow.activeStart,
-                        activeEnd: rtnHovRow.activeEnd,
+                        activeStart: fmtUtcDate(rtnHovRow.activeStart),
+                        activeEnd: fmtUtcDate(rtnHovRow.activeEnd),
                       },
                     )
                   : formatMessage({
