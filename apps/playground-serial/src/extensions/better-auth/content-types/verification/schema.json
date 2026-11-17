@@ -1,0 +1,59 @@
+{
+  "kind": "collectionType",
+  "collectionName": "ba_verification",
+  "info": {
+    "singularName": "verification",
+    "pluralName": "verifications",
+    "displayName": "Verifications"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": {
+      "visible": false
+    },
+    "content-type-builder": {
+      "visible": false
+    }
+  },
+  "attributes": {
+    "identifier": {
+      "type": "text",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "required": true
+    },
+    "value": {
+      "type": "text",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "required": true
+    },
+    "expiresAt": {
+      "type": "datetime",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "required": true
+    }
+  },
+  "indexes": [
+    {
+      "name": "ba_verification_document_id_uq",
+      "columns": ["document_id"],
+      "type": "unique"
+    }
+  ]
+}

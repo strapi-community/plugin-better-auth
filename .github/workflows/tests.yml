@@ -226,12 +226,18 @@ jobs:
 
   test-e2e-sqlite:
     needs: [setup, lint, typescript]
-    name: 'test:e2e:sqlite (node ${{ matrix.node-version }})'
+    name: 'test:e2e:sqlite (${{ matrix.playground }}, node ${{ matrix.node-version }})'
     runs-on: ubuntu-latest
+    env:
+      PLAYGROUND: ${{ matrix.playground }}
+      # strapi start (CI) is safe to run in parallel against one app; locally the
+      # root scripts default to 1 because strapi develop rebuilds the shared dist.
+      E2E_CONCURRENCY: 10
     strategy:
       fail-fast: false
       matrix:
         node-version: [22, 24]
+        playground: [playground, playground-serial]
     steps:
       - uses: actions/checkout@v4
       - name: Install pnpm
@@ -260,18 +266,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-node${{ matrix.node-version }}-sqlite
+          name: playwright-report-${{ matrix.playground }}-node${{ matrix.node-version }}-sqlite
           path: '**/playwright-report/'
           retention-days: 30
 
   test-e2e-postgres:
     needs: [setup, lint, typescript]
-    name: 'test:e2e:postgres (node ${{ matrix.node-version }})'
+    name: 'test:e2e:postgres (${{ matrix.playground }}, node ${{ matrix.node-version }})'
     runs-on: ubuntu-latest
+    env:
+      PLAYGROUND: ${{ matrix.playground }}
+      # strapi start (CI) is safe to run in parallel against one app; locally the
+      # root scripts default to 1 because strapi develop rebuilds the shared dist.
+      E2E_CONCURRENCY: 10
     strategy:
       fail-fast: false
       matrix:
         node-version: [22, 24]
+        playground: [playground, playground-serial]
     steps:
       - uses: actions/checkout@v4
       - name: Install pnpm
@@ -300,18 +312,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-node${{ matrix.node-version }}-postgres
+          name: playwright-report-${{ matrix.playground }}-node${{ matrix.node-version }}-postgres
           path: '**/playwright-report/'
           retention-days: 30
 
   test-e2e-mysql:
     needs: [setup, lint, typescript]
-    name: 'test:e2e:mysql (node ${{ matrix.node-version }})'
+    name: 'test:e2e:mysql (${{ matrix.playground }}, node ${{ matrix.node-version }})'
     runs-on: ubuntu-latest
+    env:
+      PLAYGROUND: ${{ matrix.playground }}
+      # strapi start (CI) is safe to run in parallel against one app; locally the
+      # root scripts default to 1 because strapi develop rebuilds the shared dist.
+      E2E_CONCURRENCY: 10
     strategy:
       fail-fast: false
       matrix:
         node-version: [22, 24]
+        playground: [playground, playground-serial]
     steps:
       - uses: actions/checkout@v4
       - name: Install pnpm
@@ -340,6 +358,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-node${{ matrix.node-version }}-mysql
+          name: playwright-report-${{ matrix.playground }}-node${{ matrix.node-version }}-mysql
           path: '**/playwright-report/'
           retention-days: 30
