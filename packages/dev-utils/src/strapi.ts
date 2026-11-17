@@ -8,7 +8,12 @@ import { setupDb } from "./db";
 
 // Packages in this monorepo live at packages/<name>; apps at apps/<name>.
 export const appsDir = path.resolve(process.cwd(), "../../apps");
-export const playgroundDir = path.join(appsDir, "playground");
+// `PLAYGROUND` selects the app, e.g. `playground` (native ids, the default) or
+// `playground-serial`; the Playwright config reads the same variable.
+export const playgroundDir = path.join(
+  appsDir,
+  process.env.PLAYGROUND ?? "playground",
+);
 
 export function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {

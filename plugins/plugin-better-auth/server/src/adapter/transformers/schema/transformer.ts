@@ -78,6 +78,7 @@ function buildAttributes(
   uid: UID.ContentType,
   table: BetterAuthDBSchema[string],
   changeDetails: string[],
+  useDocumentId: boolean,
 ): CTBAttribute[] {
   const attributes: CTBAttribute[] = [];
   const existingAttributes = getExistingAttributes(strapi, uid);
@@ -97,7 +98,7 @@ function buildAttributes(
     if (SKIP_FIELDS.includes(name)) continue;
 
     const actualName = field.fieldName ?? name;
-    const props = createAttributeProperties(name, field);
+    const props = createAttributeProperties(name, field, useDocumentId);
     const existing = existingAttributes[actualName];
 
     if (existing) {
@@ -140,6 +141,7 @@ export function transformTable(
   strapi: Core.Strapi,
   modelKey: string,
   table: BetterAuthDBSchema[string],
+  useDocumentId = false,
 ): TransformResult {
   const pluginName = PLUGIN_ID;
   const names = generateNames(
@@ -154,7 +156,13 @@ export function transformTable(
 
   if (!exists) changeDetails.push(`Creating new content type: ${uid}`);
 
-  const attributes = buildAttributes(strapi, uid, table, changeDetails);
+  const attributes = buildAttributes(
+    strapi,
+    uid,
+    table,
+    changeDetails,
+    useDocumentId,
+  );
 
   const visible = isVisible(modelKey);
   const defaultPluginOptions = {
@@ -229,6 +237,7 @@ function createDeleteContentType(
 export function transformSchema(
   strapi: Core.Strapi,
   tables: BetterAuthDBSchema,
+  useDocumentId = false,
 ): SchemaTransformResult {
   const pluginName = PLUGIN_ID;
   const contentTypes: CTBContentType[] = [];
@@ -250,7 +259,7 @@ export function transformSchema(
   for (const [key, table] of Object.entries(tables)) {
     if (table.disableMigrations) continue;
 
-    const result = transformTable(strapi, key, table);
+    const result = transformTable(strapi, key, table, useDocumentId);
     contentTypes.push(result.contentType);
     allChangeDetails.push(...result.changeDetails);
   }

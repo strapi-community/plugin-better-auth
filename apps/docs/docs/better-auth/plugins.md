@@ -20,11 +20,6 @@ import { strapiAdapter } from '@strapi-community/plugin-better-auth';
 export const auth = betterAuth({
   database: strapiAdapter(),
   trustedOrigins: ['http://localhost:3000'],
-  advanced: {
-    database: {
-      generateId: 'serial',
-    },
-  },
   plugins: [
     twoFactor(),
   ],
@@ -54,11 +49,6 @@ import { strapiAdapter } from '@strapi-community/plugin-better-auth';
 export const auth = betterAuth({
   database: strapiAdapter(),
   trustedOrigins: ['http://localhost:3000'],
-  advanced: {
-    database: {
-      generateId: 'serial',
-    },
-  },
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,

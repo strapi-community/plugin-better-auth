@@ -7,6 +7,7 @@ import { registerListUsers } from "../src/mcp/tools/list-users";
 import { registerSignupsGraph } from "../src/mcp/tools/signups-graph";
 import { registerUpdateUser } from "../src/mcp/tools/update-user";
 import { registerUserStats } from "../src/mcp/tools/user-stats";
+import { betterAuthId } from "./better-auth-id";
 
 const USER_UID = "plugin::better-auth.user";
 const HOUR = 60 * 60 * 1000;
@@ -64,7 +65,7 @@ beforeAll(async () => {
       emailVerified: true,
     },
   });
-  aliceId = String(alice.id);
+  aliceId = betterAuthId(alice);
   await users.create({
     data: { name: "Bob MCP", email: "bob.mcp@test.dev", emailVerified: false },
   });
@@ -276,20 +277,18 @@ describe("better_auth_ban_user / unban", () => {
       },
     });
 
+    const userId = betterAuthId(created);
+
     const ban = await run(tools.get("better_auth_ban_user")!, {
-      userId: String(created.id),
+      userId,
       banReason: "spam",
     });
     expect(ban.structuredContent.banned).toBe(true);
 
-    const check = await run(tools.get("better_auth_get_user")!, {
-      userId: String(created.id),
-    });
+    const check = await run(tools.get("better_auth_get_user")!, { userId });
     expect(check.structuredContent.user.banned).toBe(true);
 
-    const unban = await run(tools.get("better_auth_unban_user")!, {
-      userId: String(created.id),
-    });
+    const unban = await run(tools.get("better_auth_unban_user")!, { userId });
     expect(unban.structuredContent.unbanned).toBe(true);
   });
 });

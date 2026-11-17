@@ -45,16 +45,13 @@ import { strapiAdapter } from '@strapi-community/plugin-better-auth';
 export const auth = betterAuth({
   database: strapiAdapter(),
   trustedOrigins: ['http://localhost:3000'],
-  advanced: {
-    database: {
-      generateId: 'serial',
-    },
-  },
 });
 ```
 
 :::note
-The `generateId: "serial"` option tells Better Auth to use auto-incremented integer IDs, which aligns with Strapi's default document ID strategy.
+No `generateId` configuration is required — the adapter stores Better Auth's
+native id as Strapi's `documentId`. If you prefer numeric, auto-incremented ids,
+set `advanced.database.generateId: 'serial'`. See [Configuration](./configuration#id-strategy).
 :::
 
 ## 4. Generate the schema

@@ -67,19 +67,18 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
     // Caused by returning true to opt-out of Better Auth's file writing logic in createSchema method
     // https://github.com/better-auth/better-auth/issues/8590
     adapter: ({ getFieldName, getDefaultModelName, debugLog, options }) => {
-      // The adapter stores records under Strapi's numeric `id` and relies on
-      // integer foreign keys with `ON DELETE CASCADE`, which Better Auth needs
-      // for its cascade deletes (e.g. removing a user clears their sessions and
-      // accounts). Any other id strategy silently breaks relations and cascades,
-      // so require `generateId: "serial"` and fail fast with a clear message.
-      if (options?.advanced?.database?.generateId !== "serial") {
-        throw new Error(
-          'The Strapi Better Auth adapter requires `advanced.database.generateId: "serial"`. ' +
-            "It stores records using Strapi's numeric id and relies on integer foreign keys " +
-            "with ON DELETE CASCADE; UUID, the default random string, and custom id generators " +
-            "are not supported.",
-        );
-      }
+      /**
+       * Better Auth's native id strategy (the default) is an application-
+       * generated string; the adapter maps it onto Strapi's string `documentId`.
+       * With `generateId: "serial"` the id instead maps onto Strapi's numeric
+       * auto-increment `id`. `useDocumentId` drives that choice on create, in
+       * `where` clauses, in output, and across joins. Both strategies get
+       * database foreign keys with `ON DELETE CASCADE` so Better Auth's cascade
+       * deletes work (documentId mode references a unique index on `document_id`,
+       * serial mode references the numeric `id`).
+       */
+      const useDocumentId =
+        options?.advanced?.database?.generateId !== "serial";
 
       /**
        * Get the Strapi UID for a model.
@@ -130,7 +129,14 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             Promise.all(
               joinEntries.map(async ([joinModel, joinConfig]) => {
                 const isOneToOne = joinConfig.relation === "one-to-one";
-                const fromValue = record[joinConfig.on.from];
+
+                // In documentId mode the base record's id is Strapi's
+                // `documentId`, and a join onto `id` targets `documentId` too.
+                // Foreign-key columns already hold the referenced `documentId`.
+                const fromValue =
+                  useDocumentId && joinConfig.on.from === "id"
+                    ? record.documentId
+                    : record[joinConfig.on.from];
 
                 // A missing foreign key resolves to no related rows.
                 if (fromValue === null || fromValue === undefined) {
@@ -139,23 +145,41 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
                 }
 
                 const joinUid = getModelUid(joinModel);
+                const toField =
+                  useDocumentId && joinConfig.on.to === "id"
+                    ? "documentId"
+                    : joinConfig.on.to;
                 const filters = {
-                  [joinConfig.on.to]: { $eq: fromValue },
+                  [toField]: { $eq: fromValue },
                 } as Modules.Documents.Params.Filters.Any<UID.ContentType>;
 
+                // Expose each joined row's `documentId` as `id` so Better Auth's
+                // output transformer reads the id it stored.
+                const mapJoined = (row: Record<string, unknown> | null) => {
+                  if (row && useDocumentId && "documentId" in row) {
+                    row.id = row.documentId;
+                  }
+                  return row;
+                };
+
                 if (isOneToOne) {
-                  const joined = await strapi
+                  const joined = (await strapi
                     .documents(joinUid)
-                    .findFirst({ filters, limit: 1 });
-                  record[joinModel] = joined ?? null;
+                    .findFirst({ filters, limit: 1 })) as Record<
+                    string,
+                    unknown
+                  > | null;
+                  record[joinModel] = mapJoined(joined);
                 } else {
-                  const joined = await strapi.documents(joinUid).findMany({
+                  const joined = (await strapi.documents(joinUid).findMany({
                     filters,
                     ...(joinConfig.limit !== undefined
                       ? { limit: joinConfig.limit }
                       : {}),
-                  });
-                  record[joinModel] = joined ?? [];
+                  })) as Record<string, unknown>[];
+                  record[joinModel] = (joined ?? []).map((row) =>
+                    mapJoined(row),
+                  );
                 }
               }),
             ),
@@ -173,12 +197,21 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           const uid = getModelUid(model);
           const fields = mapSelectFields(model, select);
 
+          // In documentId mode Better Auth's generated id arrives as `data.id`;
+          // store it as Strapi's `documentId` (Strapi still assigns its own
+          // numeric `id`, which Better Auth never sees).
+          let input = data as Record<string, unknown>;
+          if (useDocumentId && input.id !== undefined) {
+            const { id, ...rest } = input;
+            input = { ...rest, documentId: id };
+          }
+
           const result = await strapi.documents(uid).create({
-            data,
+            data: input as never,
             fields,
           });
 
-          return transformStrapiOutput(result);
+          return transformStrapiOutput(result, useDocumentId);
         },
 
         /**
@@ -188,7 +221,12 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           debugLog("update", { model, where, update });
 
           const uid = getModelUid(model);
-          const filters = transformFilters(where, model, getFieldName);
+          const filters = transformFilters(
+            where,
+            model,
+            getFieldName,
+            useDocumentId,
+          );
 
           // Find the record first
           const record = await strapi.documents(uid).findFirst({
@@ -210,7 +248,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             throw new Error(`Failed to update record for model ${model}`);
           }
 
-          const output = await transformStrapiOutput(result);
+          const output = await transformStrapiOutput(result, useDocumentId);
           return output;
         },
 
@@ -221,7 +259,12 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           debugLog("updateMany", { model, where, update });
 
           const uid = getModelUid(model);
-          const filters = transformFilters(where, model, getFieldName);
+          const filters = transformFilters(
+            where,
+            model,
+            getFieldName,
+            useDocumentId,
+          );
 
           // Find all matching records
           const records = await strapi.documents(uid).findMany({
@@ -250,7 +293,12 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           debugLog("delete", { model, where });
 
           const uid = getModelUid(model);
-          const filters = transformFilters(where, model, getFieldName);
+          const filters = transformFilters(
+            where,
+            model,
+            getFieldName,
+            useDocumentId,
+          );
 
           // Find the record first
           const record = await strapi.documents(uid).findFirst({
@@ -274,7 +322,12 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           debugLog("deleteMany", { model, where });
 
           const uid = getModelUid(model);
-          const filters = transformFilters(where, model, getFieldName);
+          const filters = transformFilters(
+            where,
+            model,
+            getFieldName,
+            useDocumentId,
+          );
 
           // Find all matching records
           const records = await strapi.documents(uid).findMany({
@@ -302,7 +355,12 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           debugLog("findOne", { model, where, select, join });
 
           const uid = getModelUid(model);
-          const filters = transformFilters(where, model, getFieldName);
+          const filters = transformFilters(
+            where,
+            model,
+            getFieldName,
+            useDocumentId,
+          );
           const fields = mapSelectFields(model, select);
 
           const record = await strapi.documents(uid).findFirst({
@@ -322,7 +380,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             );
           }
 
-          return transformStrapiOutput(record);
+          return transformStrapiOutput(record, useDocumentId);
         },
 
         /**
@@ -341,7 +399,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           const uid = getModelUid(model);
           const filters = where
-            ? transformFilters(where, model, getFieldName)
+            ? transformFilters(where, model, getFieldName, useDocumentId)
             : {};
           const fields = mapSelectFields(model, select);
 
@@ -378,7 +436,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           return Promise.all(
             records.map(async (record) => {
-              return transformStrapiOutput(record);
+              return transformStrapiOutput(record, useDocumentId);
             }),
           );
         },
@@ -391,7 +449,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           const uid = getModelUid(model);
           const filters = where
-            ? transformFilters(where, model, getFieldName)
+            ? transformFilters(where, model, getFieldName, useDocumentId)
             : undefined;
 
           const records = await strapi.documents(uid).findMany({
@@ -422,7 +480,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           const { app: strapi, distDir } = await getStrapiApp();
 
           // Use Strapi's content-type-builder service to create/update schemas
-          await updateStrapiSchema(strapi, tables);
+          await updateStrapiSchema(strapi, tables, { useDocumentId });
 
           // Clean up Strapi's dist directory and destroy the app instance
           cleanupStrapiApp(strapi, distDir);

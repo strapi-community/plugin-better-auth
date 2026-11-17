@@ -19,17 +19,14 @@
   },
   "attributes": {
     "organizationId": {
-      "type": "integer",
+      "type": "string",
       "configurable": false,
       "pluginOptions": {
         "better-auth": {
           "managed": true
         }
       },
-      "required": true,
-      "column": {
-        "unsigned": true
-      }
+      "required": true
     },
     "email": {
       "type": "email",
@@ -81,33 +78,37 @@
       "required": true
     },
     "inviterId": {
-      "type": "integer",
+      "type": "string",
       "configurable": false,
       "pluginOptions": {
         "better-auth": {
           "managed": true
         }
       },
-      "required": true,
-      "column": {
-        "unsigned": true
-      }
+      "required": true
     }
   },
   "foreignKeys": [
     {
       "name": "ba_invitation_organization_id_fk",
       "columns": ["organization_id"],
-      "referencedColumns": ["id"],
+      "referencedColumns": ["document_id"],
       "referencedTable": "ba_organization",
       "onDelete": "CASCADE"
     },
     {
       "name": "ba_invitation_inviter_id_fk",
       "columns": ["inviter_id"],
-      "referencedColumns": ["id"],
+      "referencedColumns": ["document_id"],
       "referencedTable": "ba_user",
       "onDelete": "CASCADE"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "ba_invitation_document_id_uq",
+      "columns": ["document_id"],
+      "type": "unique"
     }
   ]
 }

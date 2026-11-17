@@ -1,5 +1,6 @@
 import type { Core } from "@strapi/types";
 import { PLUGIN_ID } from "./utils";
+import { ensureDashSigningKey } from "./utils/dash";
 
 type AliasSubject = {
   /** The dashboard permission subCategory this content type is gated behind. */
@@ -61,4 +62,8 @@ export default async ({ strapi }: { strapi: Core.Strapi }) => {
       }
     }
   }
+
+  // Create the dash JWT signing key before the server takes requests, so
+  // concurrent first requests can't each create one (see ensureDashSigningKey).
+  await ensureDashSigningKey(strapi);
 };

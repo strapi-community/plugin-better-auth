@@ -14,8 +14,12 @@ A pnpm/Turborepo monorepo of three companion Strapi v5 plugins, developed agains
 | `plugin-api-permissions` | `plugins/plugin-api-permissions` | Auth-provider-agnostic Content API RBAC |
 | `@strapi-community/dev-utils` | `packages/dev-utils` | Internal dev tooling (dev server, DB, Playwright/Vitest helpers), not published |
 
-`apps/playground` is the Strapi app all three plugins run and are tested against. `apps/docs` is
-the documentation site.
+`apps/playground` is the Strapi app all three plugins run and are tested against; it uses Better
+Auth's native (string, `document_id`-backed) ids. `apps/playground-serial` is an otherwise identical
+copy configured with `generateId: "serial"` (numeric `id`), so the E2E suites can run against both
+id strategies — only its `src/lib/auth.ts` and generated Better Auth content-type schemas differ, so
+keep the rest in sync with `apps/playground`. `apps/playground-up-migration` is a separate app for
+testing the users-permissions → Better Auth migration. `apps/docs` is the documentation site.
 
 Requires Node.js >= 22 and pnpm >= 10.
 
@@ -27,7 +31,12 @@ pnpm build                # turbo build, all packages (build order follows ^buil
 pnpm dev                  # start playground against SQLite (default)
 pnpm dev:postgres         # start playground against Postgres (spins up Docker automatically)
 pnpm dev:mysql            # start playground against MySQL (spins up Docker automatically)
+pnpm dev:serial           # start playground-serial (serial ids); also :postgres / :mysql
 ```
+
+The app under test is selected with the `PLAYGROUND` env var (default `playground`), read by
+`createPlaywrightConfig` and `setupStrapi` in `dev-utils`; the `:serial` scripts set
+`PLAYGROUND=playground-serial`.
 
 Linting/type-checking (Biome for lint, tsc for types — run per package via turbo):
 
@@ -47,7 +56,12 @@ pnpm build                          # required first — e2e runs against built 
 pnpm test:e2e                       # playwright, SQLite
 pnpm test:e2e:postgres              # playwright, Postgres
 pnpm test:e2e:mysql                 # playwright, MySQL
+pnpm test:e2e:serial                # playwright against playground-serial; also :postgres / :mysql
 ```
+
+CI runs every E2E job for both playgrounds (DB × Node × playground matrix). Integration tests run
+against `apps/playground` only — `adapter.test.ts` covers both id strategies itself by overriding
+`generateId` per test block.
 
 Run a single test by `cd`-ing into the plugin and invoking the runner directly:
 

@@ -11,10 +11,21 @@ export const register = ({ strapi }: { strapi: Core.Strapi }) => {
   if (strapi.plugin("better-auth").contentTypes?.organization)
     actionsToRegister.push(...ACTIONS.organization);
 
-  // register basic permission actions
-  strapi.admin.services.permission.actionProvider.registerMany(
-    actionsToRegister,
+  // Register permission actions, skipping any already registered. Strapi's admin
+  // action registry can retain actions across a reload within the same process
+  // (integration tests that reboot Strapi, `strapi develop` watch mode), and
+  // `registerMany` throws on a duplicate key — which would crash the boot.
+  const actionProvider = strapi.admin.services.permission.actionProvider as {
+    has: (actionId: string) => boolean;
+    registerMany: (actions: typeof actionsToRegister) => unknown;
+  };
+  const newActions = actionsToRegister.filter(
+    (action) =>
+      !actionProvider.has(`plugin::${action.pluginName}.${action.uid}`),
   );
+  if (newActions.length > 0) {
+    actionProvider.registerMany(newActions);
+  }
 
   const config = strapi.config.get<Config>(`plugin::${PLUGIN_ID}`, {});
 

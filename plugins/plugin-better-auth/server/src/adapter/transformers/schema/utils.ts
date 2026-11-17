@@ -38,6 +38,7 @@ export function mapFieldType(field: DBFieldAttribute): string {
 export function createAttributeProperties(
   fieldName: string,
   field: DBFieldAttribute,
+  useDocumentId = false,
 ): CTBAttributeProperties {
   const properties: CTBAttributeProperties = {
     type: mapFieldType(field),
@@ -59,9 +60,11 @@ export function createAttributeProperties(
     properties.enum = field.type;
   }
 
-  // Foreign keys should be integers as we're using numeric IDs
+  // Foreign keys hold the referenced row's id. With numeric ids that's an
+  // integer column; in documentId mode the id is Strapi's string `documentId`,
+  // so the foreign key is a plain string column instead.
   if (field.references?.field === "id") {
-    properties.type = "integer";
+    properties.type = useDocumentId ? "string" : "integer";
   }
 
   // Special field type overrides

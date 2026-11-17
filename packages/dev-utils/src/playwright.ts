@@ -12,6 +12,9 @@ export function createPlaywrightConfig(options: { testDir: string }) {
 
   const dbEnv = setupDb(String(process.pid));
 
+  // The app under test, e.g. `playground` (native ids) or `playground-serial`.
+  const app = process.env.PLAYGROUND ?? "playground";
+
   return defineConfig({
     testDir: options.testDir,
     fullyParallel: false,
@@ -25,9 +28,7 @@ export function createPlaywrightConfig(options: { testDir: string }) {
       screenshot: "only-on-failure",
     },
     webServer: {
-      command: process.env.CI
-        ? "cd ../../apps/playground/ && pnpm run start"
-        : "cd ../../apps/playground/ && pnpm run dev",
+      command: `cd ../../apps/${app}/ && pnpm run ${process.env.CI ? "start" : "dev"}`,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
       env: {

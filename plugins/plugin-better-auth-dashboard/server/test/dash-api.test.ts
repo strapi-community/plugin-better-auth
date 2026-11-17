@@ -1,6 +1,7 @@
 import { setupStrapi, stopStrapi } from "@strapi-community/dev-utils";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { betterAuthId } from "./better-auth-id";
 
 // Opt the gateway in before Strapi boots — the route is only registered when
 // dashApi.enabled is set (the playground reads this env in config/plugins.ts).
@@ -22,7 +23,7 @@ beforeAll(async () => {
   const dave = await strapi.documents(USER_UID).create({
     data: { name: "Dave GW", email: "dave.gw@test.dev", emailVerified: true },
   });
-  daveId = String(dave.id);
+  daveId = betterAuthId(dave);
 
   // A content-api API token is how a third party authenticates to the gateway.
   const token = await (

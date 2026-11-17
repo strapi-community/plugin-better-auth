@@ -31,9 +31,4 @@ export const auth = betterAuth({
       trustedProviders: ["credential", "google", "github"],
     },
   },
-  advanced: {
-    database: {
-      generateId: "serial",
-    },
-  },
 });

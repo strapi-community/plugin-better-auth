@@ -44,11 +44,6 @@ export const auth = betterAuth({
         "strapi-internal-dashboard-key",
     }),
   ],
-  advanced: {
-    database: {
-      generateId: 'serial',
-    },
-  },
   emailAndPassword: {
     enabled: true,
   },

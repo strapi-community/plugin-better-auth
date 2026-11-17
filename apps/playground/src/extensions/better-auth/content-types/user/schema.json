@@ -116,5 +116,12 @@
         }
       }
     }
-  }
+  },
+  "indexes": [
+    {
+      "name": "ba_user_document_id_uq",
+      "columns": ["document_id"],
+      "type": "unique"
+    }
+  ]
 }

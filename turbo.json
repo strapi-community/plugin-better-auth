@@ -18,6 +18,7 @@
     "test:integration": {
       "cache": false,
       "passThroughEnv": [
+        "PLAYGROUND",
         "DATABASE_CLIENT",
         "DATABASE_HOST",
         "DATABASE_PORT",
@@ -30,6 +31,7 @@
     "test:e2e": {
       "cache": false,
       "passThroughEnv": [
+        "PLAYGROUND",
         "DATABASE_CLIENT",
         "DATABASE_HOST",
         "DATABASE_PORT",
@@ -43,6 +45,7 @@
       "cache": false,
       "persistent": true,
       "passThroughEnv": [
+        "PLAYGROUND",
         "DATABASE_CLIENT",
         "DATABASE_HOST",
         "DATABASE_PORT",

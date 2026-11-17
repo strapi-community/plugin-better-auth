@@ -136,13 +136,19 @@ export function OrganizationDetail({
   const { toggleNotification } = useNotification();
   const { get, put } = useFetchClient();
 
+  // The Better Auth client kebab-cases every path segment, so the organization
+  // id must not be passed as a dynamic path segment (its uppercase letters would
+  // be mangled — e.g. `LRM9` → `-l-r-m9`). Instead address the `:id` placeholder
+  // and let better-fetch substitute the raw id via `params`.
+  const orgCtx = () => ({
+    ...withContext({ organizationId }, getAuthHeaders()),
+    params: { id: organizationId },
+  });
+
   const orgQuery = useQuery({
     queryKey: ["dash-org", organizationId],
     queryFn: async () => {
-      const result = await client.dash.organization[organizationId as ":id"](
-        {},
-        withContext({ organizationId }, getAuthHeaders()),
-      );
+      const result = await client.dash.organization[":id"]({}, orgCtx());
       if (result.error)
         throw new Error(
           result.error.message ??
@@ -158,9 +164,10 @@ export function OrganizationDetail({
   const membersQuery = useQuery({
     queryKey: ["dash-org-members", organizationId],
     queryFn: async () => {
-      const result = await client.dash.organization[
-        organizationId as ":id"
-      ].members({}, withContext({ organizationId }, getAuthHeaders()));
+      const result = await client.dash.organization[":id"].members(
+        {},
+        orgCtx(),
+      );
       if (result.error)
         throw new Error(
           result.error.message ??
@@ -177,9 +184,7 @@ export function OrganizationDetail({
     queryKey: ["dash-org-teams", organizationId],
     queryFn: async () => {
       if (!teamsEnabled) return [];
-      const result = await client.dash.organization[
-        organizationId as ":id"
-      ].teams({}, withContext({ organizationId }, getAuthHeaders()));
+      const result = await client.dash.organization[":id"].teams({}, orgCtx());
       if (result.error)
         throw new Error(
           result.error.message ??
@@ -202,9 +207,10 @@ export function OrganizationDetail({
   const ssoQuery = useQuery({
     queryKey: ["dash-org-sso", organizationId],
     queryFn: async () => {
-      const result = await client.dash.organization[
-        organizationId as ":id"
-      ].ssoProviders({}, withContext({ organizationId }, getAuthHeaders()));
+      const result = await client.dash.organization[":id"].ssoProviders(
+        {},
+        orgCtx(),
+      );
       if (result.error)
         throw new Error(
           result.error.message ??
@@ -220,9 +226,10 @@ export function OrganizationDetail({
   const invitationsQuery = useQuery({
     queryKey: ["dash-org-invitations", organizationId],
     queryFn: async () => {
-      const result = await client.dash.organization[
-        organizationId as ":id"
-      ].invitations({}, withContext({ organizationId }, getAuthHeaders()));
+      const result = await client.dash.organization[":id"].invitations(
+        {},
+        orgCtx(),
+      );
       if (result.error)
         throw new Error(
           result.error.message ??
@@ -591,11 +598,9 @@ export function OrganizationDetail({
 
   const deleteSsoMutation = useMutation({
     mutationFn: async (providerId: string) => {
-      const result = await client.dash.organization[
-        organizationId as ":id"
-      ].ssoProvider.delete(
+      const result = await client.dash.organization[":id"].ssoProvider.delete(
         { providerId },
-        withContext({ organizationId }, getAuthHeaders()),
+        orgCtx(),
       );
       if (result.error)
         throw new Error(
@@ -1678,12 +1683,23 @@ function TeamRow({
   const teamMembersQuery = useQuery({
     queryKey: ["dash-team-members", organizationId, team.id],
     queryFn: async () => {
-      const result = await client.dash.organization[
-        // @ts-expect-error
-        organizationId as ":orgId"
-      ].teams[team.id as ":teamId"].members(
-        { params: { orgId: organizationId, teamId: team.id } },
-        withContext({ organizationId }, getAuthHeaders()),
+      // Address the `:orgid`/`:teamid` placeholders and let better-fetch fill
+      // them from `params` (which must be in the options arg, not the body).
+      // Passing the raw ids as path segments would kebab-case them (e.g.
+      // `LRM9` → `-l-r-m9`) and break the lookup. The runtime param keys match
+      // the (kebab-cased) placeholder names; the server matches positionally.
+      // The params type is declared camelCase upstream, hence the cast.
+      const result = await client.dash.organization[":orgid"].teams[
+        ":teamid"
+      ].members(
+        {},
+        {
+          ...withContext({ organizationId }, getAuthHeaders()),
+          params: { orgid: organizationId, teamid: team.id } as unknown as {
+            orgId: string;
+            teamId: string;
+          },
+        },
       );
       if (result.error)
         throw new Error(

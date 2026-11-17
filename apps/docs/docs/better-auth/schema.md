@@ -38,11 +38,6 @@ import { strapiAdapter } from "@strapi-community/plugin-better-auth";
 export const auth = betterAuth({
   database: strapiAdapter(),
   trustedOrigins: ['http://localhost:3000'],
-  advanced: {
-    database: {
-      generateId: "serial",
-    },
-  },
   user: {
     modelId: "custom_user",
   },

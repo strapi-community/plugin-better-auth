@@ -11,6 +11,7 @@ interface OrphanForeignKey {
   table: string;
   column: string;
   referencedTable: string;
+  referencedColumn: string;
   onDelete: string;
 }
 
@@ -39,6 +40,9 @@ const getForeignKeys = (db: Database): OrphanForeignKey[] =>
         table: meta.tableName,
         column: fk.columns[0],
         referencedTable: fk.referencedTable,
+        // The referenced key is `id` for serial ids and `document_id` for the
+        // native (documentId) id strategy.
+        referencedColumn: fk.referencedColumns?.[0] ?? "id",
         onDelete: (fk.onDelete ?? "CASCADE").toUpperCase(),
       })),
     );
@@ -68,11 +72,11 @@ const resolveOrphans = async (
     .select(`${fk.table}.id`)
     .leftJoin(
       `${fk.referencedTable} as parent`,
-      "parent.id",
+      `parent.${fk.referencedColumn}`,
       `${fk.table}.${fk.column}`,
     )
     .whereNotNull(`${fk.table}.${fk.column}`)
-    .whereNull("parent.id");
+    .whereNull(`parent.${fk.referencedColumn}`);
 
   const ids = rows.map((row) => row.id);
   if (ids.length === 0) return 0;
