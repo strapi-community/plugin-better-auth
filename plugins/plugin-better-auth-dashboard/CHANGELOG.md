@@ -1,5 +1,11 @@
 # @strapi-community/plugin-better-auth-dashboard
 
+## 1.1.3
+
+### Patch Changes
+
+- [#57](https://github.com/strapi-community/plugin-better-auth/pull/57) [`7fd5175`](https://github.com/strapi-community/plugin-better-auth/commit/7fd51756453fc4f8fa5a1eb1364e95aeb5b73b65) Thanks [@boazpoolman](https://github.com/boazpoolman)! - Fix the Overview page crashing with "Objects are not valid as a React child" when hovering a retention row. The Better Auth client parses the retention window dates into `Date` objects, which were passed straight into the hover text; they're now formatted as UTC dates.
+
 ## 1.1.2
 
 ### Patch Changes
