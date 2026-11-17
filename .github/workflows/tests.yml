@@ -18,7 +18,7 @@ env:
 jobs:
   setup:
     name: 'setup (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
   lint:
     needs: [setup]
     name: 'lint (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -91,7 +91,7 @@ jobs:
   typescript:
     needs: [setup]
     name: 'typescript (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -125,7 +125,7 @@ jobs:
   test-integration-sqlite:
     needs: [setup, lint, typescript]
     name: 'test:integration:sqlite (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -159,7 +159,7 @@ jobs:
   test-integration-postgres:
     needs: [setup, lint, typescript]
     name: 'test:integration:postgres (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -193,7 +193,7 @@ jobs:
   test-integration-mysql:
     needs: [setup, lint, typescript]
     name: 'test:integration:mysql (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -227,7 +227,7 @@ jobs:
   test-e2e-sqlite:
     needs: [setup, lint, typescript]
     name: 'test:e2e:sqlite (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -267,7 +267,7 @@ jobs:
   test-e2e-postgres:
     needs: [setup, lint, typescript]
     name: 'test:e2e:postgres (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -307,7 +307,7 @@ jobs:
   test-e2e-mysql:
     needs: [setup, lint, typescript]
     name: 'test:e2e:mysql (node ${{ matrix.node-version }})'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
