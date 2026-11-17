@@ -65,6 +65,41 @@ export async function signDashToken(
 }
 
 /**
+ * Make sure the `jwt()` plugin's signing key exists before any dash request is
+ * served.
+ *
+ * The `jwt()` plugin creates its key lazily (on the first `signJWT` or `/jwks`
+ * call) without a lock, and the dash() plugin caches the JWKS it fetches for 15
+ * minutes without refetching on an unknown key id. On a fresh database the
+ * dashboard's first page load fires several dash requests at once, so several
+ * keys get created; if the newest key — the one tokens are then signed with —
+ * isn't in the JWKS snapshot dash() cached, every dash request fails until that
+ * cache expires. Creating the key once at boot, before requests arrive, leaves a
+ * single key that every token is signed with and every JWKS fetch contains.
+ *
+ * Best effort: when Better Auth or its `jwt()` plugin isn't configured this is a
+ * no-op, and those features report the problem when they're used.
+ */
+export async function ensureDashSigningKey(strapi: Core.Strapi): Promise<void> {
+  let auth: Auth;
+  try {
+    auth = getAuth(strapi);
+  } catch {
+    return;
+  }
+
+  try {
+    await signDashToken(auth);
+  } catch (error) {
+    strapi.log.warn(
+      `[better-auth-dashboard] Could not create the JWT signing key at startup: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+}
+
+/**
  * Resolve the consumer's Better Auth instance and assert it can mint dash JWTs.
  * Throws if no Better Auth config is found or the `jwt()` plugin is missing.
  */
