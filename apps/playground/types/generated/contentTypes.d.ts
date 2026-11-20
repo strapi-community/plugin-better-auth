@@ -758,9 +758,21 @@ export interface PluginBetterAuthJwks extends Struct.CollectionTypeSchema {
     };
   };
   attributes: {
+    alg: Schema.Attribute.Text &
+      Schema.Attribute.SetPluginOptions<{
+        'better-auth': {
+          managed: true;
+        };
+      }>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    crv: Schema.Attribute.Text &
+      Schema.Attribute.SetPluginOptions<{
+        'better-auth': {
+          managed: true;
+        };
+      }>;
     expiresAt: Schema.Attribute.DateTime &
       Schema.Attribute.SetPluginOptions<{
         'better-auth': {
@@ -1033,6 +1045,14 @@ export interface PluginBetterAuthTeam extends Struct.CollectionTypeSchema {
       'plugin::better-auth.team'
     > &
       Schema.Attribute.Private;
+    memberCount: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetPluginOptions<{
+        'better-auth': {
+          managed: true;
+        };
+      }> &
+      Schema.Attribute.DefaultTo<0>;
     name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.SetPluginOptions<{
@@ -1083,6 +1103,13 @@ export interface PluginBetterAuthTeamMember
       'plugin::better-auth.team-member'
     > &
       Schema.Attribute.Private;
+    membershipKey: Schema.Attribute.Text &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetPluginOptions<{
+        'better-auth': {
+          managed: true;
+        };
+      }>;
     publishedAt: Schema.Attribute.DateTime;
     teamId: Schema.Attribute.Integer &
       Schema.Attribute.Required &
@@ -1133,12 +1160,25 @@ export interface PluginBetterAuthTwoFactor extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    failedVerificationCount: Schema.Attribute.Integer &
+      Schema.Attribute.SetPluginOptions<{
+        'better-auth': {
+          managed: true;
+        };
+      }> &
+      Schema.Attribute.DefaultTo<0>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'plugin::better-auth.two-factor'
     > &
       Schema.Attribute.Private;
+    lockedUntil: Schema.Attribute.DateTime &
+      Schema.Attribute.SetPluginOptions<{
+        'better-auth': {
+          managed: true;
+        };
+      }>;
     publishedAt: Schema.Attribute.DateTime;
     secret: Schema.Attribute.Text &
       Schema.Attribute.Required &

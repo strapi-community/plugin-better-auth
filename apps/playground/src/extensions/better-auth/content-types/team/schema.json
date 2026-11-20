@@ -40,6 +40,17 @@
       "column": {
         "unsigned": true
       }
+    },
+    "memberCount": {
+      "type": "integer",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "required": true,
+      "default": 0
     }
   },
   "foreignKeys": [
