@@ -7,8 +7,8 @@ catalogs:
   playwright:
     "@playwright/test": "^1.49.0"
   better-auth:
-    "@better-auth/test-utils": 1.6.9
-    "better-auth": 1.6.9
+    "@better-auth/test-utils": 1.7.27
+    "better-auth": 1.7.27
   strapi-design-system:
     "@strapi/design-system": 2.2.0
     "@strapi/icons": 2.2.0
