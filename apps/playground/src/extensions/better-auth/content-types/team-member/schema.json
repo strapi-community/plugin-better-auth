@@ -43,6 +43,16 @@
       "column": {
         "unsigned": true
       }
+    },
+    "membershipKey": {
+      "type": "text",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "unique": true
     }
   },
   "foreignKeys": [

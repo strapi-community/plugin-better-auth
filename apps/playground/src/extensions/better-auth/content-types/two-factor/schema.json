@@ -60,6 +60,25 @@
         }
       },
       "default": true
+    },
+    "failedVerificationCount": {
+      "type": "integer",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      },
+      "default": 0
+    },
+    "lockedUntil": {
+      "type": "datetime",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      }
     }
   },
   "foreignKeys": [
