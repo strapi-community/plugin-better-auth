@@ -196,8 +196,10 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             limit: 1,
           });
 
+          // Better Auth expects `null` when `where` matches no record (or the
+          // record is deleted before it can be updated), not an error.
           if (!record) {
-            throw new Error(`Record not found for model ${model}`);
+            return null;
           }
 
           const result = await strapi.documents(uid).update({
@@ -207,7 +209,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           });
 
           if (!result) {
-            throw new Error(`Failed to update record for model ${model}`);
+            return null;
           }
 
           const output = await transformStrapiOutput(result);
