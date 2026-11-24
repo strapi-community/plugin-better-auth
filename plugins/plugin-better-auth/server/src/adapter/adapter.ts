@@ -66,7 +66,13 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
     // @ts-expect-error
     // Caused by returning true to opt-out of Better Auth's file writing logic in createSchema method
     // https://github.com/better-auth/better-auth/issues/8590
-    adapter: ({ getFieldName, getDefaultModelName, debugLog, options }) => {
+    adapter: ({
+      getFieldName,
+      getDefaultModelName,
+      debugLog,
+      options,
+      schema,
+    }) => {
       // The adapter stores records under Strapi's numeric `id` and relies on
       // integer foreign keys with `ON DELETE CASCADE`, which Better Auth needs
       // for its cascade deletes (e.g. removing a user clears their sessions and
@@ -90,6 +96,43 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
       const getModelUid = (model: string): UID.ContentType => {
         const originalKey = getDefaultModelName(model);
         return `plugin::better-auth.${kebabCase(originalKey)}` as UID.ContentType;
+      };
+
+      /**
+       * Turn a Strapi record into the record Better Auth expects: only the
+       * model's Better Auth fields (plus `id` and any joined models), with
+       * date strings coerced to dates.
+       *
+       * Strapi adds its own attributes to every document (`documentId`,
+       * `publishedAt`, ...). The factory ignores unknown fields when it
+       * transforms our output, but some of its internals read our raw output.
+       * Better Auth 1.7's atomic fallbacks, for instance, turn every field of
+       * a row into a `where` guard, which our filter transformer rejects for
+       * fields Better Auth doesn't know.
+       */
+      const toBetterAuthRecord = <T>(
+        model: string,
+        record: T,
+        join?: JoinConfig,
+      ): T => {
+        if (!record || typeof record !== "object") {
+          return transformStrapiOutput(record);
+        }
+
+        const modelKey = getDefaultModelName(model);
+        const allowed = new Set([
+          "id",
+          ...Object.keys(schema[modelKey]?.fields ?? {}).map((field) =>
+            getFieldName({ model: modelKey, field }),
+          ),
+          ...Object.keys(join ?? {}),
+        ]);
+
+        const picked = Object.fromEntries(
+          Object.entries(record).filter(([key]) => allowed.has(key)),
+        );
+
+        return transformStrapiOutput(picked as T);
       };
 
       /**
@@ -178,7 +221,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             fields,
           });
 
-          return transformStrapiOutput(result);
+          return toBetterAuthRecord(model, result);
         },
 
         /**
@@ -212,7 +255,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             return null;
           }
 
-          const output = await transformStrapiOutput(result);
+          const output = toBetterAuthRecord(model, result);
           return output;
         },
 
@@ -324,7 +367,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             );
           }
 
-          return transformStrapiOutput(record);
+          return toBetterAuthRecord(model, record, join as JoinConfig);
         },
 
         /**
@@ -380,7 +423,7 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
 
           return Promise.all(
             records.map(async (record) => {
-              return transformStrapiOutput(record);
+              return toBetterAuthRecord(model, record, join as JoinConfig);
             }),
           );
         },
