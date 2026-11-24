@@ -1,5 +1,11 @@
 # @strapi-community/plugin-better-auth-dashboard
 
+## 1.2.0
+
+### Minor Changes
+
+- [#59](https://github.com/strapi-community/plugin-better-auth/pull/59) [`4d0c528`](https://github.com/strapi-community/plugin-better-auth/commit/4d0c5282bc09606d89fff1b512f50e41dbf35705) Thanks [@unrevised6419](https://github.com/unrevised6419)! - Show a "Passkeys" section in the user drawer's Security tab when the Better Auth `passkey()` plugin is configured. It lists each passkey (name, device type, backup state, creation date) with a delete action and an empty state. "Linked accounts" no longer implies that a passkey-only user has no way to sign in. Adds an admin-only `DELETE /better-auth-dashboard/db/:documentId` route that only deletes passkeys, and only one belonging to the given `userId`.
+
 ## 1.1.3
 
 ### Patch Changes
