@@ -206,6 +206,35 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
         );
       };
 
+      /**
+       * Lock the first row matching `filters` until the current transaction
+       * ends, and return its `documentId`, or `null` when no row matches.
+       *
+       * This is what makes `consumeOne` and `incrementOne` race-safe: a
+       * concurrent caller blocks on the lock and, once the first caller
+       * commits, re-evaluates `filters` against the committed row (Postgres and
+       * MySQL locking reads always see the latest committed version). SQLite
+       * has no row locks, but Strapi's SQLite pool holds a single connection,
+       * so its transactions already run one at a time.
+       */
+      const lockFirstMatch = async (
+        uid: UID.ContentType,
+        filters: Record<string, unknown>,
+      ): Promise<string | null> => {
+        const query = strapi.db
+          .queryBuilder(uid)
+          .select(["documentId"])
+          .where(filters)
+          .first();
+
+        if (strapi.db.dialect.client !== "sqlite") {
+          query.forUpdate();
+        }
+
+        const row = await query.execute<{ documentId: string } | undefined>();
+        return row?.documentId ?? null;
+      };
+
       return {
         /**
          * Create a new record
@@ -338,6 +367,81 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
           }
 
           return records.length;
+        },
+
+        /**
+         * Atomically delete a single record and return it.
+         *
+         * Better Auth uses this for single-use credentials (verification
+         * tokens, one-time tokens, OTPs). Concurrent callers racing on the same
+         * row are serialized by `lockFirstMatch`, so exactly one of them gets
+         * the row and the others get `null`. Only the first match is deleted,
+         * even when `where` matches several rows.
+         */
+        consumeOne: async ({ where, model }) => {
+          debugLog("consumeOne", { model, where });
+
+          const uid = getModelUid(model);
+          const filters = transformFilters(where, model, getFieldName);
+
+          return strapi.db.transaction(async () => {
+            const documentId = await lockFirstMatch(uid, filters);
+            if (!documentId) {
+              return null;
+            }
+
+            const record = await strapi.documents(uid).findOne({ documentId });
+            if (!record) {
+              return null;
+            }
+
+            await strapi.documents(uid).delete({ documentId });
+
+            return toBetterAuthRecord(model, record);
+          });
+        },
+
+        /**
+         * Atomically apply numeric deltas (and optional absolute `set` values)
+         * to a single record, and return the updated record.
+         *
+         * `where` is both the selector and the guard: when it matches no row,
+         * nothing changes and `null` is returned. Better Auth uses this for 2FA
+         * attempt counters, the database rate limiter and organization counts.
+         * The new values are computed while holding the row lock from
+         * `lockFirstMatch`, so concurrent increments are never lost and a guard
+         * such as `counter > 0` can't be passed by more callers than it allows.
+         */
+        incrementOne: async ({ where, model, increment, set }) => {
+          debugLog("incrementOne", { model, where, increment, set });
+
+          const uid = getModelUid(model);
+          const filters = transformFilters(where, model, getFieldName);
+
+          return strapi.db.transaction(async () => {
+            const documentId = await lockFirstMatch(uid, filters);
+            if (!documentId) {
+              return null;
+            }
+
+            const record = await strapi.documents(uid).findOne({ documentId });
+            if (!record) {
+              return null;
+            }
+
+            const data: Record<string, unknown> = { ...set };
+            for (const [field, delta] of Object.entries(increment)) {
+              const current = (record as Record<string, unknown>)[field];
+              data[field] = Number(current ?? 0) + delta;
+            }
+
+            const result = await strapi.documents(uid).update({
+              documentId,
+              data,
+            });
+
+            return result ? toBetterAuthRecord(model, result) : null;
+          });
         },
 
         /**
