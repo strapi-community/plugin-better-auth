@@ -61,6 +61,7 @@
     "@types/koa": "^3.0.1",
     "@types/lodash": "^4.17.21",
     "@types/supertest": "^6.0.0",
+    "better-auth": "catalog:better-auth",
     "supertest": "^7.0.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"

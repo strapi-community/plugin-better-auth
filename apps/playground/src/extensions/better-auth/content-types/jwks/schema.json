@@ -46,6 +46,24 @@
           "managed": true
         }
       }
+    },
+    "alg": {
+      "type": "text",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      }
+    },
+    "crv": {
+      "type": "text",
+      "configurable": false,
+      "pluginOptions": {
+        "better-auth": {
+          "managed": true
+        }
+      }
     }
   }
 }

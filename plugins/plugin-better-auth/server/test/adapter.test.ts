@@ -19,6 +19,7 @@ import { getAuthTables } from "better-auth/db";
 import { afterAll } from "vitest";
 import { strapiAdapter } from "../src/adapter";
 import { updateStrapiSchema } from "../src/adapter/transformers";
+import { atomicTestSuite } from "./suites/atomic";
 
 // The migrations below regenerate the playground's content types from the test
 // suite's own Better Auth config. Back them up so other test files still boot
@@ -132,6 +133,9 @@ const { execute } = await testAdapter({
    *                               (one sensitivity assertion is skipped on MySQL,
    *                               see `caseInsensitiveOptions` above)
    * - `transactionsTestSuite`     rollback of a failing `strapi.db.transaction`
+   * - `atomicTestSuite`           `consumeOne` / `incrementOne`, including
+   *                               concurrent callers racing on the same row
+   *                               (our own suite, see `./suites/atomic.ts`)
    *
    * `normalTestSuite()` and `uuidTestSuite()` are intentionally omitted: both
    * require non-serial / UUID string ids (normal asserts `generateId !==
@@ -146,6 +150,7 @@ const { execute } = await testAdapter({
     joinsTestSuite(),
     caseInsensitiveTestSuite(caseInsensitiveOptions),
     transactionsTestSuite(),
+    atomicTestSuite(),
   ],
   async onFinish() {
     // Stop Strapi.

@@ -306,18 +306,23 @@ export function UserDetailDrawer({
           }),
         );
 
-      const updateUser = await client.dash.updateUser(
-        { userId, ...body },
-        withContext({ userId }, getAuthHeaders()),
-      );
-
-      if (!updateUser.data)
-        throw new Error(
-          formatMessage({
-            id: getTranslation("userDetail.common.updateFailed"),
-            defaultMessage: "Update failed",
-          }),
+      // Only call Better Auth when a core field changed: when just custom
+      // fields changed, `body` is empty, and newer `@better-auth/infra`
+      // versions reject an empty update ("No valid fields to update").
+      if (Object.keys(body).length > 0) {
+        const updateUser = await client.dash.updateUser(
+          { userId, ...body },
+          withContext({ userId }, getAuthHeaders()),
         );
+
+        if (!updateUser.data)
+          throw new Error(
+            formatMessage({
+              id: getTranslation("userDetail.common.updateFailed"),
+              defaultMessage: "Update failed",
+            }),
+          );
+      }
 
       if (Object.keys(editExtra).length > 0) {
         await put(
