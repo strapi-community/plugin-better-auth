@@ -306,15 +306,20 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             return 0;
           }
 
-          // Update each record
+          // Update each record. Count only the records that were actually
+          // updated: one deleted after the lookup above makes `update` return
+          // null. Better Auth relies on an accurate affected-row count (e.g.
+          // its atomic fallbacks), so don't report the lookup's length.
+          let updated = 0;
           for (const record of records) {
-            await strapi.documents(uid).update({
+            const result = await strapi.documents(uid).update({
               documentId: record.documentId,
               data: update,
             });
+            if (result) updated++;
           }
 
-          return records.length;
+          return updated;
         },
 
         /**
@@ -359,14 +364,20 @@ export const strapiAdapter = (config?: StrapiAdapterConfig) => {
             return 0;
           }
 
-          // Delete each record
+          // Delete each record. Count only the rows that were actually
+          // deleted: a concurrent caller may have deleted a record after the
+          // lookup above, in which case `delete` removes no entries. Better
+          // Auth relies on an accurate affected-row count (e.g. its atomic
+          // fallbacks), so don't report the lookup's length.
+          let deleted = 0;
           for (const record of records) {
-            await strapi.documents(uid).delete({
+            const { entries } = await strapi.documents(uid).delete({
               documentId: record.documentId,
             });
+            deleted += entries.length;
           }
 
-          return records.length;
+          return deleted;
         },
 
         /**
