@@ -35,7 +35,6 @@ import {
   FormSection,
   MetaItem,
   MetaKey,
-  MetaVal,
   MonoChip,
   PreviewPill,
   ProviderBadge,
@@ -45,6 +44,7 @@ import {
 } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
 import { SheetDialog } from "../../components/Sheet";
+import { TimestampField } from "../../components/TimestampField";
 import { useModelSchema } from "../../hooks/useModelSchema";
 import { usePluginSettings } from "../../hooks/usePluginSettings";
 import { withContext } from "../../utils/dashContext";
@@ -1188,37 +1188,27 @@ export function UserDetailDrawer({
                         <MonoChip>{user?.id}</MonoChip>
                       </MetaItem>
                     </Grid.Item>
-                    <Grid.Item col={1}>
-                      <MetaItem>
-                        <MetaKey>
-                          {formatMessage({
-                            id: getTranslation("userDetail.profile.created"),
-                            defaultMessage: "Created",
-                          })}
-                        </MetaKey>
-                        <MetaVal>
-                          {user?.createdAt
-                            ? new Date(user.createdAt).toLocaleString()
-                            : "—"}
-                        </MetaVal>
-                      </MetaItem>
+                    <Grid.Item col={2}>
+                      <TimestampField
+                        name="createdAt"
+                        label={formatMessage({
+                          id: getTranslation("userDetail.profile.created"),
+                          defaultMessage: "Created",
+                        })}
+                        value={extraData.createdAt ?? user?.createdAt}
+                        onChange={handleExtraChange}
+                      />
                     </Grid.Item>
-                    <Grid.Item col={1}>
-                      <MetaItem>
-                        <MetaKey>
-                          {formatMessage({
-                            id: getTranslation(
-                              "userDetail.profile.lastUpdated",
-                            ),
-                            defaultMessage: "Last updated",
-                          })}
-                        </MetaKey>
-                        <MetaVal>
-                          {user?.updatedAt
-                            ? new Date(user.updatedAt).toLocaleString()
-                            : "—"}
-                        </MetaVal>
-                      </MetaItem>
+                    <Grid.Item col={2}>
+                      <TimestampField
+                        name="updatedAt"
+                        label={formatMessage({
+                          id: getTranslation("userDetail.profile.lastUpdated"),
+                          defaultMessage: "Last updated",
+                        })}
+                        value={extraData.updatedAt ?? user?.updatedAt}
+                        onChange={handleExtraChange}
+                      />
                     </Grid.Item>
                   </Grid.Root>
                 </FormSection>

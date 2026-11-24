@@ -90,6 +90,7 @@
   "organizations.detail.members.unknown": "Onbekend",
   "organizations.detail.members.user": "Gebruiker",
   "organizations.detail.meta.id": "Organisatie-ID",
+  "organizations.detail.meta.updated": "Laatst bijgewerkt",
   "organizations.detail.notification.updateError": "Bijwerken mislukt",
   "organizations.detail.notification.updated": "Organisatie succesvol bijgewerkt",
   "organizations.detail.save": "Wijzigingen opslaan",

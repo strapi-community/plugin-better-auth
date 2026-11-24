@@ -90,6 +90,7 @@
   "organizations.detail.members.unknown": "Neznámý",
   "organizations.detail.members.user": "Uživatel",
   "organizations.detail.meta.id": "ID organizace",
+  "organizations.detail.meta.updated": "Naposledy aktualizováno",
   "organizations.detail.notification.updateError": "Aktualizace se nezdařila",
   "organizations.detail.notification.updated": "Organizace byla úspěšně aktualizována",
   "organizations.detail.save": "Uložit změny",
