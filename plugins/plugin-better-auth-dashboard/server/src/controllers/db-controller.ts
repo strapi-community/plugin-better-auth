@@ -23,6 +23,9 @@ function assertValidUid(ctx: Context, uid: unknown): uid is string {
   return true;
 }
 
+/** Content types the dashboard may delete rows from directly. */
+const DELETABLE_UIDS = new Set(["plugin::better-auth.passkey"]);
+
 const dbController = () => ({
   /**
    * List documents.
@@ -118,6 +121,52 @@ const dbController = () => ({
     }
 
     ctx.body = result;
+  },
+
+  /**
+   * Delete a single document owned by a given user.
+   *
+   * Only content types in `DELETABLE_UIDS` are accepted — today just
+   * passkeys, which have no dash() endpoint and whose own delete endpoint
+   * needs the user's session. Everything else (sessions, accounts, jwks,
+   * verification, ...) must go through Better Auth's flows. The document must
+   * belong to `userId`, so a request can only remove a record from the user
+   * being viewed.
+   *
+   * Query params:
+   *   uid    – content-type UID (must be in DELETABLE_UIDS)
+   *   userId – id of the user who owns the document
+   *
+   * Response: 204 No Content.
+   */
+  async delete(ctx: Context) {
+    const { uid, userId } = ctx.query as { uid?: string; userId?: string };
+
+    if (!assertValidUid(ctx, uid)) return;
+    if (!DELETABLE_UIDS.has(uid)) {
+      ctx.status = 400;
+      ctx.body = { error: `Deleting ${uid} documents is not allowed` };
+      return;
+    }
+    if (typeof userId !== "string" || userId.length === 0) {
+      ctx.status = 400;
+      ctx.body = { error: "userId is required" };
+      return;
+    }
+
+    const { documentId } = ctx.params as { documentId: string };
+
+    // biome-ignore lint/suspicious/noExplicitAny: strapi global
+    const service = (strapi as any).documents(uid);
+    const existing = await service.findOne({ documentId });
+    if (!existing || String(existing.userId) !== userId) {
+      ctx.status = 404;
+      ctx.body = { error: "Document not found" };
+      return;
+    }
+
+    await service.delete({ documentId });
+    ctx.status = 204;
   },
 });
 

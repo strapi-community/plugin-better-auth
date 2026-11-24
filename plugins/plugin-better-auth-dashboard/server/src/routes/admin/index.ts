@@ -65,6 +65,15 @@ export default () => ({
       },
     },
     {
+      method: "DELETE",
+      path: "/better-auth-dashboard/db/:documentId",
+      handler: "db-controller.delete",
+      config: {
+        policies: ["has-permission"],
+        prefix: "",
+      },
+    },
+    {
       method: "GET",
       path: "/better-auth-dashboard/settings",
       handler: "settings-controller.get",

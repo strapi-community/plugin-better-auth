@@ -104,6 +104,7 @@ interface Props {
   banEnabled: boolean;
   emailVerificationEnabled: boolean;
   twoFactorEnabled: boolean;
+  passkeyEnabled: boolean;
   onClose: () => void;
 }
 
@@ -112,12 +113,13 @@ export function UserDetailDrawer({
   banEnabled,
   emailVerificationEnabled,
   twoFactorEnabled,
+  passkeyEnabled,
   onClose,
 }: Props) {
   const { formatMessage } = useIntl();
   const qc = useQueryClient();
   const { toggleNotification } = useNotification();
-  const { get, put } = useFetchClient();
+  const { get, put, del } = useFetchClient();
   const schemaQuery = useModelSchema("user");
   const settingsQuery = usePluginSettings();
 
@@ -186,6 +188,30 @@ export function UserDetailDrawer({
     },
   });
 
+  type StrapiPasskey = {
+    id: number;
+    documentId: string;
+    name?: string | null;
+    deviceType?: string | null;
+    backedUp?: boolean | null;
+    aaguid?: string | null;
+    createdAt: string;
+  };
+
+  // Passkeys have no dash() endpoint, so they are read straight from the
+  // passkey content type (only present when the passkey() plugin is enabled).
+  const passkeysQuery = useQuery({
+    queryKey: ["dash-user-passkeys", userId],
+    enabled: passkeyEnabled,
+    queryFn: async () => {
+      const { data } = await get<{ results: StrapiPasskey[] }>(
+        `/better-auth-dashboard/db?uid=plugin::better-auth.passkey&filters[userId][$eq]=${userId}&pagination[pageSize]=100`,
+      );
+      return (data as { results?: StrapiPasskey[] }).results ?? [];
+    },
+  });
+  const passkeys = passkeysQuery.data ?? [];
+
   const strapiUserQuery = useQuery({
     queryKey: ["dash-strapi-user", userId],
     enabled: !!schemaQuery.data,
@@ -228,6 +254,8 @@ export function UserDetailDrawer({
   const [confirmUnlinkAccountId, setConfirmUnlinkAccountId] = useState<
     string | null
   >(null);
+  const [confirmDeletePasskey, setConfirmDeletePasskey] =
+    useState<StrapiPasskey | null>(null);
   const [confirmDisable2FA, setConfirmDisable2FA] = useState(false);
   const [showTotpModal, setShowTotpModal] = useState(false);
   const [showBackupCodesModal, setShowBackupCodesModal] = useState(false);
@@ -531,6 +559,36 @@ export function UserDetailDrawer({
           formatMessage({
             id: getTranslation("userDetail.common.unlinkFailed"),
             defaultMessage: "Failed to unlink account",
+          }),
+      });
+    },
+  });
+
+  const deletePasskeyMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      await del(
+        `/better-auth-dashboard/db/${documentId}?uid=plugin::better-auth.passkey&userId=${encodeURIComponent(userId)}`,
+      );
+    },
+    onSuccess: () => {
+      setConfirmDeletePasskey(null);
+      qc.invalidateQueries({ queryKey: ["dash-user-passkeys", userId] });
+      toggleNotification({
+        type: "success",
+        message: formatMessage({
+          id: getTranslation("userDetail.notifications.passkeyDeleted"),
+          defaultMessage: "Passkey deleted",
+        }),
+      });
+    },
+    onError: (err: Error) => {
+      toggleNotification({
+        type: "danger",
+        message:
+          err.message ??
+          formatMessage({
+            id: getTranslation("userDetail.common.deletePasskeyFailed"),
+            defaultMessage: "Failed to delete passkey",
           }),
       });
     },
@@ -1312,15 +1370,134 @@ export function UserDetailDrawer({
                   </Flex>
                 ) : (
                   <Typography variant="pi" textColor="neutral500">
-                    {formatMessage({
-                      id: getTranslation(
-                        "userDetail.security.linkedAccounts.empty",
-                      ),
-                      defaultMessage: "No linked OAuth accounts.",
-                    })}
+                    {passkeys.length > 0
+                      ? formatMessage({
+                          id: getTranslation(
+                            "userDetail.security.linkedAccounts.emptyPasskeyOnly",
+                          ),
+                          defaultMessage:
+                            "No linked accounts. This user signs in with a passkey.",
+                        })
+                      : formatMessage({
+                          id: getTranslation(
+                            "userDetail.security.linkedAccounts.empty",
+                          ),
+                          defaultMessage: "No linked OAuth accounts.",
+                        })}
                   </Typography>
                 )}
               </FormSection>
+
+              {/* Passkeys */}
+              {passkeyEnabled && (
+                <FormSection>
+                  <SectionLabel>
+                    {formatMessage({
+                      id: getTranslation("userDetail.security.passkeys.title"),
+                      defaultMessage: "Passkeys",
+                    })}
+                  </SectionLabel>
+                  {passkeysQuery.isLoading ? (
+                    <Loader small />
+                  ) : passkeysQuery.isError ? (
+                    <Typography variant="pi" textColor="danger600">
+                      {formatMessage({
+                        id: getTranslation(
+                          "userDetail.security.passkeys.loadFailed",
+                        ),
+                        defaultMessage: "Failed to load passkeys.",
+                      })}
+                    </Typography>
+                  ) : passkeys.length > 0 ? (
+                    <Flex direction="column" gap={2}>
+                      {passkeys.map((pk) => (
+                        <AccountRow key={pk.documentId} alignItems="center">
+                          <Flex
+                            direction="column"
+                            alignItems="flex-start"
+                            gap={1}
+                          >
+                            <Typography variant="omega" fontWeight="semiBold">
+                              {pk.name ||
+                                formatMessage({
+                                  id: getTranslation(
+                                    "userDetail.security.passkeys.unnamed",
+                                  ),
+                                  defaultMessage: "Unnamed passkey",
+                                })}
+                            </Typography>
+                            <Flex gap={2} wrap="wrap">
+                              {pk.deviceType && (
+                                <Badge size="S">
+                                  {pk.deviceType === "multiDevice"
+                                    ? formatMessage({
+                                        id: getTranslation(
+                                          "userDetail.security.passkeys.multiDevice",
+                                        ),
+                                        defaultMessage: "Synced (multi-device)",
+                                      })
+                                    : pk.deviceType === "singleDevice"
+                                      ? formatMessage({
+                                          id: getTranslation(
+                                            "userDetail.security.passkeys.singleDevice",
+                                          ),
+                                          defaultMessage: "Device-bound",
+                                        })
+                                      : pk.deviceType}
+                                </Badge>
+                              )}
+                              {pk.backedUp && (
+                                <Badge size="S" variant="success">
+                                  {formatMessage({
+                                    id: getTranslation(
+                                      "userDetail.security.passkeys.backedUp",
+                                    ),
+                                    defaultMessage: "Backed up",
+                                  })}
+                                </Badge>
+                              )}
+                              <Typography variant="pi" textColor="neutral600">
+                                {formatMessage(
+                                  {
+                                    id: getTranslation(
+                                      "userDetail.security.passkeys.added",
+                                    ),
+                                    defaultMessage: "Added {date}",
+                                  },
+                                  {
+                                    date: new Date(
+                                      pk.createdAt,
+                                    ).toLocaleString(),
+                                  },
+                                )}
+                              </Typography>
+                            </Flex>
+                          </Flex>
+                          <Button
+                            variant="danger-light"
+                            size="S"
+                            onClick={() => setConfirmDeletePasskey(pk)}
+                          >
+                            {formatMessage({
+                              id: getTranslation("userDetail.common.delete"),
+                              defaultMessage: "Delete",
+                            })}
+                          </Button>
+                        </AccountRow>
+                      ))}
+                    </Flex>
+                  ) : (
+                    <Typography variant="pi" textColor="neutral500">
+                      {formatMessage({
+                        id: getTranslation(
+                          "userDetail.security.passkeys.empty",
+                        ),
+                        defaultMessage: "No passkeys registered.",
+                      })}
+                    </Typography>
+                  )}
+                </FormSection>
+              )}
 
               {/* Two-factor authentication */}
               {twoFactorEnabled && (
@@ -2116,6 +2293,39 @@ export function UserDetailDrawer({
           loading={unlinkAccountMutation.isLoading}
           onConfirm={() => unlinkAccountMutation.mutate(confirmUnlinkAccountId)}
           onCancel={() => setConfirmUnlinkAccountId(null)}
+        />
+      )}
+
+      {confirmDeletePasskey && (
+        <ConfirmDialog
+          title={formatMessage({
+            id: getTranslation("userDetail.confirm.deletePasskey.title"),
+            defaultMessage: "Delete passkey",
+          })}
+          message={formatMessage(
+            {
+              id: getTranslation("userDetail.confirm.deletePasskey.message"),
+              defaultMessage:
+                'Are you sure you want to delete the passkey "{name}"? The user will no longer be able to sign in with it.',
+            },
+            {
+              name:
+                confirmDeletePasskey.name ||
+                formatMessage({
+                  id: getTranslation("userDetail.security.passkeys.unnamed"),
+                  defaultMessage: "Unnamed passkey",
+                }),
+            },
+          )}
+          confirmLabel={formatMessage({
+            id: getTranslation("userDetail.common.delete"),
+            defaultMessage: "Delete",
+          })}
+          loading={deletePasskeyMutation.isLoading}
+          onConfirm={() =>
+            deletePasskeyMutation.mutate(confirmDeletePasskey.documentId)
+          }
+          onCancel={() => setConfirmDeletePasskey(null)}
         />
       )}
 

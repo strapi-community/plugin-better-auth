@@ -55,6 +55,7 @@ export function UsersPage({ config }: Props) {
   const emailVerificationEnabled =
     config.emailVerification.sendVerificationEmailEnabled;
   const twoFactorEnabled = hasPlugin(config, "two-factor");
+  const passkeyEnabled = hasPlugin(config, "passkey");
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -618,6 +619,7 @@ export function UsersPage({ config }: Props) {
           banEnabled={banEnabled}
           emailVerificationEnabled={emailVerificationEnabled}
           twoFactorEnabled={twoFactorEnabled}
+          passkeyEnabled={passkeyEnabled}
           onClose={() => setDetailUserId(null)}
         />
       )}
