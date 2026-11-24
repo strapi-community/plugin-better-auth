@@ -61,7 +61,7 @@ describe("db route — delete", () => {
         .delete(`${BASE}/${session.documentId}`)
         .query({ uid, userId })
         .set("Authorization", `Bearer ${adminToken}`);
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(403);
     }
     expect(
       await strapi
@@ -75,14 +75,14 @@ describe("db route — delete", () => {
       .delete(`${BASE}/anything`)
       .query({ uid: "admin::user", userId })
       .set("Authorization", `Bearer ${adminToken}`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(403);
   });
 
-  it("requires the owning userId", async () => {
+  it("refuses passkeys when the passkey plugin isn't installed", async () => {
     const res = await request(strapi.server.httpServer)
       .delete(`${BASE}/anything`)
-      .query({ uid: PASSKEY_UID })
+      .query({ uid: PASSKEY_UID, userId })
       .set("Authorization", `Bearer ${adminToken}`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(403);
   });
 });

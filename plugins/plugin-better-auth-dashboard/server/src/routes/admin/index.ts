@@ -6,7 +6,12 @@ export default () => ({
       path: "/auth/dash/:path*",
       handler: "dash-controller.handleDashRequest",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "dash" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -15,7 +20,12 @@ export default () => ({
       path: "/auth/dash/:path*",
       handler: "dash-controller.handleDashRequest",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "dash" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -24,7 +34,12 @@ export default () => ({
       path: "/auth/dash/:path*",
       handler: "dash-controller.handleDashRequest",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "dash" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -33,7 +48,12 @@ export default () => ({
       path: "/auth/dash/:path*",
       handler: "dash-controller.handleDashRequest",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "dash" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -42,7 +62,12 @@ export default () => ({
       path: "/auth/dash/:path*",
       handler: "dash-controller.handleDashRequest",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "dash" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -51,7 +76,12 @@ export default () => ({
       path: "/better-auth-dashboard/db",
       handler: "db-controller.list",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "db" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -60,7 +90,12 @@ export default () => ({
       path: "/better-auth-dashboard/db/:documentId",
       handler: "db-controller.update",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "db" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -69,7 +104,12 @@ export default () => ({
       path: "/better-auth-dashboard/db/:documentId",
       handler: "db-controller.delete",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "db" },
+          },
+        ],
         prefix: "",
       },
     },
@@ -78,7 +118,12 @@ export default () => ({
       path: "/better-auth-dashboard/settings",
       handler: "settings-controller.get",
       config: {
-        policies: ["has-permission"],
+        policies: [
+          {
+            name: "plugin::better-auth-dashboard.has-permission",
+            config: { route: "settings" },
+          },
+        ],
         prefix: "",
       },
     },
