@@ -12,6 +12,7 @@ const SESSION_UID = "plugin::better-auth.session";
 const ROLE_UID = "plugin::api-permissions.role";
 const PASSWORD = "Password123!";
 
+const superEmail = `perm-super-${Date.now()}@test.dev`;
 let superToken: string;
 let noPermsToken: string;
 let overviewToken: string;
@@ -54,14 +55,12 @@ async function createAdminWithActions(name: string, actions: string[]) {
 beforeAll(async () => {
   await setupStrapi();
 
-  const res = await http()
-    .post("/admin/register-admin")
-    .send({
-      firstname: "Super",
-      lastname: "Admin",
-      email: `perm-super-${Date.now()}@test.dev`,
-      password: PASSWORD,
-    });
+  const res = await http().post("/admin/register-admin").send({
+    firstname: "Super",
+    lastname: "Admin",
+    email: superEmail,
+    password: PASSWORD,
+  });
   superToken = res.body?.data?.token ?? res.body?.data?.accessToken;
   expect(superToken, JSON.stringify(res.body)).toBeTruthy();
 
@@ -202,6 +201,66 @@ describe("admin with only overview.read", () => {
     expect(org.status).toBe(403);
   });
 
+  describe("admin relations", () => {
+    let creatorDocumentId: string;
+
+    beforeAll(async () => {
+      const admin = await strapi.db
+        .query("admin::user")
+        .findOne({ where: { email: superEmail } });
+      const user = await strapi.documents(USER_UID).create({
+        data: {
+          name: "Created By Admin",
+          email: "created.by.admin@test.dev",
+          emailVerified: true,
+          createdBy: admin.id,
+          updatedBy: admin.id,
+        } as never,
+      });
+      creatorDocumentId = user.documentId;
+
+      // Sanity check: the record really has an admin creator to leak.
+      const raw = await strapi.documents(USER_UID).findOne({
+        documentId: creatorDocumentId,
+        populate: ["createdBy"] as never,
+      });
+      expect((raw as { createdBy?: unknown })?.createdBy).toBeTruthy();
+    });
+
+    it.each([
+      "createdBy",
+      "updatedBy",
+      "*",
+      "createdBy.roles",
+    ])("does not populate %s", async (populate) => {
+      const res = await http()
+        .get("/better-auth-dashboard/db")
+        .query({
+          uid: USER_UID,
+          populate,
+          filters: { documentId: { $eq: creatorDocumentId } },
+        })
+        .set("Authorization", auth());
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(1);
+      expect(JSON.stringify(res.body)).not.toContain("password");
+      expect(res.body.results[0].createdBy).toBeUndefined();
+      expect(res.body.results[0].updatedBy).toBeUndefined();
+    });
+
+    it.each([
+      { createdBy: { password: { $startsWith: "$2" } } },
+      { $or: [{ updatedBy: { email: { $eq: "x" } } }] },
+      { $not: { createdBy: { id: { $notNull: true } } } },
+    ])("rejects filters on admin relations: %j", async (filters) => {
+      const res = await http()
+        .get("/better-auth-dashboard/db")
+        .query({ uid: USER_UID, filters })
+        .set("Authorization", auth());
+      expect(res.status).toBe(400);
+    });
+  });
+
   it("cannot search other content types", async () => {
     const res = await http()
       .get("/better-auth-dashboard/db")
@@ -221,6 +280,20 @@ describe("admin with user.update", () => {
       .set("Authorization", auth())
       .send({});
     expect(res.status).toBe(200);
+  });
+
+  it("can still populate non-admin relations", async () => {
+    const res = await http()
+      .get("/better-auth-dashboard/db")
+      .query({
+        uid: USER_UID,
+        populate: "roles,createdBy",
+        filters: { documentId: { $eq: userDocumentId } },
+      })
+      .set("Authorization", auth());
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.results[0].roles)).toBe(true);
+    expect(res.body.results[0].createdBy).toBeUndefined();
   });
 
   it("cannot search content types it can't read in the Content Manager", async () => {

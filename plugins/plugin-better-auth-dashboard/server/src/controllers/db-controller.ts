@@ -58,6 +58,77 @@ async function writeTimestamps(
     .update(values);
 }
 
+type AttributeLike = {
+  type?: string;
+  target?: string;
+  component?: string;
+};
+
+function getAttributes(uid: string): Record<string, AttributeLike> | undefined {
+  const schema =
+    strapi.contentTypes[uid as UID.ContentType] ??
+    strapi.components[uid as UID.Component];
+  return schema?.attributes as Record<string, AttributeLike> | undefined;
+}
+
+/**
+ * Relations the list endpoint may populate: top-level relation attributes
+ * whose target isn't an `admin::` content type. Every content type has
+ * `createdBy`/`updatedBy` relations to `admin::user`, and populating those
+ * returns the raw admin user, password hash included.
+ */
+function getAllowedPopulate(uid: string, populate: unknown): string[] {
+  if (typeof populate !== "string") return [];
+  const attributes = getAttributes(uid) ?? {};
+  return populate
+    .split(",")
+    .map((s) => s.trim())
+    .filter((name) => {
+      const attribute = attributes[name];
+      return (
+        attribute?.type === "relation" &&
+        typeof attribute.target === "string" &&
+        !attribute.target.startsWith("admin::")
+      );
+    });
+}
+
+/**
+ * Whether `filters` reaches into an `admin::` content type through a relation
+ * (e.g. `filters[createdBy][password][$startsWith]=...`), which would let a
+ * caller probe admin password hashes one character at a time.
+ */
+function filtersReachAdmin(uid: string, filters: unknown): boolean {
+  if (Array.isArray(filters)) {
+    return filters.some((item) => filtersReachAdmin(uid, item));
+  }
+  if (!filters || typeof filters !== "object") return false;
+
+  const attributes = getAttributes(uid) ?? {};
+  for (const [key, value] of Object.entries(filters)) {
+    if (key === "$and" || key === "$or" || key === "$not") {
+      if (filtersReachAdmin(uid, value)) return true;
+      continue;
+    }
+    if (key.startsWith("$")) continue;
+
+    const attribute = attributes[key];
+    if (
+      attribute?.type === "relation" &&
+      typeof attribute.target === "string"
+    ) {
+      if (attribute.target.startsWith("admin::")) return true;
+      if (filtersReachAdmin(attribute.target, value)) return true;
+    } else if (
+      attribute?.type === "component" &&
+      typeof attribute.component === "string"
+    ) {
+      if (filtersReachAdmin(attribute.component, value)) return true;
+    }
+  }
+  return false;
+}
+
 /** Content types the dashboard may delete rows from directly. */
 const DELETABLE_UIDS = new Set(["plugin::better-auth.passkey"]);
 
@@ -72,7 +143,9 @@ const dbController = () => ({
    *   sort           – sort string or array, e.g. sort[0]=createdAt:desc
    *   pagination[page]     – 1-indexed page number (default 1)
    *   pagination[pageSize] – items per page (default 50)
-   *   populate       – "*" for all relations, or comma-separated field names
+   *   populate       – comma-separated relation field names; relations to
+   *                    `admin::` content types (createdBy/updatedBy) and
+   *                    anything that isn't a top-level relation are ignored
    *
    * Response: { results: [...], pagination: { page, pageSize, total, pageCount } }
    */
@@ -92,14 +165,15 @@ const dbController = () => ({
       Math.max(1, parseInt(pagination?.pageSize ?? "50", 10)),
     );
 
-    const populateArg = populate
-      ? populate === "*"
-        ? "*"
-        : populate
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-      : undefined;
+    if (filtersReachAdmin(uid, filters)) {
+      ctx.status = 400;
+      ctx.body = { error: "Filtering on admin relations is not allowed" };
+      return;
+    }
+
+    const allowedPopulate = getAllowedPopulate(uid, populate);
+    const populateArg =
+      allowedPopulate.length > 0 ? allowedPopulate : undefined;
 
     // biome-ignore lint/suspicious/noExplicitAny: populate type is complex
     const service = strapi.documents(uid as UID.CollectionType) as any;
