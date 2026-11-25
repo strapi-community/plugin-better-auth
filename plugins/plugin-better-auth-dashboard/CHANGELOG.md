@@ -1,5 +1,11 @@
 # @strapi-community/plugin-better-auth-dashboard
 
+## 1.3.1
+
+### Patch Changes
+
+- [#67](https://github.com/strapi-community/plugin-better-auth/pull/67) [`4f9f32c`](https://github.com/strapi-community/plugin-better-auth/commit/4f9f32ca31380b55cfccad40b81000141ac8a671) Thanks [@Link2Twenty](https://github.com/Link2Twenty)! - Fix the team members list in the organization detail view always showing as empty. The dashboard was sending a POST to the GET-only team members route, which returned a 403.
+
 ## 1.3.0
 
 ### Minor Changes
