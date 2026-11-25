@@ -417,4 +417,62 @@ test.describe("Organizations page", () => {
 
     await page.getByRole("button", { name: "Close panel" }).click();
   });
+
+  test("can invite, resend and cancel an invitation on behalf of the owner", async ({
+    page,
+  }) => {
+    const suffix = uniqueSuffix();
+    const orgName = `Invite Org ${suffix}`;
+    const ownerEmail = `inviteorgowner-${suffix}@example.com`;
+    const inviteeEmail = `invitee-${suffix}@example.com`;
+
+    await page.getByTestId("nav-users").click();
+    await createUser(page, `Invite Owner ${suffix}`, ownerEmail);
+
+    await page.getByTestId("nav-organizations").click();
+    await createOrgWithOwner(page, orgName, ownerEmail);
+
+    const orgRow = page.getByTestId("org-row").filter({ hasText: orgName });
+    await orgRow.getByTestId("edit-org-btn").click();
+
+    await page.getByTestId("org-invitations-tab").click();
+
+    // The inviter defaults to the organization's owner.
+    await expect(
+      page.getByRole("combobox", { name: "Invite as" }),
+    ).toContainText(ownerEmail, { timeout: 10_000 });
+
+    await page.getByPlaceholder("user@example.com").fill(inviteeEmail);
+    const inviteResponse = page.waitForResponse((res) =>
+      res.url().includes("/dash/organization/invite-member"),
+    );
+    await page.getByTestId("send-invitation-btn").click();
+    expect((await inviteResponse).status()).toBe(200);
+
+    const invitationRow = page
+      .getByTestId("invitation-row")
+      .filter({ hasText: inviteeEmail });
+    await expect(invitationRow).toBeVisible({ timeout: 10_000 });
+
+    const resendResponse = page.waitForResponse((res) =>
+      res.url().includes("/dash/organization/resend-invitation"),
+    );
+    await invitationRow.getByRole("button", { name: "Resend" }).click();
+    expect((await resendResponse).status()).toBe(200);
+
+    await invitationRow
+      .getByRole("button", { name: "Cancel invitation" })
+      .click();
+    const cancelResponse = page.waitForResponse((res) =>
+      res.url().includes("/dash/organization/cancel-invitation"),
+    );
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Cancel invitation", exact: true })
+      .click();
+    expect((await cancelResponse).status()).toBe(200);
+    await expect(invitationRow).toContainText("canceled", { timeout: 10_000 });
+
+    await page.getByRole("button", { name: "Close panel" }).click();
+  });
 });

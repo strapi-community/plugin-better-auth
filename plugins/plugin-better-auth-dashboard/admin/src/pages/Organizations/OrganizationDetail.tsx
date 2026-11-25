@@ -95,6 +95,11 @@ const ROLE_OPTIONS = [
   },
 ] as const;
 
+/** Member roles may be a comma-separated list, e.g. "owner,admin". */
+function memberHasRole(role: string | undefined, target: string) {
+  return (role ?? "").split(",").some((r) => r.trim() === target);
+}
+
 function InlineLoader() {
   const { formatMessage } = useIntl();
   return (
@@ -295,6 +300,21 @@ export function OrganizationDetail({
   // Invite member form
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
+  const [inviteFrom, setInviteFrom] = useState<string>("");
+  // Members who can send invitations under Better Auth's default access control.
+  // Owners come first so the default inviter is the organization's owner.
+  const inviters = (membersQuery.data ?? [])
+    .filter(
+      (m) => memberHasRole(m.role, "owner") || memberHasRole(m.role, "admin"),
+    )
+    .sort(
+      (a, b) =>
+        Number(memberHasRole(b.role, "owner")) -
+        Number(memberHasRole(a.role, "owner")),
+    );
+  const inviterId = inviters.some((m) => m.userId === inviteFrom)
+    ? inviteFrom
+    : inviters[0]?.userId;
   const [confirmCancelInvitationId, setConfirmCancelInvitationId] = useState<
     string | null
   >(null);
@@ -661,9 +681,19 @@ export function OrganizationDetail({
 
   const inviteMemberMutation = useMutation({
     mutationFn: async () => {
+      // Dashboard users are Strapi admins, not Better Auth users, so the
+      // invitation is sent on behalf of an org member who is allowed to invite.
+      if (!inviterId)
+        throw new Error(
+          formatMessage({
+            id: getTranslation("organizations.detail.invitations.inviter.none"),
+            defaultMessage:
+              "This organization needs an owner or admin to send invitations.",
+          }),
+        );
       const result = await client.dash.organization.inviteMember(
-        { email: inviteEmail, role: inviteRole, invitedBy: "" } as never,
-        withContext({ organizationId }, getAuthHeaders()),
+        { email: inviteEmail, role: inviteRole, invitedBy: inviterId } as never,
+        withContext({ organizationId, invitedBy: inviterId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(
@@ -710,7 +740,7 @@ export function OrganizationDetail({
     mutationFn: async (invitationId: string) => {
       const result = await client.dash.organization.cancelInvitation(
         { invitationId } as never,
-        withContext({ organizationId }, getAuthHeaders()),
+        withContext({ organizationId, invitationId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(
@@ -755,7 +785,7 @@ export function OrganizationDetail({
     mutationFn: async (invitationId: string) => {
       const result = await client.dash.organization.resendInvitation(
         { invitationId } as never,
-        withContext({ organizationId }, getAuthHeaders()),
+        withContext({ organizationId, invitationId }, getAuthHeaders()),
       );
       if (result.error)
         throw new Error(
@@ -902,7 +932,7 @@ export function OrganizationDetail({
                 )}
               </Tabs.Trigger>
             )}
-            <Tabs.Trigger value="invitations">
+            <Tabs.Trigger value="invitations" data-testid="org-invitations-tab">
               {formatMessage(
                 {
                   id: getTranslation("organizations.detail.tabs.invitations"),
@@ -1091,7 +1121,7 @@ export function OrganizationDetail({
                     />
                   </Grid.Item>
                   <Grid.Item col={4}>
-                    <Field.Root>
+                    <Field.Root width="100%">
                       <Field.Label>
                         {formatMessage({
                           id: getTranslation("organizations.common.role"),
@@ -1401,7 +1431,7 @@ export function OrganizationDetail({
                 </SectionLabel>
                 <Grid.Root gap={3}>
                   <Grid.Item col={8}>
-                    <Field.Root>
+                    <Field.Root width="100%">
                       <Field.Label>
                         {formatMessage({
                           id: getTranslation(
@@ -1426,7 +1456,7 @@ export function OrganizationDetail({
                     </Field.Root>
                   </Grid.Item>
                   <Grid.Item col={4}>
-                    <Field.Root>
+                    <Field.Root width="100%">
                       <Field.Label>
                         {formatMessage({
                           id: getTranslation("organizations.common.role"),
@@ -1456,12 +1486,61 @@ export function OrganizationDetail({
                       </SingleSelect>
                     </Field.Root>
                   </Grid.Item>
+                  <Grid.Item col={12}>
+                    <Field.Root
+                      hint={formatMessage({
+                        id: getTranslation(
+                          "organizations.detail.invitations.inviter.hint",
+                        ),
+                        defaultMessage:
+                          "The invitation is sent on behalf of this owner or admin.",
+                      })}
+                      error={
+                        !membersQuery.isLoading && inviters.length === 0
+                          ? formatMessage({
+                              id: getTranslation(
+                                "organizations.detail.invitations.inviter.none",
+                              ),
+                              defaultMessage:
+                                "This organization needs an owner or admin to send invitations.",
+                            })
+                          : undefined
+                      }
+                    >
+                      <Field.Label>
+                        {formatMessage({
+                          id: getTranslation(
+                            "organizations.detail.invitations.inviter.label",
+                          ),
+                          defaultMessage: "Invite as",
+                        })}
+                      </Field.Label>
+                      <SingleSelect
+                        value={inviterId ?? ""}
+                        onChange={(v: string | number) =>
+                          setInviteFrom(String(v))
+                        }
+                        disabled={inviters.length === 0}
+                      >
+                        {inviters.map((m) => (
+                          <SingleSelectOption key={m.userId} value={m.userId}>
+                            {m.user?.email
+                              ? `${m.user.name ?? m.user.email} (${m.user.email})`
+                              : (m.user?.name ?? m.userId)}
+                          </SingleSelectOption>
+                        ))}
+                      </SingleSelect>
+                      <Field.Hint />
+                      <Field.Error />
+                    </Field.Root>
+                  </Grid.Item>
                 </Grid.Root>
                 <Box>
                   <Button
                     size="S"
                     startIcon={<Plus />}
-                    disabled={!inviteEmail}
+                    disabled={!inviteEmail || !inviterId}
+                    data-testid="send-invitation-btn"
                     loading={inviteMemberMutation.isLoading}
                     onClick={() => inviteMemberMutation.mutate()}
                   >
@@ -1503,7 +1582,7 @@ export function OrganizationDetail({
                     {invitations.map((inv) => {
                       const isPending = inv.status === "pending";
                       return (
-                        <AccountRow key={inv.id}>
+                        <AccountRow key={inv.id} data-testid="invitation-row">
                           <Flex
                             direction="column"
                             gap={1}
