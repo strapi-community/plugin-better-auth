@@ -1,5 +1,64 @@
 # @strapi-community/plugin-better-auth-dashboard
 
+## 1.3.0
+
+### Minor Changes
+
+- [#64](https://github.com/strapi-community/plugin-better-auth/pull/64) [`caf542f`](https://github.com/strapi-community/plugin-better-auth/commit/caf542f06143657f8346961dbf80db8336781680) Thanks [@boazpoolman](https://github.com/boazpoolman)! - Make `createdAt` and `updatedAt` editable in the user and organization detail drawers. The dashboard db route now writes these timestamps straight to the table, since Strapi's document service would otherwise reset `updatedAt` to the current time on every update.
+
+### Patch Changes
+
+- [#63](https://github.com/strapi-community/plugin-better-auth/pull/63) [`b97ee38`](https://github.com/strapi-community/plugin-better-auth/commit/b97ee386ed70456f2f0fbf6c9e3ff0041f510141) Thanks [@boazpoolman](https://github.com/boazpoolman)! - fix(dashboard): don't expose admin users through `/better-auth-dashboard/db`
+  
+  The list route no longer populates or filters on relations to `admin::` content
+  types (such as the `createdBy`/`updatedBy` fields every content type has), which
+  returned the related admin user including their password hash. `populate` now
+  only accepts top-level relation fields; `*` and nested paths are ignored. This
+  only applies to logged-in Strapi admins; the public Content API is not affected.
+
+- [#58](https://github.com/strapi-community/plugin-better-auth/pull/58) [`0add43c`](https://github.com/strapi-community/plugin-better-auth/commit/0add43c416e8956e8f26eef29a5c9161c8cf9388) Thanks [@boazpoolman](https://github.com/boazpoolman)! - fix(dashboard): saving a user when only custom fields changed
+  
+  Saving a user where only custom fields changed (for example a relation such as
+  Roles) sent an empty update to Better Auth. `@better-auth/infra` 0.4 rejects
+  that with "No valid fields to update", so the save failed. The dashboard now
+  only updates the Better Auth user when one of its own fields changed.
+
+- [#63](https://github.com/strapi-community/plugin-better-auth/pull/63) [`3aaba4d`](https://github.com/strapi-community/plugin-better-auth/commit/3aaba4d19b38cd36132b26dd846880ff3c482601) Thanks [@boazpoolman](https://github.com/boazpoolman)! - fix(dashboard): save organization name and slug through Better Auth
+  
+  The organization detail drawer wrote `name` and `slug` straight to the
+  database, so Better Auth's validation and organization hooks were skipped. They
+  now go through Better Auth's `dash()` organization update, the same way the user
+  drawer saves user fields. Changing an organization's slug to one that is
+  already taken now shows "Slug already exists" instead of a database error.
+  
+  The logo is still saved directly, because Better Auth's update endpoint only
+  accepts absolute URLs and would reject media library paths such as
+  `/uploads/logo.png`.
+
+- [#63](https://github.com/strapi-community/plugin-better-auth/pull/63) [`3aaba4d`](https://github.com/strapi-community/plugin-better-auth/commit/3aaba4d19b38cd36132b26dd846880ff3c482601) Thanks [@boazpoolman](https://github.com/boazpoolman)! - fix(dashboard): match admin route permissions to the admin panel
+  
+  Some of the dashboard's admin API routes didn't fully check the admin's
+  dashboard permissions, so an authenticated admin could call them without the
+  permission the admin panel requires for the same action. This only applies to
+  logged-in Strapi admins; the public Content API is not affected.
+  
+  Each route now requires the same dashboard permission as the matching action in
+  the admin panel, and anything the panel doesn't do is denied:
+  
+  - Overview → `Overview: Read`; user and organization lists → `Read`;
+    create dialogs → `Create`; deletes → `Delete`; the detail drawers and every
+    action inside them → `Update`.
+  - `dash()` endpoints the dashboard doesn't use (such as `execute-adapter`,
+    `impersonate-user` and `export-users`) can't be called through the admin
+    route.
+  - `/better-auth-dashboard/db` only serves the Better Auth `user`, `session`,
+    `passkey` and `organization` content types, and never `admin::` content
+    types. Searching a custom relation field's target content type requires
+    Content Manager read access to it, the same as in the Content Manager.
+  
+  If an admin role used the dashboard without the matching permission, grant it
+  under Settings → Roles → Plugins → Better Auth Dashboard.
+
 ## 1.2.0
 
 ### Minor Changes
