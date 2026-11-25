@@ -86,3 +86,72 @@ describe("db route — delete", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("db route — update timestamps", () => {
+  async function createUser() {
+    return strapi.documents(USER_UID).create({
+      data: {
+        name: "Timestamp User",
+        email: `ts-${Math.random().toString(36).slice(2)}@test.dev`,
+        emailVerified: true,
+      },
+    });
+  }
+
+  it("writes createdAt and updatedAt as submitted", async () => {
+    const user = await createUser();
+    const createdAt = "2020-01-02T03:04:05.000Z";
+    const updatedAt = "2021-06-07T08:09:10.000Z";
+
+    const res = await request(strapi.server.httpServer)
+      .put(`${BASE}/${user.documentId}`)
+      .query({ uid: USER_UID })
+      .send({ name: "Renamed", createdAt, updatedAt })
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    const stored = await strapi
+      .documents(USER_UID)
+      .findOne({ documentId: user.documentId });
+    expect(stored?.name).toBe("Renamed");
+    expect(new Date(stored?.createdAt as string).toISOString()).toBe(createdAt);
+    expect(new Date(stored?.updatedAt as string).toISOString()).toBe(updatedAt);
+    expect(new Date(res.body.updatedAt).toISOString()).toBe(updatedAt);
+  });
+
+  it("updates timestamps without other fields", async () => {
+    const user = await createUser();
+    const createdAt = "2019-12-31T23:59:59.000Z";
+
+    const res = await request(strapi.server.httpServer)
+      .put(`${BASE}/${user.documentId}`)
+      .query({ uid: USER_UID })
+      .send({ createdAt })
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    const stored = await strapi
+      .documents(USER_UID)
+      .findOne({ documentId: user.documentId });
+    expect(new Date(stored?.createdAt as string).toISOString()).toBe(createdAt);
+  });
+
+  it("rejects invalid dates", async () => {
+    const user = await createUser();
+    const res = await request(strapi.server.httpServer)
+      .put(`${BASE}/${user.documentId}`)
+      .query({ uid: USER_UID })
+      .send({ createdAt: "not-a-date" })
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 404 for unknown documents", async () => {
+    const res = await request(strapi.server.httpServer)
+      .put(`${BASE}/does-not-exist`)
+      .query({ uid: USER_UID })
+      .send({ createdAt: "2020-01-01T00:00:00.000Z" })
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(res.status).toBe(404);
+  });
+});

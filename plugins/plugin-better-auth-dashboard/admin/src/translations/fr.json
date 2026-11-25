@@ -90,6 +90,7 @@
   "organizations.detail.members.unknown": "Inconnu",
   "organizations.detail.members.user": "Utilisateur",
   "organizations.detail.meta.id": "ID de l’organisation",
+  "organizations.detail.meta.updated": "Dernière mise à jour",
   "organizations.detail.notification.updateError": "Échec de la mise à jour",
   "organizations.detail.notification.updated": "Organisation mise à jour avec succès",
   "organizations.detail.save": "Enregistrer les modifications",

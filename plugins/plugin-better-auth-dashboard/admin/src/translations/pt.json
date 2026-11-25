@@ -90,6 +90,7 @@
   "organizations.detail.members.unknown": "Desconhecido",
   "organizations.detail.members.user": "Utilizador",
   "organizations.detail.meta.id": "ID da organização",
+  "organizations.detail.meta.updated": "Última atualização",
   "organizations.detail.notification.updateError": "Falha ao atualizar",
   "organizations.detail.notification.updated": "Organização atualizada com sucesso",
   "organizations.detail.save": "Gravar alterações",

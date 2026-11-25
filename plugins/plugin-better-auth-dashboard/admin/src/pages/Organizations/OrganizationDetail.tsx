@@ -39,6 +39,7 @@ import {
 } from "../../components/FormPrimitives";
 import { MediaPickerField } from "../../components/MediaPickerField";
 import { SheetDialog } from "../../components/Sheet";
+import { TimestampField } from "../../components/TimestampField";
 import { UserCombobox } from "../../components/UserCombobox";
 import { useModelSchema } from "../../hooks/useModelSchema";
 import { withContext } from "../../utils/dashContext";
@@ -1031,20 +1032,29 @@ export function OrganizationDetail({
                         <MetaVal>{org?.memberCount ?? 0}</MetaVal>
                       </MetaItem>
                     </Grid.Item>
-                    <Grid.Item col={1}>
-                      <MetaItem>
-                        <MetaKey>
-                          {formatMessage({
-                            id: getTranslation("organizations.common.created"),
-                            defaultMessage: "Created",
-                          })}
-                        </MetaKey>
-                        <MetaVal>
-                          {org?.createdAt
-                            ? new Date(org.createdAt).toLocaleDateString()
-                            : "—"}
-                        </MetaVal>
-                      </MetaItem>
+                    <Grid.Item col={2}>
+                      <TimestampField
+                        name="createdAt"
+                        label={formatMessage({
+                          id: getTranslation("organizations.common.created"),
+                          defaultMessage: "Created",
+                        })}
+                        value={extraData.createdAt ?? org?.createdAt}
+                        onChange={handleExtraChange}
+                      />
+                    </Grid.Item>
+                    <Grid.Item col={2}>
+                      <TimestampField
+                        name="updatedAt"
+                        label={formatMessage({
+                          id: getTranslation(
+                            "organizations.detail.meta.updated",
+                          ),
+                          defaultMessage: "Last updated",
+                        })}
+                        value={extraData.updatedAt}
+                        onChange={handleExtraChange}
+                      />
                     </Grid.Item>
                   </Grid.Root>
                 </FormSection>

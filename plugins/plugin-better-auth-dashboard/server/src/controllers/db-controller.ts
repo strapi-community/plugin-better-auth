@@ -23,6 +23,41 @@ function assertValidUid(ctx: Context, uid: unknown): uid is string {
   return true;
 }
 
+type TimestampField = "createdAt" | "updatedAt";
+
+function parseTimestamp(value: unknown): Date | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Write `createdAt`/`updatedAt` straight to the table. The document service
+ * can't do this: Strapi's timestamps lifecycle subscriber overwrites
+ * `updatedAt` with "now" on every update, so the raw query also runs after
+ * any regular update to make the submitted value stick.
+ */
+async function writeTimestamps(
+  uid: string,
+  documentId: string,
+  timestamps: Partial<Record<TimestampField, Date>>,
+) {
+  const meta = strapi.db.metadata.get(uid as UID.Schema);
+  const columnName = (attribute: string) =>
+    (meta.attributes[attribute] as { columnName?: string } | undefined)
+      ?.columnName ?? attribute;
+
+  const values: Record<string, Date> = {};
+  for (const [field, date] of Object.entries(timestamps)) {
+    values[columnName(field)] = date;
+  }
+
+  await strapi.db
+    .getConnection(meta.tableName)
+    .where(columnName("documentId"), documentId)
+    .update(values);
+}
+
 type AttributeLike = {
   type?: string;
   target?: string;
@@ -182,16 +217,40 @@ const dbController = () => ({
 
     const { documentId } = ctx.params as { documentId: string };
 
+    const { createdAt, updatedAt, ...data } = (ctx.request.body ??
+      {}) as Record<string, unknown>;
+
+    const timestamps: Partial<Record<TimestampField, Date>> = {};
+    for (const [field, value] of [
+      ["createdAt", createdAt],
+      ["updatedAt", updatedAt],
+    ] as const) {
+      if (value === undefined) continue;
+      const date = parseTimestamp(value);
+      if (!date) {
+        ctx.status = 400;
+        ctx.body = { error: `${field} must be a valid date` };
+        return;
+      }
+      timestamps[field] = date;
+    }
+
     // biome-ignore lint/suspicious/noExplicitAny: strapi global
-    const result = await (strapi as any).documents(uid).update({
-      documentId,
-      data: ctx.request.body,
-    });
+    const service = (strapi as any).documents(uid);
+
+    let result = await (Object.keys(data).length > 0
+      ? service.update({ documentId, data })
+      : service.findOne({ documentId }));
 
     if (!result) {
       ctx.status = 404;
       ctx.body = { error: "Document not found" };
       return;
+    }
+
+    if (Object.keys(timestamps).length > 0) {
+      await writeTimestamps(uid, documentId, timestamps);
+      result = await service.findOne({ documentId });
     }
 
     ctx.body = result;
