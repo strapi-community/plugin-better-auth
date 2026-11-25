@@ -18,6 +18,9 @@ export interface DashContext {
   sessionId?: string;
   organizationId?: string;
   memberId?: string;
+  invitationId?: string;
+  /** Better Auth user id of the org member an invitation is sent on behalf of. */
+  invitedBy?: string;
   skipDefaultTeam?: boolean;
 }
 

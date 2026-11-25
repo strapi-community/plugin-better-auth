@@ -19,6 +19,9 @@ export const auth = betterAuth({
       teams: {
         enabled: true,
       },
+      // No mail transport in the playground; required for the dashboard's
+      // invite flow, which refuses to create invitations without it.
+      sendInvitationEmail: async () => {},
     }),
     twoFactor(),
     jwt(),
