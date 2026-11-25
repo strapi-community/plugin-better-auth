@@ -1,101 +1,98 @@
-// Types
 import type { Core } from "@strapi/strapi";
-// Utils
 import { errors } from "@strapi/utils";
 import type { Context } from "koa";
+import {
+  ALL_ACTIONS,
+  type DashAction,
+  getDashRule,
+  getDbRule,
+  isBetterAuthUid,
+  RELATION_SEARCH_ACTIONS,
+  toActionId,
+} from "../permissions";
+import { canReadInContentManager } from "../utils/content-manager";
 
 const { PolicyError } = errors;
 
-type Route = {
-  method: string;
-  path: string;
-  handler: string;
-  config: unknown;
-  info: unknown;
+export type HasPermissionConfig = {
+  /** Which group of admin routes this policy guards. */
+  route: "dash" | "db" | "settings";
 };
 
-// references to categories by path start
-const endpointsCategories = Object.freeze({
-  "/auth/dash/config": ["overview", "user", "organization"],
-  "/auth/dash/user-stats": ["overview"],
-  "/auth/dash/user-graph-data": ["overview"],
-  "/auth/dash/user-retention-data": ["overview"],
-  "/auth/dash/list-users": ["overview", "user"],
-  "/auth/dash/list-organization": ["overview", "organization"],
-  "/auth/dash/user": ["user"],
-  "/auth/dash/organization": ["organization"],
-});
+type Ability = { can: (action: string, subject?: unknown) => boolean };
 
-// references to actions by method
-const types = Object.freeze({
-  POST: "read",
+const DB_OPERATIONS = {
+  GET: "list",
   PUT: "update",
-  GET: "read",
   DELETE: "delete",
-});
+} as const;
 
-// references to predictable actions
-const endpointsTypes = Object.freeze({
-  "/auth/dash/user-stats": "read",
-  "/auth/dash/user-graph-data": "read",
-  "/auth/dash/user-retention-data": "read",
-  "/auth/dash/list-users": "read",
-  "/auth/dash/list-organizations": "read",
-  "/auth/dash/organization/options": "read",
-  "/auth/dash/create-user": "create",
-  "/auth/dash/update-user": "update",
-  "/auth/dash/user": "read",
-  "/auth/dash/delete-user": "delete",
-  "/auth/dash/organization/create": "create",
-  "/auth/dash/organization/delete": "delete",
-});
-
-export default async (
+function canAccessDb(
+  strapi: Core.Strapi,
   ctx: Context,
-  _: unknown,
-  { strapi }: { strapi: Core.Strapi },
-) => {
-  const { user, route } = ctx.state as {
-    user: { roles: { id: number }[] };
-    route: Route;
-  };
-  if (!user) return false;
+  hasAny: (actions: DashAction[]) => boolean,
+): boolean {
+  const op = DB_OPERATIONS[ctx.request.method as keyof typeof DB_OPERATIONS];
+  // Policies get a copy of ctx's own properties only, so the `ctx.query`
+  // getter isn't there; read it from the request.
+  const { uid } = ctx.request.query as { uid?: unknown };
+  if (!op || typeof uid !== "string" || !(uid in strapi.contentTypes)) {
+    return false;
+  }
+  if (uid.startsWith("admin::")) return false;
 
-  const inherentType = types[route.method as keyof typeof types];
-  const determinedType =
-    endpointsTypes?.[
-      Object.keys(endpointsTypes)?.find((k) =>
-        ctx.originalUrl?.includes(k),
-      ) as keyof typeof endpointsTypes
-    ];
-
-  const found = [];
-  for await (const role of user.roles) {
-    const categories =
-      endpointsCategories[
-        Object.keys(endpointsCategories).find((key) =>
-          ctx.originalUrl.startsWith(key),
-        ) as keyof typeof endpointsCategories
-      ];
-    const permissions = await strapi.documents("admin::permission").findMany({
-      filters: {
-        $or: (categories || []).map((cat) => ({
-          role: { id: role.id },
-          action: {
-            $startsWith: "plugin::better-auth-dashboard",
-            $containsi: cat,
-            $endsWith: determinedType || inherentType,
-          },
-        })),
-      },
-    });
-
-    if (permissions?.length > 0) found.push(...permissions);
+  if (isBetterAuthUid(uid)) {
+    const anyOf = getDbRule(uid, op);
+    return !!anyOf && hasAny(anyOf);
   }
 
-  if (found.length <= 0) {
+  // Any other content type can only be searched (custom relation fields in a
+  // detail drawer), and only if the Content Manager would show it too.
+  return (
+    op === "list" &&
+    hasAny(RELATION_SEARCH_ACTIONS) &&
+    canReadInContentManager(strapi, ctx.state.userAbility, uid)
+  );
+}
+
+/**
+ * Lets an admin call a dashboard route only when their role grants the
+ * dashboard permission the admin panel requires for the same action. See
+ * `../permissions.ts` for the mapping. Anything unmapped is denied.
+ */
+export default (
+  ctx: Context,
+  config: HasPermissionConfig,
+  { strapi }: { strapi: Core.Strapi },
+) => {
+  const ability = ctx.state.userAbility as Ability | undefined;
+  if (!ctx.state.user || !ability) {
     throw new PolicyError("You do not have permission to see this content.");
   }
 
+  const hasAny = (actions: DashAction[]) =>
+    actions.some((action) => ability.can(toActionId(action)));
+
+  let allowed = false;
+  switch (config?.route) {
+    case "dash": {
+      const anyOf = getDashRule(
+        ctx.request.method,
+        (ctx.params as { path?: string }).path,
+      );
+      allowed = !!anyOf && hasAny(anyOf);
+      break;
+    }
+    case "settings":
+      allowed = hasAny(ALL_ACTIONS);
+      break;
+    case "db":
+      allowed = canAccessDb(strapi, ctx, hasAny);
+      break;
+  }
+
+  if (!allowed) {
+    throw new PolicyError("You do not have permission to see this content.");
+  }
   return true;
 };

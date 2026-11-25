@@ -310,10 +310,17 @@ export function OrganizationDetail({
 
   const updateOrgMutation = useMutation({
     mutationFn: async () => {
-      const body: Record<string, unknown> = { ...editExtra };
-      if (editName !== undefined) body.name = editName;
-      if (editSlug !== undefined) body.slug = editSlug;
-      if (editLogo !== undefined) body.logo = editLogo;
+      // Better Auth fields go through dash() so its validation (e.g. slug
+      // uniqueness) and organization hooks run.
+      const dashBody: { name?: string; slug?: string } = {};
+      if (editName !== undefined) dashBody.name = editName;
+      if (editSlug !== undefined) dashBody.slug = editSlug;
+
+      // Custom fields, plus `logo`: dash's update endpoint only accepts an
+      // absolute URL there, which would reject media library paths
+      // (`/uploads/...`) and clearing the logo.
+      const dbBody: Record<string, unknown> = { ...editExtra };
+      if (editLogo !== undefined) dbBody.logo = editLogo;
 
       const documentId = strapiOrgQuery.data?.documentId as string | undefined;
       if (!documentId)
@@ -324,10 +331,29 @@ export function OrganizationDetail({
           }),
         );
 
-      await put(
-        `/better-auth-dashboard/db/${documentId}?uid=plugin::better-auth.organization`,
-        body,
-      );
+      if (Object.keys(dashBody).length > 0) {
+        const result = await client.dash.organization.update(
+          dashBody,
+          withContext({ organizationId }, getAuthHeaders()),
+        );
+        if (result.error)
+          throw new Error(
+            result.error.message ??
+              formatMessage({
+                id: getTranslation(
+                  "organizations.detail.notification.updateError",
+                ),
+                defaultMessage: "Update failed",
+              }),
+          );
+      }
+
+      if (Object.keys(dbBody).length > 0) {
+        await put(
+          `/better-auth-dashboard/db/${documentId}?uid=plugin::better-auth.organization`,
+          dbBody,
+        );
+      }
     },
     onSuccess: async () => {
       await qc.invalidateQueries({
