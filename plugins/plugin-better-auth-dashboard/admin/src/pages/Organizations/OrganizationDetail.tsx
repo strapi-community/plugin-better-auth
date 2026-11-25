@@ -1718,7 +1718,7 @@ function TeamRow({
         // @ts-expect-error
         organizationId as ":orgId"
       ].teams[team.id as ":teamId"].members(
-        { params: { orgId: organizationId, teamId: team.id } },
+        {},
         withContext({ organizationId }, getAuthHeaders()),
       );
       if (result.error)

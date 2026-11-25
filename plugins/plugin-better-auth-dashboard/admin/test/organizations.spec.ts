@@ -417,4 +417,84 @@ test.describe("Organizations page", () => {
 
     await page.getByRole("button", { name: "Close panel" }).click();
   });
+
+  test("Teams tab lists the members of a team", async ({ page }) => {
+    test.setTimeout(60_000);
+    const suffix = uniqueSuffix();
+    const orgName = `Team Org ${suffix}`;
+    const teamName = `Team ${suffix}`;
+    const ownerName = `Team Owner ${suffix}`;
+    const ownerEmail = `teamorgowner-${suffix}@example.com`;
+
+    await page.getByTestId("nav-users").click();
+    await createUser(page, ownerName, ownerEmail);
+
+    await page.getByTestId("nav-organizations").click();
+    await createOrgWithOwner(page, orgName, ownerEmail);
+
+    const openTeam = async () => {
+      const orgRow = page.getByTestId("org-row").filter({ hasText: orgName });
+      await orgRow.getByTestId("edit-org-btn").click();
+      await page.getByRole("tab", { name: /Teams/ }).click();
+
+      const teamRow = page
+        .getByTestId("team-row")
+        .filter({ hasText: teamName });
+      // Listing a team's members is a GET endpoint in dash(); sending it as
+      // anything else is rejected by the route permission policy.
+      const membersResponse = page.waitForResponse((response) =>
+        /\/auth\/dash\/organization\/[^/]+\/teams\/[^/]+\/members/.test(
+          response.url(),
+        ),
+      );
+      await teamRow.getByRole("button", { name: teamName }).click();
+      const response = await membersResponse;
+      expect(response.request().method()).toBe("GET");
+      expect(response.status()).toBe(200);
+      return teamRow;
+    };
+
+    // Create the team.
+    const orgRow = page.getByTestId("org-row").filter({ hasText: orgName });
+    await orgRow.getByTestId("edit-org-btn").click();
+    await page.getByRole("tab", { name: /Teams/ }).click();
+    await page.getByPlaceholder("e.g. Engineering").fill(teamName);
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(
+      page.getByTestId("team-row").filter({ hasText: teamName }),
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Close panel" }).click();
+
+    // Expand it and add the owner as a member.
+    let teamRow = await openTeam();
+    await expect(teamRow.getByText("No members in this team.")).toBeVisible();
+    await teamRow.getByRole("combobox", { name: "Add member to team" }).click();
+    await page
+      .getByRole("option", { name: new RegExp(ownerEmail, "i") })
+      .click();
+    await teamRow.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(teamRow.getByText(ownerEmail)).toBeVisible({
+      timeout: 10_000,
+    });
+    // Reload so the members list is fetched from the server again rather than
+    // served from the query cache.
+    await page.reload();
+    await expect(page.getByTestId("organizations-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    teamRow = await openTeam();
+    await expect(teamRow.getByText(ownerEmail)).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(teamRow.getByText("No members in this team.")).toHaveCount(0);
+
+    // The listed member can be removed from the team again.
+    await teamRow.getByRole("button", { name: "Remove from team" }).click();
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(teamRow.getByText("No members in this team.")).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await page.getByRole("button", { name: "Close panel" }).click();
+  });
 });
